@@ -27,7 +27,7 @@ export function AppShell({
       <div className="app-workspace">
         <header className="app-header">
           <div>
-            <p className="phase-label">Phase 1.3</p>
+            <p className="phase-label">Phase 1.4</p>
             <strong>{title}</strong>
           </div>
           <button

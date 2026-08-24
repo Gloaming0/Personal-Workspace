@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createTask } from '@/domain/task'
-import {
-  InMemoryTaskRepository,
-  RepositoryVersionConflictError,
-} from './InMemoryTaskRepository'
+import { InMemoryTaskRepository } from './InMemoryTaskRepository'
+import { RepositoryVersionConflictError } from '@/repositories/errors'
 
 describe('InMemoryTaskRepository', () => {
   const task = createTask(

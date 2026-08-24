@@ -27,6 +27,7 @@ describe('Task Today UI boundary', () => {
         createId: () => 'task-user-input',
         now: () => '2026-08-24T10:00:00.000Z',
       }),
+      ready: Promise.resolve(),
     }
     render(<TaskTodayWorkspace runtime={runtime} />)
     await waitFor(() =>

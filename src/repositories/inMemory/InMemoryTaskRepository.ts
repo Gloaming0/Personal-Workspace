@@ -5,13 +5,7 @@ import type {
   TaskQuery,
   TaskRepository,
 } from '@/repositories/contracts'
-
-export class RepositoryVersionConflictError extends Error {
-  constructor(id: EntityId) {
-    super(`Task ${id} was changed by another operation.`)
-    this.name = 'RepositoryVersionConflictError'
-  }
-}
+import { RepositoryVersionConflictError } from '@/repositories/errors'
 
 function cloneTask(task: Task): Task {
   return structuredClone(task)

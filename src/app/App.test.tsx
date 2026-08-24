@@ -27,7 +27,7 @@ describe('Daily Work OS application shell', () => {
     })
   })
 
-  it('renders Today as the default workspace without enabling CRUD modules', () => {
+  it('renders Today as the default workspace with only the Task slice active', () => {
     renderApplication()
 
     expect(
@@ -35,7 +35,7 @@ describe('Daily Work OS application shell', () => {
         name: 'Today',
       }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Phase 1.3')).toBeInTheDocument()
+    expect(screen.getByText('Phase 1.4')).toBeInTheDocument()
     expect(
       screen.getByRole('region', { name: 'Today focus' }),
     ).toBeInTheDocument()

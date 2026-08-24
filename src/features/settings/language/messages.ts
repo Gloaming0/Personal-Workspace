@@ -92,6 +92,8 @@ const englishMessages = {
   'today.removeFocus': 'Remove focus',
   'today.focusLimitError': 'Today focus is limited to three tasks.',
   'today.taskActionError': 'The task could not be updated. Try again.',
+  'today.localDatabaseError':
+    'Local task storage is unavailable. Reload and try again.',
   'today.waitingTitle': 'Waiting',
   'today.waitingDescription':
     'Responsibilities currently in someone else’s hands.',
@@ -223,6 +225,7 @@ const chineseMessages = {
   'today.removeFocus': '移出重点',
   'today.focusLimitError': '今日重点最多只能有三项任务。',
   'today.taskActionError': '任务更新失败，请重试。',
+  'today.localDatabaseError': '本地任务存储暂时不可用，请刷新后重试。',
   'today.waitingTitle': '等待事项',
   'today.waitingDescription': '目前需要由其他人继续推进的责任。',
   'today.waitingEmptyTitle': '没有等待事项。',

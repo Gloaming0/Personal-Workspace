@@ -7,9 +7,10 @@ import { MockTodaySupportingViewModelSource } from './MockTodaySupportingViewMod
 import { createTodaySupportingMock } from './mockData'
 import type { TodayDashboardViewModel } from './viewModel'
 import { FocusLimitError } from '@/features/tasks/TaskService'
+import { TaskPersistenceError } from '@/repositories/errors'
 import {
-  createTaskRuntime,
-  demoUserId,
+  getTaskRuntime,
+  localUserId,
   type TaskRuntime,
 } from '@/features/tasks/taskRuntime'
 import { useTranslations } from '@/features/settings/language/useTranslations'
@@ -42,7 +43,8 @@ interface TaskTodayWorkspaceProps {
 
 export function TaskTodayWorkspace({ runtime }: TaskTodayWorkspaceProps) {
   const { language, t } = useTranslations()
-  const [taskRuntime] = useState(() => runtime ?? createTaskRuntime())
+  const localDatabaseError = t('today.localDatabaseError')
+  const [taskRuntime] = useState(() => runtime ?? getTaskRuntime())
   const date = format(new Date(), 'yyyy-MM-dd')
   const [viewModel, setViewModel] = useState(() =>
     createPendingViewModel(date, language),
@@ -61,30 +63,38 @@ export function TaskTodayWorkspace({ runtime }: TaskTodayWorkspaceProps) {
   )
 
   const refresh = useCallback(async () => {
+    await taskRuntime.ready
     const data = await query.execute({
       date,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     })
     setViewModel(data)
     setLoading(false)
-  }, [date, query])
+  }, [date, query, taskRuntime])
 
   useEffect(() => {
     let active = true
-    void query
-      .execute({
-        date,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      })
+    void taskRuntime.ready
+      .then(() =>
+        query.execute({
+          date,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }),
+      )
       .then((data) => {
         if (!active) return
         setViewModel(data)
         setLoading(false)
       })
+      .catch(() => {
+        if (!active) return
+        setActionError(localDatabaseError)
+        setLoading(false)
+      })
     return () => {
       active = false
     }
-  }, [date, query])
+  }, [date, localDatabaseError, query, taskRuntime])
 
   const runCommand = async (command: () => Promise<unknown>) => {
     setActionError(null)
@@ -95,7 +105,9 @@ export function TaskTodayWorkspace({ runtime }: TaskTodayWorkspaceProps) {
       setActionError(
         error instanceof FocusLimitError
           ? t('today.focusLimitError')
-          : t('today.taskActionError'),
+          : error instanceof TaskPersistenceError
+            ? localDatabaseError
+            : t('today.taskActionError'),
       )
     }
   }
@@ -108,7 +120,7 @@ export function TaskTodayWorkspace({ runtime }: TaskTodayWorkspaceProps) {
       onCreateTask={(title) =>
         runCommand(() =>
           taskRuntime.service.create({
-            userId: demoUserId,
+            userId: localUserId,
             title,
             plannedDate: date,
           }),

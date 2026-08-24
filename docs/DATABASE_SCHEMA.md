@@ -1,6 +1,6 @@
 # Daily Work OS Database Schema
 
-Version: 1.1
+Version: 1.2
 
 
 # Purpose
@@ -261,6 +261,33 @@ Priority:
 P1
 P2
 P3
+
+## Local IndexedDB Implementation
+
+Phase 1.4 stores only `Task` in Dexie/IndexedDB. Database name:
+`daily-work-os`; schema version: `1`; table: `tasks`; primary key: `id`.
+
+The table persists every Task Domain field without UI-specific fields. It
+defines indexes for `userId`, `status`, `priority`, `plannedDate`, `dueAt`,
+`projectId`, `focusDate`, `completedAt`, `deletedAt`, and `updatedAt`, plus
+compound indexes for `[userId+plannedDate]`, `[userId+focusDate]`, and
+`[userId+status]`.
+
+- `id` is a locally generated UUID.
+- `createdAt`, `updatedAt`, `completedAt`, and `deletedAt` are UTC ISO 8601
+  timestamps.
+- `plannedDate` and `focusDate` retain `LocalDate` (`YYYY-MM-DD`) semantics and
+  are not converted to UTC instants.
+- Deletion is soft: the row remains stored with `deletedAt`, while repository
+  reads exclude it by default.
+- A create starts at `version = 1`. Each update, including soft deletion,
+  persists exactly the previous version plus one. Stale or skipped-version
+  writes are rejected inside the Dexie transaction.
+
+Dexie schema versions are append-only. Future migrations add a new
+`database.version(n)` declaration and retain earlier declarations so existing
+local databases can upgrade in place. Version 1 is the migration baseline and
+requires no data transform.
 
 
 

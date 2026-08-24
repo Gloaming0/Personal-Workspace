@@ -992,6 +992,56 @@ Focus is derived from eligible `todo` or `doing` Tasks. Completing a Task sets
 `todo` and clears `completedAt`. Moving to `later` or `archived` uses the same
 Domain normalization and cannot preserve Focus.
 
-The current in-memory maximum-three check is sufficient for the single-session
-adapter. A persistent or synchronized adapter will require an atomic
-service/transaction boundary so concurrent writers cannot exceed the limit.
+The current maximum-three check is sufficient for one application command
+runtime. Multi-tab or synchronized writers will require a future atomic
+service/transaction boundary so concurrent commands cannot exceed the limit.
+
+
+---
+
+# Phase 1.4 Task Local Persistence
+
+Phase 1.4 replaces only the production Task adapter. `Task`, its Domain
+transitions, `TaskService`, `TaskRepository`, `TodayDashboardQuery`, the View
+Model Assembler, and Widget inputs are unchanged. `InMemoryTaskRepository`
+remains available for isolated Domain and UI tests.
+
+```text
+TaskService / TodayDashboardQuery
+              ↓
+       TaskRepository port
+              ↓
+       DexieTaskRepository
+              ↓
+DailyWorkDatabase.tasks (IndexedDB)
+```
+
+`DailyWorkDatabase` uses the stable name `daily-work-os`. Schema version 1
+creates only the `tasks` table and its Task query indexes. Version declarations
+are append-only: a future migration adds a higher version and optional upgrade
+function without editing or removing version 1.
+
+The production Task Runtime is shared for the application session, explicitly
+opens the database, and exposes only the repository port, `TaskService`, and an
+initialization promise to the Today container. Initialization and storage
+failures are translated into a localized UI error; UI components never import
+Dexie or the database class.
+
+Writes run inside a Dexie read-write transaction. Existing rows require the
+caller's `expectedVersion` to match and the persisted entity version to equal
+the previous version plus one. New rows start at version 1. UUID generation and
+UTC timestamps remain TaskService/Domain responsibilities, while `plannedDate`
+and `focusDate` remain local calendar dates.
+
+Soft-deleted Task rows remain in IndexedDB for future recovery/sync semantics,
+but `getById` and every `find` query exclude `deletedAt != null`. No physical
+delete is exposed by the Task Repository port.
+
+The maximum-three Focus invariant still spans a query and a write at the
+service layer. It is correct for the current single-tab runtime; multi-tab
+coordination will need an atomic use-case boundary in a later persistence/sync
+phase without moving the rule into Widgets.
+
+Waiting, Memo, Routine, Activity, cloud sync, realtime, and sync queues remain
+outside this phase. The existing supporting Mock View Model source is
+unchanged.
