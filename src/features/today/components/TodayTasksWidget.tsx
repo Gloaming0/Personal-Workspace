@@ -8,11 +8,15 @@ import type { TodayTaskItemViewModel, TodayWidgetStatus } from '../viewModel'
 interface TodayTasksWidgetProps {
   items: TodayTaskItemViewModel[]
   status?: TodayWidgetStatus
+  onToggleTask?: (taskId: string, completed: boolean) => Promise<unknown>
+  onToggleFocus?: (taskId: string, focused: boolean) => Promise<unknown>
 }
 
 export function TodayTasksWidget({
   items,
   status = 'ready',
+  onToggleTask,
+  onToggleFocus,
 }: TodayTasksWidgetProps) {
   const { t } = useTranslations()
 
@@ -39,8 +43,11 @@ export function TodayTasksWidget({
                 aria-label={item.title}
                 type="checkbox"
                 checked={item.status === 'done'}
-                disabled
-                readOnly
+                disabled={!onToggleTask}
+                onChange={() =>
+                  void onToggleTask?.(item.taskId, item.status === 'done')
+                }
+                readOnly={!onToggleTask}
               />
               <div className="work-item-copy">
                 <strong>{item.title}</strong>
@@ -53,9 +60,26 @@ export function TodayTasksWidget({
                     .join(' · ')}
                 </span>
               </div>
-              {item.priority === 'P1' && (
-                <span className="priority-mark">{t('today.highPriority')}</span>
-              )}
+              <div className="task-item-actions">
+                {item.priority === 'P1' && (
+                  <span className="priority-mark">
+                    {t('today.highPriority')}
+                  </span>
+                )}
+                {onToggleFocus && item.status !== 'done' && (
+                  <button
+                    className="task-inline-action"
+                    type="button"
+                    onClick={() =>
+                      void onToggleFocus(item.taskId, item.focusOrder !== null)
+                    }
+                  >
+                    {item.focusOrder === null
+                      ? t('today.setFocus')
+                      : t('today.removeFocus')}
+                  </button>
+                )}
+              </div>
             </li>
           ))}
         </ul>

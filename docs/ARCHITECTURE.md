@@ -940,3 +940,58 @@ Quick Memo in the persistent utility panel. Mobile renders those two core
 modules inline and reserves the Utility Drawer for secondary Recent Activity
 and Upcoming context. Responsive layout never changes Domain queries or entity
 identity.
+
+
+---
+
+# Phase 1.3 Task Vertical Slice
+
+Phase 1.3 activates only the Task path. `InMemoryTaskRepository` implements the
+existing storage-neutral `TaskRepository` port and is created once per running
+application session. It does not persist across reloads and contains no Dexie,
+Supabase, sync, or browser-storage dependency.
+
+Task mutations follow this path:
+
+```text
+Today command callback
+      ↓
+TaskService
+      ↓
+Task Domain rules
+      ↓
+TaskRepository port
+      ↓
+InMemoryTaskRepository
+```
+
+The UI never receives a repository. `TaskService` owns Create, Complete,
+Reopen, Set Focus, and Remove Focus use cases. Single-entity transition rules
+remain pure Domain functions; the service owns the cross-entity maximum-three
+Focus invariant and optimistic version hand-off.
+
+Today reads follow this path:
+
+```text
+InMemoryTaskRepository ─┐
+                       ├→ TodayDashboardQuery
+Mock supporting source ┘          ↓
+                         View Model Assembler
+                                  ↓
+                    TodayDashboardViewModel → Widgets
+```
+
+Only `plannedTasks` and `focusTasks` are backed by Domain entities in this
+phase. Waiting, Routine/Check-in, Memo, and Activity remain behind the explicit
+`TodaySupportingViewModelSource` mock boundary. This source is transitional:
+future vertical slices replace each supporting View Model fragment with
+repository-backed feature queries without changing Widget inputs.
+
+Focus is derived from eligible `todo` or `doing` Tasks. Completing a Task sets
+`completedAt` and clears `focusDate`/`focusOrder`; reopening returns it to
+`todo` and clears `completedAt`. Moving to `later` or `archived` uses the same
+Domain normalization and cannot preserve Focus.
+
+The current in-memory maximum-three check is sufficient for the single-session
+adapter. A persistent or synchronized adapter will require an atomic
+service/transaction boundary so concurrent writers cannot exceed the limit.

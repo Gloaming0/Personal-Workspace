@@ -8,9 +8,14 @@ import type { TodayFocusItemViewModel, TodayWidgetStatus } from '../viewModel'
 interface FocusWidgetProps {
   items: TodayFocusItemViewModel[]
   status?: TodayWidgetStatus
+  onRemoveFocus?: (taskId: string) => Promise<unknown>
 }
 
-export function FocusWidget({ items, status = 'ready' }: FocusWidgetProps) {
+export function FocusWidget({
+  items,
+  status = 'ready',
+  onRemoveFocus,
+}: FocusWidgetProps) {
   const { t } = useTranslations()
   const visibleItems = [...items]
     .sort((left, right) => left.focusOrder - right.focusOrder)
@@ -47,6 +52,15 @@ export function FocusWidget({ items, status = 'ready' }: FocusWidgetProps) {
                     .join(' · ')}
                 </span>
               </div>
+              {onRemoveFocus && (
+                <button
+                  className="task-inline-action"
+                  type="button"
+                  onClick={() => void onRemoveFocus(item.taskId)}
+                >
+                  {t('today.removeFocus')}
+                </button>
+              )}
             </li>
           ))}
         </ol>

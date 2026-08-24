@@ -21,6 +21,7 @@ export interface RepositoryWriteOptions {
 
 export interface TaskQuery {
   statuses?: readonly TaskStatus[]
+  plannedOn?: LocalDate
   plannedOnOrBefore?: LocalDate
   completedOn?: LocalDate
   focusDate?: LocalDate

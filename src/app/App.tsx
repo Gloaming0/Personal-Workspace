@@ -3,7 +3,7 @@ import { AppShell } from './shell/AppShell'
 import type { AppView } from './shell/types'
 import { SettingsPage } from '@/features/settings/SettingsPage'
 import { useTranslations } from '@/features/settings/language/useTranslations'
-import { TodayDashboard } from '@/features/today/TodayDashboard'
+import { TaskTodayWorkspace } from '@/features/today/TaskTodayWorkspace'
 
 export function App() {
   const [activeView, setActiveView] = useState<AppView>('today')
@@ -19,7 +19,7 @@ export function App() {
           : t('shell.todayTitle')
       }
     >
-      {activeView === 'settings' ? <SettingsPage /> : <TodayDashboard />}
+      {activeView === 'settings' ? <SettingsPage /> : <TaskTodayWorkspace />}
     </AppShell>
   )
 }

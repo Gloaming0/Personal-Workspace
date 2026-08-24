@@ -18,6 +18,7 @@ export interface TodayTaskItemViewModel {
   plannedAt: Instant | null
   priority: TaskPriority
   status: TaskStatus
+  focusOrder: 1 | 2 | 3 | null
 }
 
 export interface TodayWaitingItemViewModel {

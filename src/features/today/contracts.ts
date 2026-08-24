@@ -1,23 +1,13 @@
-import type {
-  Activity,
-  Memo,
-  Project,
-  Routine,
-  RoutineLog,
-  Task,
-  Waiting,
-} from '@/domain/entities'
+import type { Task } from '@/domain/entities'
 import type { LocalDate } from '@/domain/shared'
+import type { TaskRepository } from '@/repositories/contracts'
 import type {
-  ActivityRepository,
-  MemoRepository,
-  ProjectRepository,
-  RoutineLogRepository,
-  RoutineRepository,
-  TaskRepository,
-  WaitingRepository,
-} from '@/repositories/contracts'
-import type { TodayDashboardViewModel } from './viewModel'
+  TodayActivityItemViewModel,
+  TodayCheckInItemViewModel,
+  TodayDashboardViewModel,
+  TodayQuickMemoViewModel,
+  TodayWaitingItemViewModel,
+} from './viewModel'
 
 export interface TodayDashboardQueryInput {
   date: LocalDate
@@ -28,27 +18,32 @@ export interface TodayDashboardQuery {
   execute(input: TodayDashboardQueryInput): Promise<TodayDashboardViewModel>
 }
 
+export interface TodaySupportingViewModel {
+  waiting: TodayWaitingItemViewModel[]
+  checkIns: TodayCheckInItemViewModel[]
+  quickMemo: TodayQuickMemoViewModel | null
+  recentActivity: TodayActivityItemViewModel[]
+  waitingCount: number
+  completedCheckInCount: number
+  totalCheckInCount: number
+}
+
+export interface TodaySupportingViewModelSource {
+  get(input: TodayDashboardQueryInput): TodaySupportingViewModel
+}
+
 export interface TodayDashboardQueryDependencies {
   tasks: TaskRepository
-  waiting: WaitingRepository
-  routines: RoutineRepository
-  routineLogs: RoutineLogRepository
-  memos: MemoRepository
-  projects: ProjectRepository
-  activity: ActivityRepository
+  supportingData: TodaySupportingViewModelSource
   assembler: TodayDashboardViewModelAssembler
 }
 
 export interface TodayDashboardAggregate {
   date: LocalDate
   timezone: string
-  tasks: Task[]
-  waiting: Waiting[]
-  routines: Routine[]
-  routineLogs: RoutineLog[]
-  memos: Memo[]
-  projects: Project[]
-  activity: Activity[]
+  plannedTasks: Task[]
+  focusTasks: Task[]
+  supportingData: TodaySupportingViewModel
 }
 
 export interface TodayDashboardViewModelAssembler {

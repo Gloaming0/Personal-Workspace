@@ -88,6 +88,7 @@ export function createTodayDashboardMock(
       plannedAt: atTime(now, [10, 13, 9, 16][index] ?? 9, index === 1 ? 30 : 0),
       priority: index === 0 ? 'P1' : 'P2',
       status: index === 2 ? 'done' : 'todo',
+      focusOrder: index < 2 ? ((index + 1) as 1 | 2) : null,
     })),
     waiting: copy.waiting.map(([title, person], index) => ({
       waitingId: `waiting-${index + 1}`,
@@ -147,4 +148,17 @@ export const emptyTodayDashboardMock: TodayDashboardViewModel = {
   checkIns: [],
   quickMemo: null,
   recentActivity: [],
+}
+
+export function createTodaySupportingMock(language: Language) {
+  const mock = createTodayDashboardMock(language)
+  return {
+    waiting: mock.waiting,
+    checkIns: mock.checkIns,
+    quickMemo: mock.quickMemo,
+    recentActivity: mock.recentActivity,
+    waitingCount: mock.summary.waitingCount,
+    completedCheckInCount: mock.summary.completedCheckInCount,
+    totalCheckInCount: mock.summary.totalCheckInCount,
+  }
 }
