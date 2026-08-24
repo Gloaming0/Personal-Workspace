@@ -1,0 +1,18 @@
+[data-theme='forest'] {
+  --bg-primary: #edf0e8;
+  --bg-secondary: #e2e7db;
+  --surface: #f7f9f3;
+  --surface-hover: #eaf0e3;
+  --text-primary: #293229;
+  --text-secondary: #5d6a5c;
+  --text-muted: #849082;
+  --border: #d3dbc9;
+  --border-hover: #b9c6ae;
+  --accent: #587258;
+  --accent-hover: #455e46;
+  --accent-soft: #dce6d7;
+  --accent-contrast: #ffffff;
+  --success: #527259;
+  --warning: #9a783a;
+  --danger: #9d514c;
+}

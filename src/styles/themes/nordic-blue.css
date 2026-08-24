@@ -1,0 +1,18 @@
+[data-theme='nordic-blue'] {
+  --bg-primary: #eff3f5;
+  --bg-secondary: #e4eaed;
+  --surface: #f9fbfc;
+  --surface-hover: #edf3f5;
+  --text-primary: #26343b;
+  --text-secondary: #61717a;
+  --text-muted: #8a989f;
+  --border: #d4dee2;
+  --border-hover: #bacbd2;
+  --accent: #54788a;
+  --accent-hover: #416575;
+  --accent-soft: #dce8ed;
+  --accent-contrast: #ffffff;
+  --success: #567965;
+  --warning: #a97836;
+  --danger: #a95050;
+}

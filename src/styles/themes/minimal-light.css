@@ -1,0 +1,19 @@
+:root,
+[data-theme='minimal-light'] {
+  --bg-primary: #f7f7f5;
+  --bg-secondary: #efefec;
+  --surface: #ffffff;
+  --surface-hover: #f4f4f1;
+  --text-primary: #20231f;
+  --text-secondary: #5d635d;
+  --text-muted: #8b918b;
+  --border: #e1e3de;
+  --border-hover: #c9cdc6;
+  --accent: #53655a;
+  --accent-hover: #415047;
+  --accent-soft: #e6ebe7;
+  --accent-contrast: #ffffff;
+  --success: #4d765d;
+  --warning: #a06e2c;
+  --danger: #a84e4e;
+}

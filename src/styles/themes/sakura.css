@@ -1,0 +1,18 @@
+[data-theme='sakura'] {
+  --bg-primary: #faf5f5;
+  --bg-secondary: #f3e9eb;
+  --surface: #fffafb;
+  --surface-hover: #f8eef0;
+  --text-primary: #403638;
+  --text-secondary: #746468;
+  --text-muted: #a18f93;
+  --border: #eadadd;
+  --border-hover: #d9c0c5;
+  --accent: #a46e79;
+  --accent-hover: #895965;
+  --accent-soft: #f2dfe3;
+  --accent-contrast: #ffffff;
+  --success: #6c8068;
+  --warning: #ae7a3f;
+  --danger: #ad575f;
+}

@@ -1,0 +1,18 @@
+[data-theme='warm-paper'] {
+  --bg-primary: #f4eee2;
+  --bg-secondary: #ebe1d2;
+  --surface: #fbf7ef;
+  --surface-hover: #f2e9dc;
+  --text-primary: #3d352d;
+  --text-secondary: #716255;
+  --text-muted: #9a8a7a;
+  --border: #ded0bd;
+  --border-hover: #c9b69d;
+  --accent: #8a6045;
+  --accent-hover: #704b35;
+  --accent-soft: #eadbca;
+  --accent-contrast: #fffaf2;
+  --success: #687d57;
+  --warning: #ad742c;
+  --danger: #a55448;
+}
