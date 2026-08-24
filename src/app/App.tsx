@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { FoundationPage } from './pages/FoundationPage'
 import { AppShell } from './shell/AppShell'
 import type { AppView } from './shell/types'
 import { SettingsPage } from '@/features/settings/SettingsPage'
 import { useTranslations } from '@/features/settings/language/useTranslations'
+import { TodayDashboard } from '@/features/today/TodayDashboard'
 
 export function App() {
-  const [activeView, setActiveView] = useState<AppView>('foundation')
+  const [activeView, setActiveView] = useState<AppView>('today')
   const { t } = useTranslations()
 
   return (
@@ -16,10 +16,10 @@ export function App() {
       title={
         activeView === 'settings'
           ? t('shell.settingsTitle')
-          : t('shell.foundationTitle')
+          : t('shell.todayTitle')
       }
     >
-      {activeView === 'settings' ? <SettingsPage /> : <FoundationPage />}
+      {activeView === 'settings' ? <SettingsPage /> : <TodayDashboard />}
     </AppShell>
   )
 }

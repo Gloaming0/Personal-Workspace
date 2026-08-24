@@ -12,9 +12,9 @@ export function MobileNavigation({
     <nav className="mobile-navigation" aria-label={t('nav.primary')}>
       <button
         type="button"
-        data-active={activeView === 'foundation' || undefined}
-        aria-current={activeView === 'foundation' ? 'page' : undefined}
-        onClick={() => onNavigate('foundation')}
+        data-active={activeView === 'today' || undefined}
+        aria-current={activeView === 'today' ? 'page' : undefined}
+        onClick={() => onNavigate('today')}
       >
         <CalendarDays aria-hidden="true" size={19} />
         <span>{t('nav.today')}</span>

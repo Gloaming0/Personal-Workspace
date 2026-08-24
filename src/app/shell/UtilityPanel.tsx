@@ -1,6 +1,7 @@
-import { Check, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useTranslations } from '@/features/settings/language/useTranslations'
+import { TodayUtilityWidgets } from '@/features/today/TodayUtilityWidgets'
 
 interface UtilityPanelProps {
   drawerOpen: boolean
@@ -8,37 +9,7 @@ interface UtilityPanelProps {
 }
 
 function UtilityContent() {
-  const { t } = useTranslations()
-
-  return (
-    <>
-      <div className="utility-panel-heading">
-        <div>
-          <p className="section-label">Phase 0.5</p>
-          <h2>{t('shell.utilityTitle')}</h2>
-        </div>
-      </div>
-      <p className="utility-panel-description">
-        {t('shell.utilityDescription')}
-      </p>
-      <dl className="utility-status-list">
-        <div>
-          <dt>
-            <Check aria-hidden="true" size={15} />
-            {t('shell.utilityResponsive')}
-          </dt>
-          <dd>{t('shell.utilityResponsiveValue')}</dd>
-        </div>
-        <div>
-          <dt>
-            <Check aria-hidden="true" size={15} />
-            {t('shell.utilityPreferences')}
-          </dt>
-          <dd>{t('shell.utilityPreferencesValue')}</dd>
-        </div>
-      </dl>
-    </>
-  )
+  return <TodayUtilityWidgets />
 }
 
 export function UtilityPanel({ drawerOpen, onCloseDrawer }: UtilityPanelProps) {

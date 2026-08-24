@@ -28,7 +28,7 @@ const navigationItems: NavigationItem[] = [
     enabled: true,
     icon: CalendarDays,
     labelKey: 'nav.today',
-    view: 'foundation',
+    view: 'today',
   },
   { enabled: false, icon: Inbox, labelKey: 'nav.inbox' },
   { enabled: false, icon: CheckSquare2, labelKey: 'nav.tasks' },
@@ -51,7 +51,7 @@ export function Sidebar({ activeView, onNavigate }: ShellNavigationProps) {
         className="brand"
         type="button"
         aria-label={t('nav.home')}
-        onClick={() => onNavigate('foundation')}
+        onClick={() => onNavigate('today')}
       >
         <span className="brand-mark">DW</span>
         <span className="sidebar-label">Daily Work OS</span>

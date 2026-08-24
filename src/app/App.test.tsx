@@ -8,6 +8,7 @@ import {
   preferencesStorageKey,
   usePreferencesStore,
 } from '@/features/settings/preferences/preferencesStore'
+import { themeOptions } from '@/features/settings/theme/types'
 
 function renderApplication() {
   return render(
@@ -17,7 +18,7 @@ function renderApplication() {
   )
 }
 
-describe('Phase 0.5 application foundation', () => {
+describe('Daily Work OS application shell', () => {
   beforeEach(() => {
     window.localStorage.clear()
     usePreferencesStore.setState({
@@ -26,15 +27,22 @@ describe('Phase 0.5 application foundation', () => {
     })
   })
 
-  it('renders the app shell without enabling business modules', () => {
+  it('renders Today as the default workspace without enabling CRUD modules', () => {
     renderApplication()
 
     expect(
       screen.getByRole('heading', {
-        name: 'Your personal work desk is taking shape.',
+        name: 'Today',
       }),
     ).toBeInTheDocument()
-    expect(screen.getAllByText('Phase 0.5')).toHaveLength(2)
+    expect(screen.getByText('Phase 1.1')).toBeInTheDocument()
+    expect(
+      screen.getByRole('region', { name: 'Today focus' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('region', { name: 'Today tasks' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Waiting' })).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Inbox' })).toHaveLength(2)
     expect(
       screen
@@ -107,5 +115,21 @@ describe('Phase 0.5 application foundation', () => {
 
     expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeEnabled()
+  })
+
+  it('applies every built-in named theme to the Today workspace', async () => {
+    const user = userEvent.setup()
+    renderApplication()
+    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    const themeSelect = screen.getByRole('combobox', { name: 'Theme' })
+
+    for (const theme of themeOptions) {
+      if (theme.value === 'system') continue
+      await user.selectOptions(themeSelect, theme.value)
+      expect(document.documentElement).toHaveAttribute(
+        'data-theme',
+        theme.value,
+      )
+    }
   })
 })
