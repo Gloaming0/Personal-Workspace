@@ -1,23 +1,35 @@
 import { Palette } from 'lucide-react'
+import { useTranslations } from '../language/useTranslations'
+import { usePreferencesStore } from '../preferences/preferencesStore'
 import { themeOptions, type Theme } from './types'
-import { useThemeStore } from './themeStore'
+
+const themeMessageKeys = {
+  system: 'theme.system',
+  'minimal-light': 'theme.minimalLight',
+  'minimal-dark': 'theme.minimalDark',
+  'warm-paper': 'theme.warmPaper',
+  'nordic-blue': 'theme.nordicBlue',
+  sakura: 'theme.sakura',
+  forest: 'theme.forest',
+} as const
 
 export function ThemeSwitcher() {
-  const theme = useThemeStore((state) => state.theme)
-  const setTheme = useThemeStore((state) => state.setTheme)
+  const theme = usePreferencesStore((state) => state.theme)
+  const setTheme = usePreferencesStore((state) => state.setTheme)
+  const { t } = useTranslations()
 
   return (
-    <label className="theme-switcher">
-      <span className="sr-only">Theme</span>
+    <label className="preference-switcher">
+      <span className="sr-only">{t('preferences.theme')}</span>
       <Palette aria-hidden="true" size={16} />
       <select
-        aria-label="Theme"
+        aria-label={t('preferences.theme')}
         value={theme}
         onChange={(event) => setTheme(event.target.value as Theme)}
       >
         {themeOptions.map((option) => (
           <option key={option.value} value={option.value}>
-            {option.label}
+            {t(themeMessageKeys[option.value])}
           </option>
         ))}
       </select>

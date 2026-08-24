@@ -1,13 +1,13 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from '@/app/App'
-import { ThemeProvider } from '@/features/settings/theme/ThemeProvider'
+import { PreferencesProvider } from '@/features/settings/preferences/PreferencesProvider'
 import '@/styles/index.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemeProvider>
+    <PreferencesProvider>
       <App />
-    </ThemeProvider>
+    </PreferencesProvider>
   </StrictMode>,
 )

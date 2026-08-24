@@ -1,6 +1,6 @@
 import { useEffect, type PropsWithChildren } from 'react'
-import { useThemeStore } from './themeStore'
-import type { ResolvedTheme, Theme } from './types'
+import { usePreferencesStore } from './preferencesStore'
+import type { ResolvedTheme, Theme } from '../theme/types'
 
 const darkModeQuery = '(prefers-color-scheme: dark)'
 
@@ -11,8 +11,13 @@ function resolveTheme(theme: Theme): ResolvedTheme {
     : 'minimal-light'
 }
 
-export function ThemeProvider({ children }: PropsWithChildren) {
-  const theme = useThemeStore((state) => state.theme)
+export function PreferencesProvider({ children }: PropsWithChildren) {
+  const language = usePreferencesStore((state) => state.language)
+  const theme = usePreferencesStore((state) => state.theme)
+
+  useEffect(() => {
+    document.documentElement.lang = language
+  }, [language])
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(darkModeQuery)

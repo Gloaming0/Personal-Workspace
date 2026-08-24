@@ -675,6 +675,24 @@ Components use:
 var(--color-token)
 Never:
 #ffffff
+Language Architecture
+Supported languages:
+- English (en)
+- Simplified Chinese (zh-CN)
+Structure:
+features/settings/
+
+language/
+
+messages.ts
+
+useTranslations.ts
+
+LanguageSwitcher.tsx
+
+All user-facing copy must use typed message keys.
+Components must not contain parallel hardcoded translations.
+The selected language is stored with user preferences and updates the document language.
 State Management
 Use Zustand for:
 - UI state

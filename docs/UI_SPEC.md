@@ -921,6 +921,27 @@ Forest
 
 ---
 
+# Language
+
+
+Options:
+
+
+English
+中文（简体）
+
+
+Behavior:
+
+
+- Default to the browser language when no preference exists.
+- Apply language changes immediately without reloading.
+- Persist the user's selection.
+- Update accessibility labels and the document language.
+
+
+---
+
 # Density
 
 

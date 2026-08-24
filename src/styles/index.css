@@ -186,14 +186,20 @@ a {
   text-transform: uppercase;
 }
 
-.theme-switcher {
+.preference-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.preference-switcher {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   color: var(--text-secondary);
 }
 
-.theme-switcher select {
+.preference-switcher select {
   min-height: 2.5rem;
   padding: 0 var(--space-8) 0 var(--space-3);
   border: 1px solid var(--border);
@@ -203,7 +209,7 @@ a {
   cursor: pointer;
 }
 
-.theme-switcher select:hover {
+.preference-switcher select:hover {
   border-color: var(--border-hover);
 }
 
@@ -398,14 +404,27 @@ a {
 
   .topbar {
     min-height: 4.25rem;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4) 0;
   }
 
   .phase-label {
-    max-width: 9rem;
+    max-width: none;
   }
 
-  .theme-switcher select {
-    max-width: 8.5rem;
+  .preference-controls {
+    width: 100%;
+  }
+
+  .preference-switcher {
+    flex: 1;
+  }
+
+  .preference-switcher select {
+    min-width: 0;
+    width: 100%;
   }
 
   .hero {
