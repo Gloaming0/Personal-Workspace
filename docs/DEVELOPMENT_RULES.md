@@ -1,0 +1,873 @@
+# Daily Work OS Development Rules
+
+Version: 1.0
+
+
+# Purpose
+
+This document defines development rules for AI coding agents and human developers working on Daily Work OS.
+
+The goal is:
+
+- Maintain product consistency
+- Preserve architecture quality
+- Avoid unnecessary complexity
+- Keep the codebase maintainable long-term
+
+
+---
+
+# Core Development Philosophy
+
+
+## Build a product, not a demo
+
+
+Daily Work OS is intended to become a long-term product.
+
+Do not optimize for:
+
+- Fastest implementation
+- Shortest code
+- Temporary solutions
+
+
+Optimize for:
+
+- Maintainability
+- User experience
+- Clear architecture
+- Future scalability
+
+
+---
+
+# Before Writing Code
+
+
+Before implementing any feature, the developer must:
+
+
+## Step 1
+
+Read:
+
+
+PRODUCT.md
+DESIGN_SYSTEM.md
+ARCHITECTURE.md
+
+
+Understand:
+
+- Why this feature exists
+- How it fits the product
+- How it should look
+- How it affects architecture
+
+
+---
+
+## Step 2
+
+Analyze the request.
+
+
+Answer:
+
+
+1. Does this feature match the product vision?
+
+
+2. Does this reduce user effort?
+
+
+3. Does this introduce unnecessary complexity?
+
+
+4. Does this affect existing architecture?
+
+
+5. Does this require database changes?
+
+
+6. Does this affect synchronization?
+
+
+---
+
+## Step 3
+
+Create an implementation plan.
+
+
+Before coding, explain:
+
+
+- Data changes
+- UI changes
+- Component changes
+- Architecture impact
+- Testing plan
+
+
+Do not immediately modify files.
+
+
+---
+
+# Feature Development Rules
+
+
+Every feature must consider:
+
+
+## 1. Data Model
+
+
+Questions:
+
+
+- Does this require a new entity?
+- Does existing data structure support it?
+- Does it need synchronization?
+
+
+---
+
+## 2. Local Database
+
+
+If data changes:
+
+
+Update:
+
+Dexie schema
+Repository
+Migration
+
+
+---
+
+## 3. Cloud Database
+
+
+If synchronized:
+
+
+Update:
+
+Supabase schema
+RLS policy
+Sync handler
+
+
+---
+
+## 4. UI
+
+
+Every UI feature must support:
+
+
+- Desktop
+- Mobile
+- All themes
+- Loading state
+- Empty state
+- Error state
+
+
+---
+
+## 5. Testing
+
+
+Every feature requires:
+
+
+- Unit test consideration
+- Integration test consideration
+
+
+---
+
+# Do Not Break Existing Principles
+
+
+Never violate:
+
+
+## Product
+
+
+Daily Work OS should remain:
+
+
+- Personal
+- Lightweight
+- Calm
+
+
+Do not turn it into:
+
+- Enterprise software
+- Complex PM tool
+- Collaboration platform
+
+
+---
+
+## Design
+
+
+Never:
+
+
+- Hardcode colors
+- Create one-off styles
+- Ignore theme system
+
+
+Always:
+
+
+Use:
+
+Design Tokens
+Reusable Components
+Existing Patterns
+
+
+---
+
+## Architecture
+
+
+Never:
+
+
+Create:
+
+Component
+   |
+   |
+Direct Database Call
+
+
+Do:
+
+
+Component
+↓
+Hook
+↓
+Store
+↓
+Repository
+↓
+Database
+
+
+---
+
+# Dependency Rules
+
+
+Before adding a dependency:
+
+
+Explain:
+
+
+1. Why it is needed
+
+
+2. Why existing tools cannot solve it
+
+
+3. Maintenance cost
+
+
+Avoid unnecessary packages.
+
+
+---
+
+# Component Rules
+
+
+Before creating a new component:
+
+
+Check:
+
+
+"Does a similar component already exist?"
+
+
+Prefer:
+
+Extending existing components.
+
+
+Avoid:
+
+TaskCardNew
+TaskCardFinal
+TaskCardV2
+
+
+---
+
+# Naming Rules
+
+
+Use clear names.
+
+
+Good:
+
+
+TaskCard
+WaitingItem
+DailyLogEntry
+
+
+Bad:
+
+
+Box
+Thing
+Item2
+NewComponent
+
+
+---
+
+# File Organization
+
+
+Keep features isolated.
+
+
+Example:
+
+
+features/tasks/
+components/
+hooks/
+repository.ts
+types.ts
+
+
+Do not place feature logic randomly.
+
+
+---
+
+# State Management Rules
+
+
+Use Zustand only for:
+
+
+- Shared application state
+- UI state
+- User preferences
+
+
+Do not:
+
+
+Store every piece of data globally.
+
+
+Prefer:
+
+
+Local feature state.
+
+
+---
+
+# Database Rules
+
+
+Never modify database structure casually.
+
+
+Before changing:
+
+
+Check:
+
+- Migration impact
+- Sync impact
+- Existing users
+
+
+---
+
+# Sync Rules
+
+
+Sync is critical.
+
+
+Never:
+
+
+Directly write cloud data from UI.
+
+
+Always:
+
+
+Local Update
+↓
+Sync Queue
+↓
+Cloud
+
+
+---
+
+# Offline Rules
+
+
+Offline support is a core feature.
+
+
+Never create features that only work online.
+
+
+Every data operation should consider:
+
+
+- Offline creation
+- Offline editing
+- Sync recovery
+
+
+---
+
+# UI Quality Rules
+
+
+Every page must include:
+
+
+## Loading State
+
+
+Example:
+
+
+Skeleton or local loading.
+
+
+---
+
+## Empty State
+
+
+Explain:
+
+- What this page is
+- What user can do
+
+
+---
+
+## Error State
+
+
+Provide:
+
+- Explanation
+- Recovery action
+
+
+---
+
+# Responsive Rules
+
+
+Every component must be tested:
+
+
+Desktop:
+
+1200px+
+
+
+Tablet:
+
+768px-1199px
+
+
+Mobile:
+
+<768px
+
+
+---
+
+# Mobile Rules
+
+
+Never rely on:
+
+
+- Hover
+- Right click
+- Keyboard only
+
+
+Important actions need:
+
+
+- Visible buttons
+- Touch friendly targets
+
+
+---
+
+# Accessibility Rules
+
+
+Every interactive element needs:
+
+
+- Keyboard support
+- Focus state
+- aria-label when needed
+
+
+---
+
+# Theme Rules
+
+
+All UI must support:
+
+
+minimal-light
+minimal-dark
+warm-paper
+nordic-blue
+sakura
+forest
+
+
+Never:
+
+Create a component that only works in one theme.
+
+
+---
+
+# Animation Rules
+
+
+Animation should communicate change.
+
+
+Good:
+
+
+- Task completed
+- Modal opening
+- Theme transition
+
+
+Bad:
+
+
+- Decorative movement
+- Excessive effects
+
+
+---
+
+# Git Rules
+
+
+Use feature branches.
+
+
+Example:
+
+
+main
+develop
+feature/task-module
+feature/theme-system
+
+
+---
+
+# Commit Rules
+
+
+Use conventional commits.
+
+
+Format:
+
+
+type: description
+
+
+Examples:
+
+
+feat: add task repository
+feat: implement today dashboard
+fix: resolve sync conflict
+refactor: simplify theme tokens
+
+
+Avoid:
+
+
+update
+fix stuff
+changes
+
+
+---
+
+# Pull Request Rules
+
+
+Every PR should include:
+
+
+## Summary
+
+
+What changed.
+
+
+## Reason
+
+
+Why this change exists.
+
+
+## Testing
+
+
+How it was verified.
+
+
+## Screenshots
+
+
+Required for UI changes.
+
+
+---
+
+# Code Review Checklist
+
+
+Before merging:
+
+
+Check:
+
+
+## Product
+
+
+- Does this match PRODUCT.md?
+
+
+## Design
+
+
+- Does this follow DESIGN_SYSTEM.md?
+
+
+## Architecture
+
+
+- Does this follow ARCHITECTURE.md?
+
+
+## Quality
+
+
+- Is code maintainable?
+
+
+- Is there unnecessary complexity?
+
+
+---
+
+# Handling Ambiguous Requests
+
+
+If requirements are unclear:
+
+
+Do not guess silently.
+
+
+Instead:
+
+
+1. Explain possible interpretations.
+
+
+2. Recommend one option.
+
+
+3. Ask for confirmation if the decision affects architecture.
+
+
+---
+
+# Handling New Feature Requests
+
+
+Before adding:
+
+
+Ask:
+
+
+Does this:
+
+
+1. Solve a real user problem?
+
+
+2. Reduce work?
+
+
+3. Fit the product philosophy?
+
+
+If not:
+
+
+Do not add it.
+
+
+---
+
+# Avoid Over Engineering
+
+
+Do not build future systems before they are needed.
+
+
+Examples:
+
+
+Do not create:
+
+
+- Complex plugin architecture
+- Enterprise permission system
+- Advanced analytics
+- AI framework
+
+
+unless required.
+
+
+---
+
+# AI Specific Rules
+
+
+When modifying existing code:
+
+
+First inspect:
+
+- Existing implementation
+- Related components
+- Data flow
+
+
+Do not rewrite large areas without reason.
+
+
+---
+
+# Prefer Small Changes
+
+
+Make changes:
+
+
+- Focused
+- Reviewable
+- Reversible
+
+
+Avoid:
+
+
+Large unrelated refactors.
+
+
+---
+
+# Documentation Rules
+
+
+When architecture changes:
+
+
+Update:
+
+ARCHITECTURE.md
+
+
+When product behavior changes:
+
+
+Update:
+
+PRODUCT.md
+
+
+When UI changes:
+
+
+Update:
+
+DESIGN_SYSTEM.md
+
+
+When development process changes:
+
+
+Update:
+
+DEVELOPMENT_RULES.md
+
+
+---
+
+# Final Rule
+
+
+Before every decision, ask:
+
+
+"Does this make Daily Work OS a better personal workspace?"
+
+
+If not:
+
+Do not do it.
