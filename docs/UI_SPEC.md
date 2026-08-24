@@ -30,12 +30,14 @@ The UI should prioritize:
 # Global Layout
 
 
-Daily Work OS has two primary layouts:
+Daily Work OS has three responsive layouts:
 
 
 1. Desktop Workspace
 
-2. Mobile Workspace
+2. Tablet Workspace
+
+3. Mobile Workspace
 
 
 
@@ -47,7 +49,7 @@ Daily Work OS has two primary layouts:
 Breakpoint:
 
 
-=1200px
+>=1200px
 
 
 
@@ -785,6 +787,26 @@ Skip
 
 ---
 
+# Tablet Layout
+
+
+Breakpoint:
+
+
+768px–1199px
+
+
+---
+
+# Tablet Contract
+
+- Keep a 72px icon sidebar.
+- Give the main workspace the remaining width.
+- Convert the utility panel into an on-demand drawer.
+- Preserve accessible navigation names when visual labels are clipped.
+
+---
+
 # Mobile Layout
 
 
@@ -897,6 +919,10 @@ Account
 Data
 Keyboard
 About
+
+Phase 0.5 provides the section structure and preference controls only. Account,
+Data, Keyboard, and About remain explicit extension slots until their product
+requirements are approved.
 
 
 ---

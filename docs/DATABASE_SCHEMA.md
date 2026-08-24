@@ -183,6 +183,18 @@ weekStartsOn
 createdAt
 updatedAt
 
+Preference contracts:
+
+- `theme`: system or one of the named themes
+- `density`: comfortable | compact
+- `sidebarMode`: expanded | collapsed
+- `quickCaptureDefault`: inbox | task | waiting | memo
+- `language`: en | zh-CN
+- `weekStartsOn`: 0 (Sunday) | 1 (Monday)
+
+Local preferences are versioned and validated before use. Cloud persistence
+must preserve the same enum contract when the preferences repository is added.
+
 
 Language:
 

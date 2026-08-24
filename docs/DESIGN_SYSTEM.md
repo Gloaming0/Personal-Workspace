@@ -519,6 +519,18 @@ For power users.
 Higher information density.
 Stored in:
 UserPreferences.density
+
+Phase 0.5 token contract:
+
+- Typography: `--font-size-*` and `--line-height-*`
+- Geometry: `--radius-*`, including pill and circle
+- Layout: sidebar, utility panel, header, and mobile navigation dimensions
+- Interaction: control and minimum touch-target heights
+- Layering: `--z-*`
+- Density: content padding, section gap, and row padding
+
+Components consume semantic tokens only. Theme files own color values, while
+global tokens own scale, geometry, layout, interaction, layering, and density.
 Icon System
 Use:
 Lucide Icons

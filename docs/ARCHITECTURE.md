@@ -778,3 +778,38 @@ The architecture should support:
 - Multi-device usage
 - Long-term maintainability
 Avoid shortcuts that create future technical debt.
+
+
+---
+
+# Phase 0.5 Application Foundation
+
+## App Shell
+
+The shell owns navigation, the workspace header, the main content outlet, and
+the utility surface. Feature pages render inside the outlet and must not
+recreate shell layout.
+
+Responsive contract:
+
+- Desktop (>=1200px): expanded or collapsed sidebar, main workspace, and
+  persistent utility panel.
+- Tablet (768px–1199px): fixed 72px sidebar, main workspace, and utility drawer.
+- Mobile (<768px): main workspace, bottom navigation, and utility drawer.
+
+## Settings Architecture
+
+Settings is organized as independent sections and preference fields. Appearance
+and Workspace contain Phase 0.5 controls. Account, Data, Keyboard, and About are
+reserved section boundaries for future features.
+
+## Preferences Architecture
+
+`UserPreferences` is the single typed preference contract. The local Zustand
+store persists a versioned, validated subset and migrates the legacy appearance
+key. Document-level effects (language, resolved theme, density, color scheme,
+and browser theme color) are applied through one adapter.
+
+The current model includes language, theme, density, sidebar mode, week start,
+and quick-capture default. A future repository may synchronize this same model
+without coupling UI components to storage or cloud APIs.

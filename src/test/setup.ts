@@ -31,3 +31,11 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: () => false,
   }),
 })
+
+Object.defineProperty(window, 'requestAnimationFrame', {
+  configurable: true,
+  value: (callback: FrameRequestCallback) => {
+    callback(0)
+    return 1
+  },
+})

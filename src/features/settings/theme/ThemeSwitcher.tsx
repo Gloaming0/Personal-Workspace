@@ -15,7 +15,7 @@ const themeMessageKeys = {
 
 export function ThemeSwitcher() {
   const theme = usePreferencesStore((state) => state.theme)
-  const setTheme = usePreferencesStore((state) => state.setTheme)
+  const setPreference = usePreferencesStore((state) => state.setPreference)
   const { t } = useTranslations()
 
   return (
@@ -25,7 +25,9 @@ export function ThemeSwitcher() {
       <select
         aria-label={t('preferences.theme')}
         value={theme}
-        onChange={(event) => setTheme(event.target.value as Theme)}
+        onChange={(event) =>
+          setPreference('theme', event.target.value as Theme)
+        }
       >
         {themeOptions.map((option) => (
           <option key={option.value} value={option.value}>

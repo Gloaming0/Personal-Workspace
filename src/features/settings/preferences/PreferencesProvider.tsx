@@ -1,38 +1,21 @@
 import { useEffect, type PropsWithChildren } from 'react'
 import { usePreferencesStore } from './preferencesStore'
-import type { ResolvedTheme, Theme } from '../theme/types'
-
-const darkModeQuery = '(prefers-color-scheme: dark)'
-
-function resolveTheme(theme: Theme): ResolvedTheme {
-  if (theme !== 'system') return theme
-  return window.matchMedia(darkModeQuery).matches
-    ? 'minimal-dark'
-    : 'minimal-light'
-}
+import { applyDocumentPreferences, darkModeQuery } from './documentPreferences'
 
 export function PreferencesProvider({ children }: PropsWithChildren) {
+  const density = usePreferencesStore((state) => state.density)
   const language = usePreferencesStore((state) => state.language)
   const theme = usePreferencesStore((state) => state.theme)
 
   useEffect(() => {
-    document.documentElement.lang = language
-  }, [language])
-
-  useEffect(() => {
     const mediaQuery = window.matchMedia(darkModeQuery)
+    const applyPreferences = () =>
+      applyDocumentPreferences({ density, language, theme })
 
-    const applyTheme = () => {
-      const resolvedTheme = resolveTheme(theme)
-      document.documentElement.dataset.theme = resolvedTheme
-      document.documentElement.style.colorScheme =
-        resolvedTheme === 'minimal-dark' ? 'dark' : 'light'
-    }
-
-    applyTheme()
-    mediaQuery.addEventListener('change', applyTheme)
-    return () => mediaQuery.removeEventListener('change', applyTheme)
-  }, [theme])
+    applyPreferences()
+    mediaQuery.addEventListener('change', applyPreferences)
+    return () => mediaQuery.removeEventListener('change', applyPreferences)
+  }, [density, language, theme])
 
   return children
 }

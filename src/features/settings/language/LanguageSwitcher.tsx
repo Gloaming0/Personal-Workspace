@@ -10,7 +10,7 @@ const languageOptions = [
 
 export function LanguageSwitcher() {
   const language = usePreferencesStore((state) => state.language)
-  const setLanguage = usePreferencesStore((state) => state.setLanguage)
+  const setPreference = usePreferencesStore((state) => state.setPreference)
   const { t } = useTranslations()
 
   return (
@@ -20,7 +20,9 @@ export function LanguageSwitcher() {
       <select
         aria-label={t('preferences.language')}
         value={language}
-        onChange={(event) => setLanguage(event.target.value as Language)}
+        onChange={(event) =>
+          setPreference('language', event.target.value as Language)
+        }
       >
         {languageOptions.map((option) => (
           <option key={option.value} value={option.value}>
