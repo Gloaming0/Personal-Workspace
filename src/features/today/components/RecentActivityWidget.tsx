@@ -1,20 +1,31 @@
 import { CircleCheck, Clock3, StickyNote } from 'lucide-react'
+import { formatDistanceToNow, parseISO } from 'date-fns'
+import { enUS, zhCN } from 'date-fns/locale'
 import { DashboardWidget } from './DashboardWidget'
 import { EmptyWidgetState, WidgetSkeleton } from './WidgetState'
 import { useTranslations } from '@/features/settings/language/useTranslations'
-import type { DashboardStatus, RecentActivity } from '../types'
-import { localize } from '../types'
+import type {
+  TodayActivityItemViewModel,
+  TodayActivityKind,
+  TodayWidgetStatus,
+} from '../viewModel'
 
 interface RecentActivityWidgetProps {
-  items: RecentActivity[]
-  status?: DashboardStatus
+  items: TodayActivityItemViewModel[]
+  status?: TodayWidgetStatus
 }
 
-const activityIcons = {
-  task: CircleCheck,
-  waiting: Clock3,
-  memo: StickyNote,
+const activityIcons: Record<TodayActivityKind, typeof Clock3> = {
+  task_completed: CircleCheck,
+  waiting_created: Clock3,
+  memo_updated: StickyNote,
 }
+
+const activityMessageKeys = {
+  task_completed: 'today.activityTaskCompleted',
+  waiting_created: 'today.activityWaitingCreated',
+  memo_updated: 'today.activityMemoUpdated',
+} as const
 
 export function RecentActivityWidget({
   items,
@@ -40,13 +51,23 @@ export function RecentActivityWidget({
           {items.map((item) => {
             const ActivityIcon = activityIcons[item.kind]
             return (
-              <li key={item.id}>
+              <li key={item.activityId}>
                 <span className="activity-icon">
                   <ActivityIcon aria-hidden="true" size={14} />
                 </span>
                 <div>
-                  <strong>{localize(item.description, language)}</strong>
-                  <span>{localize(item.occurredAt, language)}</span>
+                  <strong>
+                    {t(activityMessageKeys[item.kind]).replace(
+                      '{title}',
+                      item.entityTitle,
+                    )}
+                  </strong>
+                  <span>
+                    {formatDistanceToNow(parseISO(item.occurredAt), {
+                      addSuffix: true,
+                      locale: language === 'zh-CN' ? zhCN : enUS,
+                    })}
+                  </span>
                 </div>
               </li>
             )

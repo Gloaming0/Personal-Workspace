@@ -1,13 +1,14 @@
 import { StickyNote } from 'lucide-react'
+import { formatDistanceToNow, parseISO } from 'date-fns'
+import { enUS, zhCN } from 'date-fns/locale'
 import { DashboardWidget } from './DashboardWidget'
 import { EmptyWidgetState, WidgetSkeleton } from './WidgetState'
 import { useTranslations } from '@/features/settings/language/useTranslations'
-import type { DashboardStatus, QuickMemo } from '../types'
-import { localize } from '../types'
+import type { TodayQuickMemoViewModel, TodayWidgetStatus } from '../viewModel'
 
 interface QuickMemoWidgetProps {
-  memo: QuickMemo | null
-  status?: DashboardStatus
+  memo: TodayQuickMemoViewModel | null
+  status?: TodayWidgetStatus
 }
 
 export function QuickMemoWidget({
@@ -31,8 +32,14 @@ export function QuickMemoWidget({
         />
       ) : (
         <div className="memo-preview">
-          <p>{localize(memo.content, language)}</p>
-          <span>{localize(memo.updatedAt, language)}</span>
+          <p>{memo.content}</p>
+          <span>
+            {t('today.updated')}{' '}
+            {formatDistanceToNow(parseISO(memo.updatedAt), {
+              addSuffix: true,
+              locale: language === 'zh-CN' ? zhCN : enUS,
+            })}
+          </span>
         </div>
       )}
     </DashboardWidget>

@@ -1,13 +1,14 @@
 import { Hourglass } from 'lucide-react'
+import { formatDistanceToNow, parseISO } from 'date-fns'
+import { enUS, zhCN } from 'date-fns/locale'
 import { DashboardWidget } from './DashboardWidget'
 import { EmptyWidgetState, WidgetSkeleton } from './WidgetState'
 import { useTranslations } from '@/features/settings/language/useTranslations'
-import type { DashboardStatus, WaitingItem } from '../types'
-import { localize } from '../types'
+import type { TodayWaitingItemViewModel, TodayWidgetStatus } from '../viewModel'
 
 interface WaitingWidgetProps {
-  items: WaitingItem[]
-  status?: DashboardStatus
+  items: TodayWaitingItemViewModel[]
+  status?: TodayWidgetStatus
 }
 
 export function WaitingWidget({ items, status = 'ready' }: WaitingWidgetProps) {
@@ -30,15 +31,27 @@ export function WaitingWidget({ items, status = 'ready' }: WaitingWidgetProps) {
       ) : (
         <ul className="waiting-list">
           {items.map((item) => (
-            <li key={item.id}>
+            <li key={item.waitingId}>
               <span className="waiting-status" aria-hidden="true">
                 <Hourglass size={15} />
               </span>
               <div>
-                <strong>{localize(item.title, language)}</strong>
-                <span>{localize(item.person, language)}</span>
+                <strong>{item.title}</strong>
+                <span>{item.person}</span>
               </div>
-              <small>{localize(item.followUp, language)}</small>
+              <small>
+                {item.needsFollowUp
+                  ? t('today.needsFollowUp')
+                  : item.followUpDate
+                    ? formatDistanceToNow(parseISO(item.followUpDate), {
+                        addSuffix: true,
+                        locale: language === 'zh-CN' ? zhCN : enUS,
+                      })
+                    : t('today.waitingDays').replace(
+                        '{count}',
+                        String(item.daysWaiting),
+                      )}
+              </small>
             </li>
           ))}
         </ul>

@@ -350,15 +350,15 @@ status
 
 priority
 
-date
+plannedDate
 
-dueDate
+dueAt
 
 projectId
 
 notes
 
-isFocus
+focusDate
 
 focusOrder
 
@@ -386,6 +386,8 @@ person
 
 projectId
 
+sourceTaskId
+
 sentAt
 
 followUpDate
@@ -396,7 +398,9 @@ createdAt
 
 updatedAt
 
-completedAt
+confirmedAt
+
+closedAt
 
 deletedAt
 
@@ -430,15 +434,21 @@ userId
 
 title
 
-active
+status
 
-repeatRule
+schedule
+
+timezone
 
 sortOrder
 
 createdAt
 
 updatedAt
+
+deletedAt
+
+version
 Routine Log
 RoutineLog
 
@@ -451,6 +461,14 @@ routineId
 date
 
 completedAt
+
+createdAt
+
+updatedAt
+
+deletedAt
+
+version
 Project
 Project
 
@@ -467,6 +485,10 @@ status
 createdAt
 
 updatedAt
+
+deletedAt
+
+version
 Daily Log
 DailyLog
 
@@ -478,9 +500,17 @@ date
 
 summary
 
+finalizedAt
+
+snapshot
+
 createdAt
 
 updatedAt
+
+deletedAt
+
+version
 Activity
 Activity
 
@@ -488,30 +518,36 @@ id
 
 userId
 
-type
+eventType
 
 entityType
 
 entityId
 
-metadata
+payload
 
 deviceId
 
+occurredAt
+
 createdAt
+
+updatedAt
+
+deletedAt
+
+version
 Repository Pattern
 All database operations go through repositories.
-Example:
-taskRepository.ts
+Examples:
+TaskRepository
 
 
-createTask()
+getById()
 
-updateTask()
+find()
 
-deleteTask()
-
-getTodayTasks()
+save()
 
 UI never knows:
 - IndexedDB
@@ -813,3 +849,94 @@ and browser theme color) are applied through one adapter.
 The current model includes language, theme, density, sidebar mode, week start,
 and quick-capture default. A future repository may synchronize this same model
 without coupling UI components to storage or cloud APIs.
+
+
+---
+
+# Phase 1.2B Domain and Data Contracts
+
+## Domain Boundary
+
+Domain Entities are `Task`, `Waiting`, `Routine`, `RoutineLog`, `Memo`,
+`Project`, `DailyLog`, and `Activity`. They use raw user text and storage-neutral
+values. User-authored content must never use `LocalizedText`; UI language
+support must not change a user's Task title, Project name, Waiting person, or
+Memo content into `{ en, zh-CN }` data.
+
+System copy belongs in typed i18n messages. Dates, relative time, follow-up
+labels, Activity sentences, Project display names, counts, Loading, and Empty
+states belong to View Models or presentation.
+
+## State Contracts
+
+- Task: `todo | doing | done | later | archived`.
+- Waiting: `waiting | confirmed | closed`. `needsFollowUp` is derived from
+  `followUpDate` for an open Waiting item and is never persisted.
+- Routine: `active | paused | archived`.
+- Project: `active | paused | completed | archived`.
+- Routine completion is represented by one `RoutineLog` per routine and local
+  date.
+
+Legal transitions are defined as compile-time contracts under `src/domain/`.
+Feature services validate transitions before repositories persist entities.
+The allowed edges are:
+
+- Task: `todo → doing | done | later | archived`; `doing → todo | done | later |
+  archived`; `later → todo | doing | done | archived`; `done → todo | archived`;
+  `archived → todo`.
+- Waiting: `waiting → confirmed | closed`; `confirmed → waiting | closed`;
+  `closed → waiting`.
+- Routine: `active → paused | archived`; `paused → active | archived`;
+  `archived → active`.
+- Project: `active → paused | completed | archived`; `paused → active |
+  completed | archived`; `completed → active | archived`; `archived → active`.
+
+Self-transitions and every edge not listed above are illegal.
+
+## Repository Ports
+
+Repository interfaces live under `src/repositories/` and expose Domain Entities
+only. They do not format UI strings, derive Today sections, validate component
+state, or expose Dexie/Supabase types. Optimistic concurrency uses entity
+`version` and optional `expectedVersion` write options.
+
+No database adapter is part of Phase 1.2B.
+
+## Today Query Boundary
+
+```text
+Repository Ports
+      ↓
+Feature Queries
+      ↓
+TodayDashboardQuery
+      ↓
+TodayDashboardViewModelAssembler
+      ↓
+TodayDashboardViewModel
+      ↓
+Widgets
+```
+
+`TodayDashboardQuery` accepts a local date and timezone. It gathers Tasks,
+Waiting items, Routines and Logs, Memos, Projects, and Activity through
+repository ports. The assembler performs all Today-specific selection,
+ordering, project resolution, follow-up derivation, and View Model mapping.
+
+Focus is a maximum-three ordered projection of Tasks using `focusDate` and
+`focusOrder`; it is not a repository or entity of its own.
+
+## Daily Log Finalization
+
+End Day creates a `DailyLog` with an immutable snapshot of completed Tasks, open
+Tasks, Waiting items, Memos, and completed Routines. Daily Log rendering uses
+the snapshot so later entity edits, soft deletion, or synchronization cannot
+rewrite work history.
+
+## Responsive Aggregation
+
+The same Today View Model feeds every viewport. Desktop places Check-in and
+Quick Memo in the persistent utility panel. Mobile renders those two core
+modules inline and reserves the Utility Drawer for secondary Recent Activity
+and Upcoming context. Responsive layout never changes Domain queries or entity
+identity.

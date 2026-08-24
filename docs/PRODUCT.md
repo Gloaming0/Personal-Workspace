@@ -196,6 +196,10 @@ Today is not a database view.
 
 It is a curated workspace.
 
+Focus is not a separate content type. It is an ordered projection of at most
+three Tasks selected for a specific local date. The same Task may appear in
+Focus and Today's Tasks while retaining one identity and one status.
+
 ---
 
 # 2. Tasks
@@ -245,6 +249,10 @@ Examples:
 Waiting helps users answer:
 
 "What responsibilities are currently outside my control?"
+
+Waiting stores only `waiting`, `confirmed`, or `closed`. “Needs Follow-up” is
+attention derived from an open Waiting item's follow-up date and the current
+local date; it is not a separate persisted lifecycle state.
 
 ---
 
@@ -318,6 +326,12 @@ A Daily Log records:
 
 - Completed tasks
 - Waiting items
+- Important memos
+- Completed recurring work
+
+End Day finalization stores an immutable snapshot of the day's relevant work.
+Later edits or deletion of live Tasks, Waiting items, or Memos must not rewrite
+the user's historical Daily Log.
 - Important notes
 - Personal summary
 

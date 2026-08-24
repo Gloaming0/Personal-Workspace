@@ -1,27 +1,27 @@
 import { ListChecks } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
 import { DashboardWidget } from './DashboardWidget'
 import { EmptyWidgetState, WidgetSkeleton } from './WidgetState'
 import { useTranslations } from '@/features/settings/language/useTranslations'
-import type { DashboardStatus, TodayTask } from '../types'
-import { localize } from '../types'
+import type { TodayTaskItemViewModel, TodayWidgetStatus } from '../viewModel'
 
 interface TodayTasksWidgetProps {
-  items: TodayTask[]
-  status?: DashboardStatus
+  items: TodayTaskItemViewModel[]
+  status?: TodayWidgetStatus
 }
 
 export function TodayTasksWidget({
   items,
   status = 'ready',
 }: TodayTasksWidgetProps) {
-  const { language, t } = useTranslations()
+  const { t } = useTranslations()
 
   return (
     <DashboardWidget
       className="tasks-widget"
       title={t('today.tasksTitle')}
       description={t('today.tasksDescription')}
-      count={items.filter((item) => !item.completed).length}
+      count={items.filter((item) => item.status !== 'done').length}
       icon={<ListChecks aria-hidden="true" size={18} />}
     >
       {status === 'loading' ? (
@@ -34,21 +34,26 @@ export function TodayTasksWidget({
       ) : (
         <ul className="work-item-list">
           {items.map((item) => (
-            <li key={item.id} data-completed={item.completed}>
+            <li key={item.taskId} data-completed={item.status === 'done'}>
               <input
-                aria-label={localize(item.title, language)}
+                aria-label={item.title}
                 type="checkbox"
-                checked={item.completed}
+                checked={item.status === 'done'}
                 disabled
                 readOnly
               />
               <div className="work-item-copy">
-                <strong>{localize(item.title, language)}</strong>
+                <strong>{item.title}</strong>
                 <span>
-                  {localize(item.project, language)} · {item.time}
+                  {[
+                    item.projectName,
+                    item.plannedAt && format(parseISO(item.plannedAt), 'HH:mm'),
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </span>
               </div>
-              {item.priority === 'high' && (
+              {item.priority === 'P1' && (
                 <span className="priority-mark">{t('today.highPriority')}</span>
               )}
             </li>

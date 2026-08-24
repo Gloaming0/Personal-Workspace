@@ -1,18 +1,20 @@
 import { Target } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
 import { DashboardWidget } from './DashboardWidget'
 import { EmptyWidgetState, WidgetSkeleton } from './WidgetState'
 import { useTranslations } from '@/features/settings/language/useTranslations'
-import type { DashboardStatus, FocusItem } from '../types'
-import { localize } from '../types'
+import type { TodayFocusItemViewModel, TodayWidgetStatus } from '../viewModel'
 
 interface FocusWidgetProps {
-  items: FocusItem[]
-  status?: DashboardStatus
+  items: TodayFocusItemViewModel[]
+  status?: TodayWidgetStatus
 }
 
 export function FocusWidget({ items, status = 'ready' }: FocusWidgetProps) {
-  const { language, t } = useTranslations()
-  const visibleItems = items.slice(0, 3)
+  const { t } = useTranslations()
+  const visibleItems = [...items]
+    .sort((left, right) => left.focusOrder - right.focusOrder)
+    .slice(0, 3)
 
   return (
     <DashboardWidget
@@ -32,11 +34,18 @@ export function FocusWidget({ items, status = 'ready' }: FocusWidgetProps) {
       ) : (
         <ol className="focus-list">
           {visibleItems.map((item, index) => (
-            <li key={item.id}>
+            <li key={item.taskId}>
               <span className="focus-number">{index + 1}</span>
               <div>
-                <strong>{localize(item.title, language)}</strong>
-                <span>{localize(item.context, language)}</span>
+                <strong>{item.title}</strong>
+                <span>
+                  {[
+                    item.projectName,
+                    item.plannedAt && format(parseISO(item.plannedAt), 'HH:mm'),
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </span>
               </div>
             </li>
           ))}

@@ -31,11 +31,11 @@ describe('Today Dashboard presentation', () => {
     ).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Waiting' })).toBeInTheDocument()
     expect(
-      screen.getByRole('region', { name: 'Daily check-in' }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('region', { name: 'Quick memo' }),
-    ).toBeInTheDocument()
+      screen.getAllByRole('region', { name: 'Daily check-in' }),
+    ).toHaveLength(2)
+    expect(screen.getAllByRole('region', { name: 'Quick memo' })).toHaveLength(
+      2,
+    )
     expect(
       screen.getByRole('region', { name: 'Recent activity' }),
     ).toBeInTheDocument()
@@ -57,8 +57,8 @@ describe('Today Dashboard presentation', () => {
     expect(screen.getByText('Choose your focus for today.')).toBeInTheDocument()
     expect(screen.getByText('The desk is clear.')).toBeInTheDocument()
     expect(screen.getByText('Nothing waiting.')).toBeInTheDocument()
-    expect(screen.getByText('No check-ins today.')).toBeInTheDocument()
-    expect(screen.getByText('A clear note space.')).toBeInTheDocument()
+    expect(screen.getAllByText('No check-ins today.')).toHaveLength(2)
+    expect(screen.getAllByText('A clear note space.')).toHaveLength(2)
     expect(screen.getByText('A quiet start.')).toBeInTheDocument()
   })
 
@@ -72,7 +72,7 @@ describe('Today Dashboard presentation', () => {
 
     expect(
       screen.getAllByRole('status', { name: 'Loading workspace' }),
-    ).toHaveLength(6)
+    ).toHaveLength(8)
   })
 
   it('localizes mock content and labels in Chinese', () => {

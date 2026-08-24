@@ -1,135 +1,150 @@
-import type { TodayDashboardData } from './types'
+import { addDays, format, set, subDays, subHours, subMinutes } from 'date-fns'
+import type { Language } from '@/features/settings/language/types'
+import type { TodayDashboardViewModel } from './viewModel'
 
-export const todayDashboardMock: TodayDashboardData = {
-  focus: [
-    {
-      id: 'focus-1',
-      title: { en: 'Finish event proposal', 'zh-CN': '完成活动方案' },
-      context: { en: 'Spring campaign', 'zh-CN': '春季活动' },
-    },
-    {
-      id: 'focus-2',
-      title: { en: 'Confirm the new UI flow', 'zh-CN': '确认新版界面流程' },
-      context: { en: 'Product review · 14:30', 'zh-CN': '产品评审 · 14:30' },
-    },
-    {
-      id: 'focus-3',
-      title: { en: 'Review weekly analytics', 'zh-CN': '复盘本周数据' },
-      context: { en: 'Growth dashboard', 'zh-CN': '增长数据看板' },
-    },
-  ],
-  tasks: [
-    {
-      id: 'task-1',
-      title: {
-        en: 'Review player retention data',
-        'zh-CN': '检查玩家留存数据',
-      },
-      project: { en: 'Analytics', 'zh-CN': '数据分析' },
-      time: '10:00',
-      priority: 'high',
-      completed: false,
-    },
-    {
-      id: 'task-2',
-      title: { en: 'Update event configuration', 'zh-CN': '更新活动配置' },
-      project: { en: 'Spring campaign', 'zh-CN': '春季活动' },
-      time: '13:30',
-      priority: 'normal',
-      completed: false,
-    },
-    {
-      id: 'task-3',
-      title: { en: 'Send proposal for review', 'zh-CN': '发送方案供评审' },
-      project: { en: 'Planning', 'zh-CN': '策划' },
-      time: '09:15',
-      priority: 'normal',
-      completed: true,
-    },
-    {
-      id: 'task-4',
-      title: {
-        en: 'Prepare afternoon sync notes',
-        'zh-CN': '准备下午同步会记录',
-      },
-      project: { en: 'Team sync', 'zh-CN': '团队同步' },
-      time: '16:00',
-      priority: 'normal',
-      completed: false,
-    },
-  ],
-  waiting: [
-    {
-      id: 'waiting-1',
-      title: { en: 'New UI flow confirmation', 'zh-CN': '新版界面流程确认' },
-      person: { en: 'Mina · Design', 'zh-CN': 'Mina · 设计' },
-      followUp: { en: 'Follow up tomorrow', 'zh-CN': '明天跟进' },
-    },
-    {
-      id: 'waiting-2',
-      title: { en: 'Backend effort estimate', 'zh-CN': '后端工作量评估' },
-      person: { en: 'Alex · Engineering', 'zh-CN': 'Alex · 工程' },
-      followUp: { en: 'Waiting 2 days', 'zh-CN': '已等待 2 天' },
-    },
-  ],
-  checkIns: [
-    {
-      id: 'check-in-1',
-      title: { en: 'Check analytics dashboard', 'zh-CN': '检查数据看板' },
-      completed: true,
-    },
-    {
-      id: 'check-in-2',
-      title: { en: 'Review user feedback', 'zh-CN': '查看用户反馈' },
-      completed: true,
-    },
-    {
-      id: 'check-in-3',
-      title: { en: 'Update daily report', 'zh-CN': '更新工作日报' },
-      completed: false,
-    },
-  ],
-  memo: {
-    id: 'memo-1',
-    content: {
-      en: 'Check the A/B test sample size before tomorrow’s review.',
-      'zh-CN': '明天评审前确认 A/B 测试样本量。',
-    },
-    updatedAt: { en: 'Updated 12 min ago', 'zh-CN': '12 分钟前更新' },
+const demoCopy = {
+  en: {
+    focus: [
+      ['Finish event proposal', 'Spring campaign'],
+      ['Confirm the new UI flow', 'Product review'],
+      ['Review weekly analytics', 'Growth dashboard'],
+    ],
+    tasks: [
+      ['Review player retention data', 'Analytics'],
+      ['Update event configuration', 'Spring campaign'],
+      ['Send proposal for review', 'Planning'],
+      ['Prepare afternoon sync notes', 'Team sync'],
+    ],
+    waiting: [
+      ['New UI flow confirmation', 'Mina · Design'],
+      ['Backend effort estimate', 'Alex · Engineering'],
+    ],
+    checkIns: [
+      'Check analytics dashboard',
+      'Review user feedback',
+      'Update daily report',
+    ],
+    memo: 'Check the A/B test sample size before tomorrow’s review.',
+    activity: ['Send proposal', 'Quick memo', 'Backend effort estimate'],
   },
-  activity: [
-    {
-      id: 'activity-1',
-      kind: 'task',
-      description: {
-        en: 'Completed “Send proposal”',
-        'zh-CN': '完成「发送方案」',
-      },
-      occurredAt: { en: '24 min ago', 'zh-CN': '24 分钟前' },
-    },
-    {
-      id: 'activity-2',
-      kind: 'memo',
-      description: { en: 'Updated quick memo', 'zh-CN': '更新了快速便笺' },
-      occurredAt: { en: '1 hr ago', 'zh-CN': '1 小时前' },
-    },
-    {
-      id: 'activity-3',
-      kind: 'waiting',
-      description: {
-        en: 'Added backend estimate',
-        'zh-CN': '新增后端工作量评估',
-      },
-      occurredAt: { en: 'Yesterday', 'zh-CN': '昨天' },
-    },
-  ],
+  'zh-CN': {
+    focus: [
+      ['完成活动方案', '春季活动'],
+      ['确认新版界面流程', '产品评审'],
+      ['复盘本周数据', '增长数据看板'],
+    ],
+    tasks: [
+      ['检查玩家留存数据', '数据分析'],
+      ['更新活动配置', '春季活动'],
+      ['发送方案供评审', '策划'],
+      ['准备下午同步会记录', '团队同步'],
+    ],
+    waiting: [
+      ['新版界面流程确认', 'Mina · 设计'],
+      ['后端工作量评估', 'Alex · 工程'],
+    ],
+    checkIns: ['检查数据看板', '查看用户反馈', '更新工作日报'],
+    memo: '明天评审前确认 A/B 测试样本量。',
+    activity: ['发送方案', '快速便笺', '后端工作量评估'],
+  },
+} as const
+
+function atTime(date: Date, hours: number, minutes: number) {
+  return set(date, {
+    hours,
+    minutes,
+    seconds: 0,
+    milliseconds: 0,
+  }).toISOString()
 }
 
-export const emptyTodayDashboardMock: TodayDashboardData = {
+export function createTodayDashboardMock(
+  language: Language,
+): TodayDashboardViewModel {
+  const now = new Date()
+  const today = format(now, 'yyyy-MM-dd')
+  const tomorrow = format(addDays(now, 1), 'yyyy-MM-dd')
+  const copy = demoCopy[language]
+
+  return {
+    date: today,
+    summary: {
+      openTaskCount: 3,
+      waitingCount: 2,
+      completedCheckInCount: 2,
+      totalCheckInCount: 3,
+    },
+    focus: copy.focus.map(([title, projectName], index) => ({
+      taskId: `task-${index + 1}`,
+      title,
+      projectName,
+      plannedAt: index === 1 ? atTime(now, 14, 30) : null,
+      focusOrder: (index + 1) as 1 | 2 | 3,
+    })),
+    tasks: copy.tasks.map(([title, projectName], index) => ({
+      taskId: `task-${index + 1}`,
+      title,
+      projectName,
+      plannedAt: atTime(now, [10, 13, 9, 16][index] ?? 9, index === 1 ? 30 : 0),
+      priority: index === 0 ? 'P1' : 'P2',
+      status: index === 2 ? 'done' : 'todo',
+    })),
+    waiting: copy.waiting.map(([title, person], index) => ({
+      waitingId: `waiting-${index + 1}`,
+      title,
+      person,
+      followUpDate: index === 0 ? tomorrow : today,
+      daysWaiting: index === 0 ? 0 : 2,
+      needsFollowUp: index === 1,
+    })),
+    checkIns: copy.checkIns.map((title, index) => ({
+      routineId: `routine-${index + 1}`,
+      routineLogId: index < 2 ? `routine-log-${index + 1}` : null,
+      title,
+      completed: index < 2,
+    })),
+    quickMemo: {
+      memoId: 'memo-1',
+      content: copy.memo,
+      updatedAt: subMinutes(now, 12).toISOString(),
+    },
+    recentActivity: [
+      {
+        activityId: 'activity-1',
+        kind: 'task_completed',
+        entityTitle: copy.activity[0],
+        occurredAt: subMinutes(now, 24).toISOString(),
+      },
+      {
+        activityId: 'activity-2',
+        kind: 'memo_updated',
+        entityTitle: copy.activity[1],
+        occurredAt: subHours(now, 1).toISOString(),
+      },
+      {
+        activityId: 'activity-3',
+        kind: 'waiting_created',
+        entityTitle: copy.activity[2],
+        occurredAt: subDays(now, 1).toISOString(),
+      },
+    ],
+  }
+}
+
+export const todayDashboardMock = createTodayDashboardMock('en')
+
+export const emptyTodayDashboardMock: TodayDashboardViewModel = {
+  date: format(new Date(), 'yyyy-MM-dd'),
+  summary: {
+    openTaskCount: 0,
+    waitingCount: 0,
+    completedCheckInCount: 0,
+    totalCheckInCount: 0,
+  },
   focus: [],
   tasks: [],
   waiting: [],
   checkIns: [],
-  memo: null,
-  activity: [],
+  quickMemo: null,
+  recentActivity: [],
 }

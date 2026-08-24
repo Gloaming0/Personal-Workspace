@@ -1,6 +1,6 @@
 # Daily Work OS Database Schema
 
-Version: 1.0
+Version: 1.1
 
 
 # Purpose
@@ -230,11 +230,11 @@ userId
 title
 status
 priority
-date
-dueDate
+plannedDate
+dueAt
 projectId
 notes
-isFocus
+focusDate
 focusOrder
 createdAt
 updatedAt
@@ -291,12 +291,14 @@ title
 status
 person
 projectId
+sourceTaskId
 sentAt
 followUpDate
 notes
 createdAt
 updatedAt
-completedAt
+confirmedAt
+closedAt
 deletedAt
 version
 
@@ -306,9 +308,16 @@ Status:
 
 
 waiting
-need_followup
 confirmed
 closed
+
+`need_followup` is not persisted. The Today query derives `needsFollowUp` when
+the base status is `waiting` and `followUpDate` is on or before the requested
+local date.
+
+All user-authored `title`, `notes`, `person`, `name`, `summary`, and `content`
+fields store the original string. They must not use `LocalizedText` or persist
+UI translations.
 
 
 
@@ -410,11 +419,20 @@ Fields:
 id
 userId
 title
-active
-repeatRule
+status
+schedule
+timezone
 sortOrder
 createdAt
 updatedAt
+deletedAt
+version
+
+Status:
+
+active
+paused
+archived
 
 
 
@@ -444,6 +462,13 @@ routineId
 date
 completedAt
 createdAt
+updatedAt
+deletedAt
+version
+
+Constraint:
+
+unique(userId, routineId, date)
 
 
 
@@ -513,8 +538,17 @@ id
 userId
 date
 summary
+finalizedAt
+snapshot
 createdAt
 updatedAt
+deletedAt
+version
+
+Snapshot contains immutable end-of-day copies of completed tasks, open tasks,
+Waiting items, Memos, and completed Routines, including the labels and context
+needed to render history without joining mutable entities. Historical rendering
+must use this snapshot rather than mutable live entities.
 
 
 
@@ -540,12 +574,16 @@ Fields:
 
 id
 userId
-type
+eventType
 entityType
 entityId
-metadata
+payload
 deviceId
+occurredAt
 createdAt
+updatedAt
+deletedAt
+version
 
 
 

@@ -2,19 +2,18 @@ import { CalendarCheck2 } from 'lucide-react'
 import { DashboardWidget } from './DashboardWidget'
 import { EmptyWidgetState, WidgetSkeleton } from './WidgetState'
 import { useTranslations } from '@/features/settings/language/useTranslations'
-import type { DailyCheckIn, DashboardStatus } from '../types'
-import { localize } from '../types'
+import type { TodayCheckInItemViewModel, TodayWidgetStatus } from '../viewModel'
 
 interface DailyCheckInWidgetProps {
-  items: DailyCheckIn[]
-  status?: DashboardStatus
+  items: TodayCheckInItemViewModel[]
+  status?: TodayWidgetStatus
 }
 
 export function DailyCheckInWidget({
   items,
   status = 'ready',
 }: DailyCheckInWidgetProps) {
-  const { language, t } = useTranslations()
+  const { t } = useTranslations()
 
   return (
     <DashboardWidget
@@ -33,15 +32,15 @@ export function DailyCheckInWidget({
       ) : (
         <ul className="check-in-list">
           {items.map((item) => (
-            <li key={item.id} data-completed={item.completed}>
+            <li key={item.routineId} data-completed={item.completed}>
               <input
-                aria-label={localize(item.title, language)}
+                aria-label={item.title}
                 type="checkbox"
                 checked={item.completed}
                 disabled
                 readOnly
               />
-              <span>{localize(item.title, language)}</span>
+              <span>{item.title}</span>
             </li>
           ))}
         </ul>

@@ -847,6 +847,15 @@ button {
   gap: var(--space-6);
 }
 
+.today-utility-primary-widgets {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.today-mobile-core-widgets {
+  display: none;
+}
+
 .utility-widget {
   border-radius: var(--radius-sm);
   box-shadow: none;
@@ -1105,6 +1114,16 @@ button {
   .today-workspace-grid,
   .focus-list {
     grid-template-columns: 1fr;
+  }
+
+  .today-mobile-core-widgets {
+    display: grid;
+    grid-column: 1 / -1;
+    gap: var(--space-6);
+  }
+
+  .today-utility-primary-widgets {
+    display: none;
   }
 
   .focus-list li + li {

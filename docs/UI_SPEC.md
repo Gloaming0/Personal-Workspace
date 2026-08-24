@@ -174,6 +174,13 @@ On smaller screens:
 
 Convert into drawer.
 
+Mobile exception:
+
+- Daily Check-in and Quick Memo remain inline in Today as core modules.
+- The Utility Drawer contains only secondary context such as Recent Activity
+  and Upcoming.
+- Tablet may continue to show all utility widgets in its drawer.
+
 
 ---
 
@@ -264,6 +271,9 @@ Maximum:
 
 
 3 items.
+
+Focus items are ordered Task projections, not independent records. Completing
+or updating a Focus item updates the same Task shown elsewhere.
 
 
 Example:
@@ -393,6 +403,9 @@ Status icon
 Title
 Person
 Follow-up date
+
+“Needs Follow-up” is derived when an open Waiting item's follow-up date is due
+or overdue. It is attention metadata, not a persisted status.
 
 
 ---
@@ -845,6 +858,9 @@ Tasks
 Waiting
 Check-in
 Memo
+
+Daily Check-in and Quick Memo are inline core modules on Mobile Today. Recent
+Activity and Upcoming remain in the Utility Drawer.
 
 
 Prioritize:
