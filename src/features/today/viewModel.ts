@@ -1,4 +1,4 @@
-import type { TaskPriority, TaskStatus } from '@/domain/entities'
+import type { TaskPriority, TaskStatus, WaitingStatus } from '@/domain/entities'
 import type { Instant, LocalDate } from '@/domain/shared'
 
 export type TodayWidgetStatus = 'loading' | 'ready' | 'empty'
@@ -25,6 +25,10 @@ export interface TodayWaitingItemViewModel {
   waitingId: string
   title: string
   person: string | null
+  notes: string | null
+  status: WaitingStatus
+  projectName: string | null
+  sourceTaskId: string | null
   followUpDate: LocalDate | null
   daysWaiting: number
   needsFollowUp: boolean

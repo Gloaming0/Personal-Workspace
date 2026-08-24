@@ -9,6 +9,8 @@ import { TaskService } from '@/features/tasks/TaskService'
 import { DefaultTodayDashboardQuery } from '@/features/today/TodayDashboardQuery'
 import { DefaultTodayDashboardViewModelAssembler } from '@/features/today/TodayDashboardViewModelAssembler'
 import { MockTodaySupportingViewModelSource } from '@/features/today/MockTodaySupportingViewModelSource'
+import { MockTodayProjectNameResolver } from '@/features/today/MockTodayProjectNameResolver'
+import { InMemoryWaitingRepository } from '@/repositories/inMemory/InMemoryWaitingRepository'
 import { RepositoryVersionConflictError } from '@/repositories/errors'
 import { DexieTaskRepository } from './DexieTaskRepository'
 
@@ -163,6 +165,8 @@ describe('DexieTaskRepository', () => {
     const secondConnection = await openRepository()
     const query = new DefaultTodayDashboardQuery({
       tasks: secondConnection.repository,
+      waiting: new InMemoryWaitingRepository(),
+      projectNames: new MockTodayProjectNameResolver(),
       supportingData: new MockTodaySupportingViewModelSource('en'),
       assembler: new DefaultTodayDashboardViewModelAssembler(),
     })
@@ -177,6 +181,6 @@ describe('DexieTaskRepository', () => {
     ])
     expect(result.focus.map((task) => task.title)).toEqual(['Dexie focus'])
     expect(result.summary.openTaskCount).toBe(1)
-    expect(result.waiting).not.toHaveLength(0)
+    expect(result.waiting).toHaveLength(0)
   })
 })

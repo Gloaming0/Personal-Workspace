@@ -94,6 +94,10 @@ export function createTodayDashboardMock(
       waitingId: `waiting-${index + 1}`,
       title,
       person,
+      notes: null,
+      status: 'waiting',
+      projectName: null,
+      sourceTaskId: null,
       followUpDate: index === 0 ? tomorrow : today,
       daysWaiting: index === 0 ? 0 : 2,
       needsFollowUp: index === 1,
@@ -153,11 +157,9 @@ export const emptyTodayDashboardMock: TodayDashboardViewModel = {
 export function createTodaySupportingMock(language: Language) {
   const mock = createTodayDashboardMock(language)
   return {
-    waiting: mock.waiting,
     checkIns: mock.checkIns,
     quickMemo: mock.quickMemo,
     recentActivity: mock.recentActivity,
-    waitingCount: mock.summary.waitingCount,
     completedCheckInCount: mock.summary.completedCheckInCount,
     totalCheckInCount: mock.summary.totalCheckInCount,
   }

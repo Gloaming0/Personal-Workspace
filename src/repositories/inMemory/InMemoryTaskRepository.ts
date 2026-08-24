@@ -53,7 +53,7 @@ export class InMemoryTaskRepository implements TaskRepository {
       options.expectedVersion !== undefined &&
       current?.version !== options.expectedVersion
     ) {
-      throw new RepositoryVersionConflictError(task.id)
+      throw new RepositoryVersionConflictError(task.id, 'Task')
     }
     this.tasks.set(task.id, cloneTask(task))
   }

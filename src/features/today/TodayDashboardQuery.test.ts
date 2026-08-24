@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { InMemoryTaskRepository } from '@/repositories/inMemory/InMemoryTaskRepository'
+import { InMemoryWaitingRepository } from '@/repositories/inMemory/InMemoryWaitingRepository'
 import { TaskService } from '@/features/tasks/TaskService'
 import { DefaultTodayDashboardQuery } from './TodayDashboardQuery'
 import { DefaultTodayDashboardViewModelAssembler } from './TodayDashboardViewModelAssembler'
 import { MockTodaySupportingViewModelSource } from './MockTodaySupportingViewModelSource'
+import { MockTodayProjectNameResolver } from './MockTodayProjectNameResolver'
 
-describe('TodayDashboardQuery Task aggregation', () => {
-  it('projects repository Tasks into Today Tasks and Focus while retaining supporting mocks', async () => {
+describe('TodayDashboardQuery aggregation', () => {
+  it('projects repository Tasks while retaining only unfinished supporting mocks', async () => {
     const repository = new InMemoryTaskRepository()
     let id = 0
     const service = new TaskService(repository, {
@@ -34,6 +36,8 @@ describe('TodayDashboardQuery Task aggregation', () => {
 
     const query = new DefaultTodayDashboardQuery({
       tasks: repository,
+      waiting: new InMemoryWaitingRepository(),
+      projectNames: new MockTodayProjectNameResolver(),
       supportingData: new MockTodaySupportingViewModelSource('zh-CN'),
       assembler: new DefaultTodayDashboardViewModelAssembler(),
     })
@@ -49,7 +53,7 @@ describe('TodayDashboardQuery Task aggregation', () => {
     expect(result.focus).toHaveLength(1)
     expect(result.focus[0]?.taskId).toBe(first.id)
     expect(result.summary.openTaskCount).toBe(1)
-    expect(result.waiting).not.toHaveLength(0)
+    expect(result.waiting).toHaveLength(0)
     expect(result.checkIns).not.toHaveLength(0)
   })
 })

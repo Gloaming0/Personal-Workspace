@@ -4,10 +4,12 @@ import { TodayDashboard } from './TodayDashboard'
 import { DefaultTodayDashboardQuery } from './TodayDashboardQuery'
 import { DefaultTodayDashboardViewModelAssembler } from './TodayDashboardViewModelAssembler'
 import { MockTodaySupportingViewModelSource } from './MockTodaySupportingViewModelSource'
+import { MockTodayProjectNameResolver } from './MockTodayProjectNameResolver'
 import { createTodaySupportingMock } from './mockData'
 import type { TodayDashboardViewModel } from './viewModel'
 import { FocusLimitError } from '@/features/tasks/TaskService'
 import { TaskPersistenceError } from '@/repositories/errors'
+import { WaitingPersistenceError } from '@/repositories/errors'
 import {
   getTaskRuntime,
   localUserId,
@@ -24,13 +26,13 @@ function createPendingViewModel(
     date,
     summary: {
       openTaskCount: 0,
-      waitingCount: supporting.waitingCount,
+      waitingCount: 0,
       completedCheckInCount: supporting.completedCheckInCount,
       totalCheckInCount: supporting.totalCheckInCount,
     },
     focus: [],
     tasks: [],
-    waiting: supporting.waiting,
+    waiting: [],
     checkIns: supporting.checkIns,
     quickMemo: supporting.quickMemo,
     recentActivity: supporting.recentActivity,
@@ -51,11 +53,16 @@ export function TaskTodayWorkspace({ runtime }: TaskTodayWorkspaceProps) {
   )
   const [loading, setLoading] = useState(true)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [waitingActionError, setWaitingActionError] = useState<string | null>(
+    null,
+  )
 
   const query = useMemo(
     () =>
       new DefaultTodayDashboardQuery({
         tasks: taskRuntime.repository,
+        waiting: taskRuntime.waitingRepository,
+        projectNames: new MockTodayProjectNameResolver(),
         supportingData: new MockTodaySupportingViewModelSource(language),
         assembler: new DefaultTodayDashboardViewModelAssembler(),
       }),
@@ -112,11 +119,26 @@ export function TaskTodayWorkspace({ runtime }: TaskTodayWorkspaceProps) {
     }
   }
 
+  const runWaitingCommand = async (command: () => Promise<unknown>) => {
+    setWaitingActionError(null)
+    try {
+      await command()
+      await refresh()
+    } catch (error) {
+      setWaitingActionError(
+        error instanceof WaitingPersistenceError
+          ? localDatabaseError
+          : t('today.waitingActionError'),
+      )
+    }
+  }
+
   return (
     <TodayDashboard
       data={viewModel}
       status={loading ? 'loading' : 'ready'}
       actionError={actionError}
+      waitingActionError={waitingActionError}
       onCreateTask={(title) =>
         runCommand(() =>
           taskRuntime.service.create({
@@ -139,6 +161,31 @@ export function TaskTodayWorkspace({ runtime }: TaskTodayWorkspaceProps) {
             ? taskRuntime.service.removeFocus(taskId)
             : taskRuntime.service.setFocus(taskId, date),
         )
+      }
+      onCreateWaiting={(values) =>
+        runWaitingCommand(() =>
+          taskRuntime.waitingService.create({
+            userId: localUserId,
+            ...values,
+          }),
+        )
+      }
+      onEditWaiting={(waitingId, values) =>
+        runWaitingCommand(() =>
+          taskRuntime.waitingService.edit(waitingId, values),
+        )
+      }
+      onTransitionWaiting={(waitingId, action) =>
+        runWaitingCommand(() => {
+          switch (action) {
+            case 'confirm':
+              return taskRuntime.waitingService.confirm(waitingId)
+            case 'close':
+              return taskRuntime.waitingService.close(waitingId)
+            case 'reopen':
+              return taskRuntime.waitingService.reopen(waitingId)
+          }
+        })
       }
     />
   )

@@ -2,16 +2,23 @@ import {
   DailyWorkDatabase,
   initializeLocalDatabase,
 } from '@/database/DailyWorkDatabase'
-import type { TaskRepository } from '@/repositories/contracts'
+import type {
+  TaskRepository,
+  WaitingRepository,
+} from '@/repositories/contracts'
 import { DexieTaskRepository } from '@/repositories/dexie/DexieTaskRepository'
+import { DexieWaitingRepository } from '@/repositories/dexie/DexieWaitingRepository'
 import { TaskPersistenceError } from '@/repositories/errors'
 import { TaskService } from './TaskService'
+import { WaitingService } from '@/features/waiting/WaitingService'
 
 export const localUserId = 'local-user'
 
 export interface TaskRuntime {
   repository: TaskRepository
   service: TaskService
+  waitingRepository: WaitingRepository
+  waitingService: WaitingService
   ready: Promise<void>
 }
 
@@ -19,9 +26,12 @@ export function createTaskRuntime(
   database = new DailyWorkDatabase(),
 ): TaskRuntime {
   const repository = new DexieTaskRepository(database)
+  const waitingRepository = new DexieWaitingRepository(database)
   return {
     repository,
     service: new TaskService(repository),
+    waitingRepository,
+    waitingService: new WaitingService(waitingRepository),
     ready: initializeLocalDatabase(database).catch((error: unknown) => {
       throw new TaskPersistenceError('Task storage could not be initialized.', {
         cause: error,

@@ -69,7 +69,7 @@ export class DexieTaskRepository implements TaskRepository {
           : options.expectedVersion !== undefined || task.version !== 1
 
         if (versionConflict) {
-          throw new RepositoryVersionConflictError(task.id)
+          throw new RepositoryVersionConflictError(task.id, 'Task')
         }
         await this.database.tasks.put(cloneTask(task))
       })

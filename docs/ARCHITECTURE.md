@@ -1045,3 +1045,57 @@ phase without moving the rule into Widgets.
 Waiting, Memo, Routine, Activity, cloud sync, realtime, and sync queues remain
 outside this phase. The existing supporting Mock View Model source is
 unchanged.
+
+
+---
+
+# Phase 1.5 Waiting Vertical Slice
+
+Phase 1.5 activates Waiting without changing the stable Task Domain,
+TaskService, TaskRepository, Task projection, or Task Widget boundaries.
+
+```text
+Waiting UI command
+      ↓
+WaitingService
+      ↓
+Waiting Domain rules
+      ↓
+WaitingRepository port
+      ↓
+DexieWaitingRepository
+      ↓
+DailyWorkDatabase.confirmations
+
+TaskRepository + WaitingRepository + ProjectNameResolver
+      ↓
+TodayDashboardQuery
+      ↓
+TodayDashboardViewModelAssembler
+      ↓
+Waiting View Model → Waiting Widget
+```
+
+`DailyWorkDatabase` retains Version 1 unchanged and appends Version 2 with the
+`confirmations` table. Opening an existing Version 1 database performs an
+additive schema upgrade; Task rows need no transform and remain intact.
+
+Waiting persists only `waiting | confirmed | closed`. Confirm writes
+`confirmedAt`; Close writes `closedAt`; Reopen starts a new waiting lifecycle
+and clears both lifecycle timestamps. Create and edit preserve raw user text,
+optional `projectId`, and optional `sourceTaskId`. Soft-deleted entities remain
+stored but are invisible to repository business reads.
+
+`TodayDashboardQuery` reads `waiting` and `confirmed` entities; closed items do
+not appear on Today. The assembler resolves project display names through the
+aggregation-level `TodayProjectNameResolver`, derives `needsFollowUp` from the
+requested local date, and orders due follow-ups first. Neither the Domain nor
+IndexedDB stores `needsFollowUp`.
+
+Create, edit, follow-up date changes, Confirm, Close, and Reopen are owned by
+`WaitingService`. The Widget receives only Waiting View Models plus command
+callbacks and never imports a repository or Dexie.
+
+Memo, Routine/Check-in, and Activity remain in the supporting Mock View Model
+source. No independent Waiting page, Supabase, realtime, sync queue, or cloud
+adapter is part of this phase.

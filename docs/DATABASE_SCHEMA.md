@@ -1,6 +1,6 @@
 # Daily Work OS Database Schema
 
-Version: 1.2
+Version: 1.3
 
 
 # Purpose
@@ -341,6 +341,33 @@ closed
 `need_followup` is not persisted. The Today query derives `needsFollowUp` when
 the base status is `waiting` and `followUpDate` is on or before the requested
 local date.
+
+## Local IndexedDB Implementation
+
+Phase 1.5 adds the `confirmations` table in IndexedDB schema Version 2 while
+retaining the Version 1 `tasks` table declaration and all existing Task data.
+The primary key is `id`.
+
+Indexes cover `userId`, `status`, `person`, `projectId`, `sourceTaskId`,
+`sentAt`, `followUpDate`, `confirmedAt`, `closedAt`, `deletedAt`, and
+`updatedAt`, plus `[userId+status]`, `[userId+followUpDate]`, and
+`[userId+projectId]`.
+
+- Creates start with `status = waiting`, `version = 1`, a local UUID, and UTC
+  `sentAt/createdAt/updatedAt` timestamps.
+- Confirm writes `confirmedAt`; Close writes `closedAt`.
+- Reopen returns to `waiting` and clears both `confirmedAt` and `closedAt` for
+  the new lifecycle.
+- Every update persists exactly the previous version plus one inside a Dexie
+  transaction.
+- Soft-deleted rows remain stored but all business queries exclude
+  `deletedAt != null`.
+- `sourceTaskId` is stored unchanged and preserves the optional Task origin.
+- `needsFollowUp` is not part of the table or Domain Entity. It is derived from
+  the requested Today `LocalDate` after reading persisted data.
+
+The Version 1 → Version 2 migration is additive and requires no Task data
+transform. Future migrations must preserve both earlier version declarations.
 
 All user-authored `title`, `notes`, `person`, `name`, `summary`, and `content`
 fields store the original string. They must not use `LocalizedText` or persist

@@ -3,7 +3,11 @@ import { enUS, zhCN } from 'date-fns/locale'
 import { useState, type FormEvent } from 'react'
 import { FocusWidget } from './components/FocusWidget'
 import { TodayTasksWidget } from './components/TodayTasksWidget'
-import { WaitingWidget } from './components/WaitingWidget'
+import {
+  WaitingWidget,
+  type WaitingFormValues,
+  type WaitingTransitionAction,
+} from './components/WaitingWidget'
 import { DailyCheckInWidget } from './components/DailyCheckInWidget'
 import { QuickMemoWidget } from './components/QuickMemoWidget'
 import { createTodayDashboardMock } from './mockData'
@@ -17,6 +21,16 @@ interface TodayDashboardProps {
   onCreateTask?: (title: string) => Promise<unknown>
   onToggleTask?: (taskId: string, completed: boolean) => Promise<unknown>
   onToggleFocus?: (taskId: string, focused: boolean) => Promise<unknown>
+  waitingActionError?: string | null
+  onCreateWaiting?: (values: WaitingFormValues) => Promise<unknown>
+  onEditWaiting?: (
+    waitingId: string,
+    values: WaitingFormValues,
+  ) => Promise<unknown>
+  onTransitionWaiting?: (
+    waitingId: string,
+    action: WaitingTransitionAction,
+  ) => Promise<unknown>
 }
 
 export function TodayDashboard({
@@ -26,6 +40,10 @@ export function TodayDashboard({
   onCreateTask,
   onToggleTask,
   onToggleFocus,
+  waitingActionError,
+  onCreateWaiting,
+  onEditWaiting,
+  onTransitionWaiting,
 }: TodayDashboardProps) {
   const { language, t } = useTranslations()
   const [taskTitle, setTaskTitle] = useState('')
@@ -102,7 +120,14 @@ export function TodayDashboard({
           onToggleTask={onToggleTask}
           onToggleFocus={onToggleFocus}
         />
-        <WaitingWidget items={viewModel.waiting} status={status} />
+        <WaitingWidget
+          items={viewModel.waiting}
+          status={status}
+          actionError={waitingActionError}
+          onCreate={onCreateWaiting}
+          onEdit={onEditWaiting}
+          onTransition={onTransitionWaiting}
+        />
         <div className="today-mobile-core-widgets">
           <DailyCheckInWidget items={viewModel.checkIns} status={status} />
           <QuickMemoWidget memo={viewModel.quickMemo} status={status} />
