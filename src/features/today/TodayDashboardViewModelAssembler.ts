@@ -1,5 +1,5 @@
 import { differenceInCalendarDays, parseISO } from 'date-fns'
-import type { Task, Waiting } from '@/domain/entities'
+import type { Memo, Task, Waiting } from '@/domain/entities'
 import { deriveNeedsFollowUp } from '@/domain/waiting'
 import type {
   TodayDashboardAggregate,
@@ -10,6 +10,19 @@ import type {
   TodayFocusItemViewModel,
   TodayTaskItemViewModel,
 } from './viewModel'
+
+function toQuickMemoViewModel(memo: Memo, aggregate: TodayDashboardAggregate) {
+  return {
+    memoId: memo.id,
+    content: memo.content,
+    pinned: memo.pinned,
+    projectId: memo.projectId,
+    projectName: memo.projectId
+      ? (aggregate.projectNames.get(memo.projectId) ?? null)
+      : null,
+    updatedAt: memo.updatedAt,
+  }
+}
 
 function toTaskViewModel(task: Task): TodayTaskItemViewModel {
   return {
@@ -84,20 +97,38 @@ export class DefaultTodayDashboardViewModelAssembler implements TodayDashboardVi
           right.followUpDate ?? '9999-12-31',
         )
       })
+    const quickMemo = [...aggregate.memos]
+      .sort((left, right) => {
+        if (left.pinned !== right.pinned) return left.pinned ? -1 : 1
+        return right.updatedAt.localeCompare(left.updatedAt)
+      })
+      .at(0)
+    const logsByRoutine = new Map(
+      aggregate.routineLogs.map((log) => [log.routineId, log]),
+    )
+    const checkIns = aggregate.routines.map((routine) => {
+      const log = logsByRoutine.get(routine.id)
+      return {
+        routineId: routine.id,
+        routineLogId: log?.id ?? null,
+        title: routine.title,
+        completed: Boolean(log),
+      }
+    })
 
     return {
       date: aggregate.date,
       summary: {
         openTaskCount: tasks.filter((task) => task.status !== 'done').length,
         waitingCount: waiting.length,
-        completedCheckInCount: aggregate.supportingData.completedCheckInCount,
-        totalCheckInCount: aggregate.supportingData.totalCheckInCount,
+        completedCheckInCount: checkIns.filter((item) => item.completed).length,
+        totalCheckInCount: checkIns.length,
       },
       focus,
       tasks,
       waiting,
-      checkIns: aggregate.supportingData.checkIns,
-      quickMemo: aggregate.supportingData.quickMemo,
+      checkIns,
+      quickMemo: quickMemo ? toQuickMemoViewModel(quickMemo, aggregate) : null,
       recentActivity: aggregate.supportingData.recentActivity,
     }
   }

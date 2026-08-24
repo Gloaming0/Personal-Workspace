@@ -44,6 +44,9 @@ export interface TodayCheckInItemViewModel {
 export interface TodayQuickMemoViewModel {
   memoId: string
   content: string
+  pinned: boolean
+  projectId: string | null
+  projectName: string | null
   updatedAt: Instant
 }
 

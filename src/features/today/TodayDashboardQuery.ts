@@ -4,6 +4,7 @@ import type {
   TodayDashboardQueryInput,
 } from './contracts'
 import type { TodayDashboardViewModel } from './viewModel'
+import { isRoutineScheduledOn } from '@/domain/routine'
 
 export class DefaultTodayDashboardQuery implements TodayDashboardQueryContract {
   constructor(private readonly dependencies: TodayDashboardQueryDependencies) {}
@@ -11,7 +12,15 @@ export class DefaultTodayDashboardQuery implements TodayDashboardQueryContract {
   async execute(
     input: TodayDashboardQueryInput,
   ): Promise<TodayDashboardViewModel> {
-    const [plannedTasks, focusTasks, waiting] = await Promise.all([
+    const [
+      plannedTasks,
+      focusTasks,
+      waiting,
+      pinnedMemos,
+      todayMemos,
+      activeRoutines,
+      routineLogs,
+    ] = await Promise.all([
       this.dependencies.tasks.find({
         plannedOn: input.date,
         statuses: ['todo', 'doing', 'done'],
@@ -21,10 +30,25 @@ export class DefaultTodayDashboardQuery implements TodayDashboardQueryContract {
         statuses: ['todo', 'doing'],
       }),
       this.dependencies.waiting.find({ statuses: ['waiting', 'confirmed'] }),
+      this.dependencies.memos.find({ pinned: true }),
+      this.dependencies.memos.find({
+        updatedOn: input.date,
+        timezone: input.timezone,
+      }),
+      this.dependencies.routines.findByStatus(['active']),
+      this.dependencies.routineLogs.findForDate(input.date),
     ])
+    const memos = [
+      ...new Map(
+        [...pinnedMemos, ...todayMemos].map((memo) => [memo.id, memo]),
+      ).values(),
+    ]
+    const routines = activeRoutines.filter((routine) =>
+      isRoutineScheduledOn(routine.schedule, input.date),
+    )
     const projectIds = [
       ...new Set(
-        waiting.flatMap((entity) =>
+        [...waiting, ...memos].flatMap((entity) =>
           entity.projectId ? [entity.projectId] : [],
         ),
       ),
@@ -37,6 +61,9 @@ export class DefaultTodayDashboardQuery implements TodayDashboardQueryContract {
       plannedTasks,
       focusTasks,
       waiting,
+      memos,
+      routines,
+      routineLogs,
       projectNames,
       supportingData: this.dependencies.supportingData.get(input),
     })

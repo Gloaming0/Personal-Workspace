@@ -1,14 +1,21 @@
-import type { Task, Waiting } from '@/domain/entities'
+import type {
+  Memo,
+  Routine,
+  RoutineLog,
+  Task,
+  Waiting,
+} from '@/domain/entities'
 import type { EntityId, LocalDate } from '@/domain/shared'
 import type {
   TaskRepository,
+  MemoRepository,
+  RoutineLogRepository,
+  RoutineRepository,
   WaitingRepository,
 } from '@/repositories/contracts'
 import type {
   TodayActivityItemViewModel,
-  TodayCheckInItemViewModel,
   TodayDashboardViewModel,
-  TodayQuickMemoViewModel,
 } from './viewModel'
 
 export interface TodayDashboardQueryInput {
@@ -21,11 +28,7 @@ export interface TodayDashboardQuery {
 }
 
 export interface TodaySupportingViewModel {
-  checkIns: TodayCheckInItemViewModel[]
-  quickMemo: TodayQuickMemoViewModel | null
   recentActivity: TodayActivityItemViewModel[]
-  completedCheckInCount: number
-  totalCheckInCount: number
 }
 
 export interface TodayProjectNameResolver {
@@ -41,6 +44,9 @@ export interface TodaySupportingViewModelSource {
 export interface TodayDashboardQueryDependencies {
   tasks: TaskRepository
   waiting: WaitingRepository
+  memos: MemoRepository
+  routines: RoutineRepository
+  routineLogs: RoutineLogRepository
   projectNames: TodayProjectNameResolver
   supportingData: TodaySupportingViewModelSource
   assembler: TodayDashboardViewModelAssembler
@@ -52,6 +58,9 @@ export interface TodayDashboardAggregate {
   plannedTasks: Task[]
   focusTasks: Task[]
   waiting: Waiting[]
+  memos: Memo[]
+  routines: Routine[]
+  routineLogs: RoutineLog[]
   projectNames: ReadonlyMap<EntityId, string>
   supportingData: TodaySupportingViewModel
 }

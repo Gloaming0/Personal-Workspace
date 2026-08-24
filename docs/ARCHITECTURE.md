@@ -1099,3 +1099,64 @@ callbacks and never imports a repository or Dexie.
 Memo, Routine/Check-in, and Activity remain in the supporting Mock View Model
 source. No independent Waiting page, Supabase, realtime, sync queue, or cloud
 adapter is part of this phase.
+
+
+---
+
+# Phase 1.6 Memo and Routine Vertical Slices
+
+Phase 1.6 removes Memo and Check-in from the supporting Mock boundary. Activity
+is now the only fragment supplied by `TodaySupportingViewModelSource`.
+
+```text
+Memo UI command                    Routine UI command
+      ↓                                  ↓
+MemoService                       RoutineService
+      ↓                                  ↓
+Memo Domain rules          Routine / RoutineLog rules
+      ↓                                  ↓
+MemoRepository ports       RoutineRepository + RoutineLogRepository
+      ↓                                  ↓
+DexieMemoRepository        DexieRoutineRepository / DexieRoutineLogRepository
+      └──────────────────┬───────────────┘
+                         ↓
+                TodayDashboardQuery
+                         ↓
+          TodayDashboardViewModelAssembler
+                         ↓
+            Quick Memo / Check-in Widgets
+```
+
+`DailyWorkDatabase` preserves Versions 1 and 2, appends Version 3 for `memos`,
+and appends Version 4 for `routines` and `routine_logs`. All upgrades are
+additive. Task and Waiting adapters, ports, Domain rules, and Widget projections
+are unchanged.
+
+Memo Create, Edit, Pin, Unpin, and Soft Delete belong to `MemoService`. The
+Quick Memo selection boundary belongs to Today aggregation: the newest pinned
+Memo wins; otherwise the newest Memo updated on the requested local date wins.
+The assembler resolves its optional Project display name without storing it on
+the Memo entity.
+
+Routine lifecycle commands belong to `RoutineService`. Only `active` Routines
+are queried for Today, and the query applies `daily`, `weekdays`, or `weekly +
+daysOfWeek` schedule rules to the requested `LocalDate`. The input date is the
+calendar date in the supplied Today timezone, so schedule evaluation does not
+depend on the browser's UTC day.
+
+Routine completion is modeled as an independent `RoutineLog`. Complete is
+idempotent for an existing effective log. Undo soft-deletes that log; no
+`completed: false` record exists. The RoutineLog adapter enforces at most one
+non-deleted log per `[userId+routineId+date]` inside its write transaction.
+Today left-joins scheduled Routines and that date's effective logs to produce
+Check-in View Models.
+
+`TodayWorkspaceProvider` owns the shared query state and command callbacks for
+both the main Today workspace and the App Shell utility panel. Desktop and
+Mobile therefore consume the same repository-backed View Model and refresh
+after the same Service commands. Widgets still receive only View Models and
+callbacks; no component imports Dexie or a Repository.
+
+No independent Notes or Routine management page, Activity persistence,
+DailyLog, End Day, Supabase, realtime, or sync queue is introduced in this
+phase.

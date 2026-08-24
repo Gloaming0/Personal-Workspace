@@ -64,6 +64,7 @@ export interface RoutineLogRepository {
 export interface MemoQuery {
   pinned?: boolean
   updatedOn?: LocalDate
+  timezone?: string
   projectId?: EntityId
   limit?: number
 }

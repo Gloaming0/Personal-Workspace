@@ -3,8 +3,13 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { InMemoryTaskRepository } from '@/repositories/inMemory/InMemoryTaskRepository'
 import { InMemoryWaitingRepository } from '@/repositories/inMemory/InMemoryWaitingRepository'
+import { InMemoryMemoRepository } from '@/repositories/inMemory/InMemoryMemoRepository'
+import { InMemoryRoutineRepository } from '@/repositories/inMemory/InMemoryRoutineRepository'
+import { InMemoryRoutineLogRepository } from '@/repositories/inMemory/InMemoryRoutineLogRepository'
 import { TaskService } from '@/features/tasks/TaskService'
 import { WaitingService } from '@/features/waiting/WaitingService'
+import { MemoService } from '@/features/memos/MemoService'
+import { RoutineService } from '@/features/routines/RoutineService'
 import type { TaskRuntime } from '@/features/tasks/taskRuntime'
 import {
   getDefaultPreferences,
@@ -13,6 +18,21 @@ import {
 import { TaskTodayWorkspace } from './TaskTodayWorkspace'
 
 describe('Task Today UI boundary', () => {
+  function supportingRuntime() {
+    const memoRepository = new InMemoryMemoRepository()
+    const routineRepository = new InMemoryRoutineRepository()
+    const routineLogRepository = new InMemoryRoutineLogRepository()
+    return {
+      memoRepository,
+      memoService: new MemoService(memoRepository),
+      routineRepository,
+      routineLogRepository,
+      routineService: new RoutineService(
+        routineRepository,
+        routineLogRepository,
+      ),
+    }
+  }
   beforeEach(() => {
     usePreferencesStore.setState({
       ...getDefaultPreferences(),
@@ -32,6 +52,7 @@ describe('Task Today UI boundary', () => {
       }),
       waitingRepository,
       waitingService: new WaitingService(waitingRepository),
+      ...supportingRuntime(),
       ready: Promise.resolve(),
     }
     render(<TaskTodayWorkspace runtime={runtime} />)
@@ -67,6 +88,7 @@ describe('Task Today UI boundary', () => {
         createId: () => 'waiting-user-input',
         now: () => '2026-08-24T10:00:00.000Z',
       }),
+      ...supportingRuntime(),
       ready: Promise.resolve(),
     }
     render(<TaskTodayWorkspace runtime={runtime} />)
@@ -95,5 +117,62 @@ describe('Task Today UI boundary', () => {
     await expect(
       waitingRepository.getById('waiting-user-input'),
     ).resolves.toMatchObject({ sourceTaskId: 'task-origin-123' })
+  })
+
+  it('keeps Memo and Routine user text unchanged across UI languages', async () => {
+    const user = userEvent.setup()
+    const repository = new InMemoryTaskRepository()
+    const waitingRepository = new InMemoryWaitingRepository()
+    const memoRepository = new InMemoryMemoRepository()
+    const routineRepository = new InMemoryRoutineRepository()
+    const routineLogRepository = new InMemoryRoutineLogRepository()
+    const runtime: TaskRuntime = {
+      repository,
+      service: new TaskService(repository),
+      waitingRepository,
+      waitingService: new WaitingService(waitingRepository),
+      memoRepository,
+      memoService: new MemoService(memoRepository, {
+        createId: () => 'memo-user-input',
+        now: () => '2026-08-24T10:00:00.000Z',
+      }),
+      routineRepository,
+      routineLogRepository,
+      routineService: new RoutineService(
+        routineRepository,
+        routineLogRepository,
+        {
+          createId: () => 'routine-user-input',
+          now: () => '2026-08-24T10:00:00.000Z',
+        },
+      ),
+      ready: Promise.resolve(),
+    }
+    render(<TaskTodayWorkspace runtime={runtime} />)
+    await waitFor(() =>
+      expect(
+        screen.queryByLabelText('Loading workspace'),
+      ).not.toBeInTheDocument(),
+    )
+
+    await user.type(
+      screen.getByRole('textbox', { name: 'Memo content' }),
+      '原始 Memo content',
+    )
+    await user.click(screen.getByRole('button', { name: 'Add memo' }))
+    await user.type(
+      screen.getByRole('textbox', { name: 'Routine title' }),
+      '每日 Review 检查',
+    )
+    await user.click(screen.getByRole('button', { name: 'Add routine' }))
+    expect(await screen.findByText('原始 Memo content')).toBeInTheDocument()
+    expect(await screen.findByText('每日 Review 检查')).toBeInTheDocument()
+
+    usePreferencesStore.setState({ language: 'zh-CN' })
+    expect(
+      await screen.findByRole('textbox', { name: '便笺内容' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('原始 Memo content')).toBeInTheDocument()
+    expect(screen.getByText('每日 Review 检查')).toBeInTheDocument()
   })
 })

@@ -111,6 +111,9 @@ export function createTodayDashboardMock(
     quickMemo: {
       memoId: 'memo-1',
       content: copy.memo,
+      pinned: false,
+      projectId: null,
+      projectName: null,
       updatedAt: subMinutes(now, 12).toISOString(),
     },
     recentActivity: [
@@ -157,10 +160,6 @@ export const emptyTodayDashboardMock: TodayDashboardViewModel = {
 export function createTodaySupportingMock(language: Language) {
   const mock = createTodayDashboardMock(language)
   return {
-    checkIns: mock.checkIns,
-    quickMemo: mock.quickMemo,
     recentActivity: mock.recentActivity,
-    completedCheckInCount: mock.summary.completedCheckInCount,
-    totalCheckInCount: mock.summary.totalCheckInCount,
   }
 }

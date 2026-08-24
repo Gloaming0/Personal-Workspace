@@ -1,4 +1,4 @@
-import type { EntityId } from '@/domain/shared'
+import type { EntityId, LocalDate } from '@/domain/shared'
 
 export class RepositoryVersionConflictError extends Error {
   constructor(id: EntityId, entityName = 'Entity') {
@@ -18,5 +18,26 @@ export class TaskPersistenceError extends Error {
   constructor(message: string, options: { cause?: unknown } = {}) {
     super(message, options)
     this.name = 'TaskPersistenceError'
+  }
+}
+
+export class MemoPersistenceError extends Error {
+  constructor(message: string, options: { cause?: unknown } = {}) {
+    super(message, options)
+    this.name = 'MemoPersistenceError'
+  }
+}
+
+export class RoutinePersistenceError extends Error {
+  constructor(message: string, options: { cause?: unknown } = {}) {
+    super(message, options)
+    this.name = 'RoutinePersistenceError'
+  }
+}
+
+export class RoutineLogUniquenessError extends Error {
+  constructor(routineId: EntityId, date: LocalDate) {
+    super(`Routine ${routineId} already has a completion for ${date}.`)
+    this.name = 'RoutineLogUniquenessError'
   }
 }

@@ -1061,6 +1061,122 @@ button {
   line-height: var(--line-height-body);
 }
 
+.memo-capture,
+.memo-edit-form,
+.routine-capture {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.memo-capture label,
+.memo-edit-form label,
+.routine-capture > label {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 620;
+}
+
+.memo-capture input,
+.memo-edit-form input,
+.routine-capture input,
+.routine-capture select,
+.memo-capture textarea,
+.memo-edit-form textarea {
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.memo-capture textarea,
+.memo-edit-form textarea {
+  resize: vertical;
+}
+
+.memo-capture > button,
+.routine-capture > button {
+  min-height: var(--control-height);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: var(--font-size-xs);
+  font-weight: 650;
+}
+
+.memo-capture > button:disabled,
+.routine-capture > button:disabled {
+  opacity: 0.48;
+}
+
+.memo-capture > p,
+.routine-capture > p {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--font-size-xs);
+}
+
+.memo-actions,
+.routine-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.memo-actions {
+  margin-top: var(--space-3);
+}
+
+.routine-actions {
+  margin-left: auto;
+}
+
+.memo-actions button,
+.routine-actions button {
+  min-height: var(--space-8);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--font-size-xs);
+  font-weight: 650;
+}
+
+.routine-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.routine-days legend {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.routine-days label {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.routine-days input {
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+}
+
 .widget-empty-state {
   display: grid;
   justify-items: start;

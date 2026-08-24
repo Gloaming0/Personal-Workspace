@@ -16,6 +16,9 @@ import { MockTodayProjectNameResolver } from '@/features/today/MockTodayProjectN
 import { RepositoryVersionConflictError } from '@/repositories/errors'
 import { DexieTaskRepository } from './DexieTaskRepository'
 import { DexieWaitingRepository } from './DexieWaitingRepository'
+import { InMemoryMemoRepository } from '@/repositories/inMemory/InMemoryMemoRepository'
+import { InMemoryRoutineRepository } from '@/repositories/inMemory/InMemoryRoutineRepository'
+import { InMemoryRoutineLogRepository } from '@/repositories/inMemory/InMemoryRoutineLogRepository'
 
 class Version1Database extends Dexie {
   tasks!: EntityTable<Task, 'id'>
@@ -184,6 +187,9 @@ describe('DexieWaitingRepository', () => {
     const query = new DefaultTodayDashboardQuery({
       tasks: new DexieTaskRepository(database),
       waiting: waitingRepository,
+      memos: new InMemoryMemoRepository(),
+      routines: new InMemoryRoutineRepository(),
+      routineLogs: new InMemoryRoutineLogRepository(),
       projectNames: new MockTodayProjectNameResolver(
         new Map([['project-1', 'Launch project']]),
       ),

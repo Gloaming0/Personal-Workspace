@@ -9,12 +9,16 @@ import {
   type WaitingTransitionAction,
 } from './components/WaitingWidget'
 import { DailyCheckInWidget } from './components/DailyCheckInWidget'
-import { QuickMemoWidget } from './components/QuickMemoWidget'
+import type { RoutineFormValues } from './components/DailyCheckInWidget'
+import {
+  QuickMemoWidget,
+  type MemoFormValues,
+} from './components/QuickMemoWidget'
 import { createTodayDashboardMock } from './mockData'
 import type { TodayDashboardViewModel, TodayWidgetStatus } from './viewModel'
 import { useTranslations } from '@/features/settings/language/useTranslations'
 
-interface TodayDashboardProps {
+export interface TodayDashboardProps {
   data?: TodayDashboardViewModel
   status?: TodayWidgetStatus
   actionError?: string | null
@@ -31,6 +35,16 @@ interface TodayDashboardProps {
     waitingId: string,
     action: WaitingTransitionAction,
   ) => Promise<unknown>
+  memoActionError?: string | null
+  onCreateMemo?: (values: MemoFormValues) => Promise<unknown>
+  onEditMemo?: (memoId: string, values: MemoFormValues) => Promise<unknown>
+  onDeleteMemo?: (memoId: string) => Promise<unknown>
+  onToggleMemoPin?: (memoId: string, pinned: boolean) => Promise<unknown>
+  routineActionError?: string | null
+  onCreateRoutine?: (values: RoutineFormValues) => Promise<unknown>
+  onToggleRoutine?: (routineId: string, completed: boolean) => Promise<unknown>
+  onPauseRoutine?: (routineId: string) => Promise<unknown>
+  onArchiveRoutine?: (routineId: string) => Promise<unknown>
 }
 
 export function TodayDashboard({
@@ -44,6 +58,16 @@ export function TodayDashboard({
   onCreateWaiting,
   onEditWaiting,
   onTransitionWaiting,
+  memoActionError,
+  onCreateMemo,
+  onEditMemo,
+  onDeleteMemo,
+  onToggleMemoPin,
+  routineActionError,
+  onCreateRoutine,
+  onToggleRoutine,
+  onPauseRoutine,
+  onArchiveRoutine,
 }: TodayDashboardProps) {
   const { language, t } = useTranslations()
   const [taskTitle, setTaskTitle] = useState('')
@@ -129,8 +153,24 @@ export function TodayDashboard({
           onTransition={onTransitionWaiting}
         />
         <div className="today-mobile-core-widgets">
-          <DailyCheckInWidget items={viewModel.checkIns} status={status} />
-          <QuickMemoWidget memo={viewModel.quickMemo} status={status} />
+          <DailyCheckInWidget
+            items={viewModel.checkIns}
+            status={status}
+            actionError={routineActionError}
+            onCreate={onCreateRoutine}
+            onToggle={onToggleRoutine}
+            onPause={onPauseRoutine}
+            onArchive={onArchiveRoutine}
+          />
+          <QuickMemoWidget
+            memo={viewModel.quickMemo}
+            status={status}
+            actionError={memoActionError}
+            onCreate={onCreateMemo}
+            onEdit={onEditMemo}
+            onDelete={onDeleteMemo}
+            onTogglePin={onToggleMemoPin}
+          />
         </div>
       </div>
     </div>

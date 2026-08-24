@@ -1,6 +1,6 @@
 # Daily Work OS Database Schema
 
-Version: 1.3
+Version: 1.4
 
 
 # Purpose
@@ -405,6 +405,21 @@ updatedAt
 deletedAt
 version
 
+## Local IndexedDB Implementation
+
+Phase 1.6 adds `memos` in IndexedDB Version 3. Indexes cover `userId`,
+`pinned`, `projectId`, `updatedAt`, and `deletedAt`, plus `[userId+pinned]`,
+`[userId+updatedAt]`, and `[userId+projectId]`.
+
+Memo creation starts at Version 1 with a local UUID and UTC timestamps. Edit,
+Pin, Unpin, and Soft Delete each write exactly the previous version plus one in
+a transaction. Business reads always exclude `deletedAt != null`.
+
+The Today Quick Memo query selects the most recently updated pinned Memo. If
+there is no pinned Memo, it selects the most recently updated Memo whose
+`updatedAt` falls on the requested local date in the requested timezone. Memo
+content remains original user text and is never localized in storage.
+
 
 
 ---
@@ -488,6 +503,19 @@ active
 paused
 archived
 
+## Schedule MVP
+
+`schedule` is a structured Domain value supporting:
+
+- `{ frequency: "daily" }`
+- `{ frequency: "weekdays" }`
+- `{ frequency: "weekly", daysOfWeek: number[] }`
+
+`daysOfWeek` uses JavaScript weekday numbers (`0 = Sunday` through
+`6 = Saturday`), contains unique values, and must contain at least one day for
+a weekly schedule. Today evaluates the schedule against its requested
+`LocalDate`; that date is already resolved in the Today query timezone.
+
 
 
 ---
@@ -523,6 +551,30 @@ version
 Constraint:
 
 unique(userId, routineId, date)
+
+## Local IndexedDB Implementation
+
+Phase 1.6 adds `routines` and `routine_logs` in IndexedDB Version 4. Routine
+indexes cover status, timezone, order, soft deletion, and `[userId+status]`.
+Routine Log indexes cover `routineId`, `date`, completion and deletion
+timestamps, plus `[routineId+date]`, `[userId+routineId+date]`, and
+`[userId+date]`.
+
+A completed check-in is represented only by an effective RoutineLog row.
+Incomplete state does not persist `completed: false`. Undo soft-deletes the
+effective log. The repository transaction rejects a second non-deleted row for
+the same `[userId+routineId+date]`; multiple historical soft-deleted rows are
+allowed so Complete can follow Undo without physical deletion.
+
+Only active, non-deleted Routines whose schedule matches the requested date
+enter Today. Paused and archived Routines are excluded. Daily Check-in View
+Models are produced by left-joining scheduled Routines with effective logs for
+that date.
+
+Schema declarations are append-only: Version 1 creates `tasks`, Version 2 adds
+`confirmations`, Version 3 adds `memos`, and Version 4 adds `routines` plus
+`routine_logs`. The v2 → v3 → v4 migrations are additive and do not transform
+or remove existing Task, Waiting, or Memo rows.
 
 
 

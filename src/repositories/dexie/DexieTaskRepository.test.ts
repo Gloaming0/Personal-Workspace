@@ -11,6 +11,9 @@ import { DefaultTodayDashboardViewModelAssembler } from '@/features/today/TodayD
 import { MockTodaySupportingViewModelSource } from '@/features/today/MockTodaySupportingViewModelSource'
 import { MockTodayProjectNameResolver } from '@/features/today/MockTodayProjectNameResolver'
 import { InMemoryWaitingRepository } from '@/repositories/inMemory/InMemoryWaitingRepository'
+import { InMemoryMemoRepository } from '@/repositories/inMemory/InMemoryMemoRepository'
+import { InMemoryRoutineRepository } from '@/repositories/inMemory/InMemoryRoutineRepository'
+import { InMemoryRoutineLogRepository } from '@/repositories/inMemory/InMemoryRoutineLogRepository'
 import { RepositoryVersionConflictError } from '@/repositories/errors'
 import { DexieTaskRepository } from './DexieTaskRepository'
 
@@ -166,6 +169,9 @@ describe('DexieTaskRepository', () => {
     const query = new DefaultTodayDashboardQuery({
       tasks: secondConnection.repository,
       waiting: new InMemoryWaitingRepository(),
+      memos: new InMemoryMemoRepository(),
+      routines: new InMemoryRoutineRepository(),
+      routineLogs: new InMemoryRoutineLogRepository(),
       projectNames: new MockTodayProjectNameResolver(),
       supportingData: new MockTodaySupportingViewModelSource('en'),
       assembler: new DefaultTodayDashboardViewModelAssembler(),
