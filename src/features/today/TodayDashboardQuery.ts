@@ -20,6 +20,7 @@ export class DefaultTodayDashboardQuery implements TodayDashboardQueryContract {
       todayMemos,
       activeRoutines,
       routineLogs,
+      activities,
     ] = await Promise.all([
       this.dependencies.tasks.find({
         plannedOn: input.date,
@@ -37,6 +38,7 @@ export class DefaultTodayDashboardQuery implements TodayDashboardQueryContract {
       }),
       this.dependencies.routines.findByStatus(['active']),
       this.dependencies.routineLogs.findForDate(input.date),
+      this.dependencies.activities.find({ limit: 10 }),
     ])
     const memos = [
       ...new Map(
@@ -64,8 +66,8 @@ export class DefaultTodayDashboardQuery implements TodayDashboardQueryContract {
       memos,
       routines,
       routineLogs,
+      activities,
       projectNames,
-      supportingData: this.dependencies.supportingData.get(input),
     })
   }
 }

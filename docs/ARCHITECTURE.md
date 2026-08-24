@@ -1160,3 +1160,57 @@ callbacks; no component imports Dexie or a Repository.
 No independent Notes or Routine management page, Activity persistence,
 DailyLog, End Day, Supabase, realtime, or sync queue is introduced in this
 phase.
+
+
+---
+
+# Phase 1.7 Activity and Today Full Real Data
+
+Phase 1.7 removes `TodaySupportingViewModelSource` and the final Activity Mock.
+Every Today section now originates from a Domain Entity through a Repository
+port.
+
+```text
+Task / Waiting / Memo / Routine UI commands
+                  ↓
+             Feature Services
+             ↙            ↘
+Entity Domain + Repository   ActivityService
+                                  ↓
+                         ActivityRepository.append
+                                  ↓
+                    DexieActivityRepository (v5)
+
+Task + Waiting + Memo + Routine + RoutineLog + Activity Repositories
+                                  ↓
+                         TodayDashboardQuery
+                                  ↓
+                 TodayDashboardViewModelAssembler
+                                  ↓
+                             Today Widgets
+```
+
+Services emit Activity only after the primary entity write succeeds. The UI
+never receives `ActivityRepository` and does not construct events. Production
+wiring shares one `ActivityService` across Task, Waiting, Memo, and Routine
+services.
+
+Activity is an immutable, append-only event. The port intentionally has no
+update or delete method, and adapters reject duplicate IDs. Payload stores raw
+historical snapshot fields (`title`, `entityId`, and optional `projectId`) but
+never a translated sentence. Activity entities retain their original user text
+when UI language changes.
+
+`TodayDashboardQuery` requests the newest 10 events ordered by `occurredAt`.
+The View Model Assembler maps `eventType` to a typed i18n message, interpolates
+the raw payload for the requested language, and returns final display text to
+the Recent Activity Widget. The Widget handles icon and relative-time
+presentation only; it does not translate or interpret event payloads.
+
+`DailyWorkDatabase` appends Version 5 with `activities`, retaining Versions
+1–4 unchanged. The upgrade is additive and preserves Task, Waiting, Memo,
+Routine, and RoutineLog data.
+
+Activity persistence completes the local real-data path for Today. DailyLog,
+End Day, Supabase, realtime, sync queues, and cloud synchronization remain
+outside this phase.

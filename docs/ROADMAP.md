@@ -167,6 +167,8 @@ Available themes:
 
 Status:
 
+In progress — Today full real-data milestone completed through Phase 1.7
+
 Priority: Highest
 
 
@@ -212,6 +214,16 @@ Implement:
 - Waiting section
 - Daily check-in
 - Quick memo
+
+Current implementation status:
+
+- Task, Waiting, Memo, Routine, and Activity use real local Domain/Repository
+  data.
+- IndexedDB migrations are implemented through schema Version 5.
+- Recent Activity is append-only and localized from raw event payloads at the
+  View Model boundary.
+- DailyLog, End Day, cloud sync, and the remaining standalone module pages are
+  not part of the completed Phase 1.7 milestone.
 
 
 ---

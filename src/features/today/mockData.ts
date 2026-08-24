@@ -1,4 +1,4 @@
-import { addDays, format, set, subDays, subHours, subMinutes } from 'date-fns'
+import { addDays, format, set, subMinutes } from 'date-fns'
 import type { Language } from '@/features/settings/language/types'
 import type { TodayDashboardViewModel } from './viewModel'
 
@@ -25,7 +25,6 @@ const demoCopy = {
       'Update daily report',
     ],
     memo: 'Check the A/B test sample size before tomorrow’s review.',
-    activity: ['Send proposal', 'Quick memo', 'Backend effort estimate'],
   },
   'zh-CN': {
     focus: [
@@ -45,7 +44,6 @@ const demoCopy = {
     ],
     checkIns: ['检查数据看板', '查看用户反馈', '更新工作日报'],
     memo: '明天评审前确认 A/B 测试样本量。',
-    activity: ['发送方案', '快速便笺', '后端工作量评估'],
   },
 } as const
 
@@ -116,26 +114,7 @@ export function createTodayDashboardMock(
       projectName: null,
       updatedAt: subMinutes(now, 12).toISOString(),
     },
-    recentActivity: [
-      {
-        activityId: 'activity-1',
-        kind: 'task_completed',
-        entityTitle: copy.activity[0],
-        occurredAt: subMinutes(now, 24).toISOString(),
-      },
-      {
-        activityId: 'activity-2',
-        kind: 'memo_updated',
-        entityTitle: copy.activity[1],
-        occurredAt: subHours(now, 1).toISOString(),
-      },
-      {
-        activityId: 'activity-3',
-        kind: 'waiting_created',
-        entityTitle: copy.activity[2],
-        occurredAt: subDays(now, 1).toISOString(),
-      },
-    ],
+    recentActivity: [],
   }
 }
 
@@ -155,11 +134,4 @@ export const emptyTodayDashboardMock: TodayDashboardViewModel = {
   checkIns: [],
   quickMemo: null,
   recentActivity: [],
-}
-
-export function createTodaySupportingMock(language: Language) {
-  const mock = createTodayDashboardMock(language)
-  return {
-    recentActivity: mock.recentActivity,
-  }
 }

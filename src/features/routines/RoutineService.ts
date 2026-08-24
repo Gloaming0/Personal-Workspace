@@ -11,6 +11,7 @@ import type {
   RoutineLogRepository,
   RoutineRepository,
 } from '@/repositories/contracts'
+import { ActivityService } from '@/features/activity/ActivityService'
 
 export class RoutineNotFoundError extends Error {
   constructor(id: EntityId) {
@@ -43,6 +44,7 @@ export class RoutineService {
     private readonly routines: RoutineRepository,
     private readonly logs: RoutineLogRepository,
     private readonly context: RoutineServiceContext = defaultContext,
+    private readonly activities?: ActivityService,
   ) {}
 
   async create(input: CreateRoutineInput): Promise<Routine> {
@@ -80,14 +82,17 @@ export class RoutineService {
       { id: this.context.createId(), now: this.context.now() },
     )
     await this.logs.save(log)
+    await this.record(routine, 'routine_completed')
     return log
   }
 
   async undo(id: EntityId, date: LocalDate): Promise<RoutineLog> {
+    const routine = await this.requireRoutine(id)
     const log = await this.logs.findByRoutineAndDate(id, date)
     if (!log) throw new RoutineCompletionError('not_completed')
     const deleted = softDeleteRoutineLog(log, this.context.now())
     await this.logs.save(deleted, { expectedVersion: log.version })
+    await this.record(routine, 'routine_completion_undone')
     return deleted
   }
 
@@ -105,5 +110,18 @@ export class RoutineService {
     const routine = await this.routines.getById(id)
     if (!routine) throw new RoutineNotFoundError(id)
     return routine
+  }
+
+  private async record(
+    routine: Routine,
+    eventType: 'routine_completed' | 'routine_completion_undone',
+  ): Promise<void> {
+    await this.activities?.record({
+      userId: routine.userId,
+      eventType,
+      entityType: 'routine',
+      entityId: routine.id,
+      title: routine.title,
+    })
   }
 }

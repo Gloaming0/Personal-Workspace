@@ -12,9 +12,7 @@ import {
 import { TodayDashboard, type TodayDashboardProps } from './TodayDashboard'
 import { DefaultTodayDashboardQuery } from './TodayDashboardQuery'
 import { DefaultTodayDashboardViewModelAssembler } from './TodayDashboardViewModelAssembler'
-import { MockTodaySupportingViewModelSource } from './MockTodaySupportingViewModelSource'
 import { MockTodayProjectNameResolver } from './MockTodayProjectNameResolver'
-import { createTodaySupportingMock } from './mockData'
 import type { TodayDashboardViewModel } from './viewModel'
 import { FocusLimitError } from '@/features/tasks/TaskService'
 import {
@@ -61,11 +59,7 @@ type TodayWorkspaceValue = Required<
 
 const TodayWorkspaceContext = createContext<TodayWorkspaceValue | null>(null)
 
-function createPendingViewModel(
-  date: string,
-  language: 'en' | 'zh-CN',
-): TodayDashboardViewModel {
-  const supporting = createTodaySupportingMock(language)
+function createPendingViewModel(date: string): TodayDashboardViewModel {
   return {
     date,
     summary: {
@@ -79,7 +73,7 @@ function createPendingViewModel(
     waiting: [],
     checkIns: [],
     quickMemo: null,
-    recentActivity: supporting.recentActivity,
+    recentActivity: [],
   }
 }
 
@@ -97,9 +91,7 @@ export function TodayWorkspaceProvider({
   const [taskRuntime] = useState(() => runtime ?? getTaskRuntime())
   const date = format(new Date(), 'yyyy-MM-dd')
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-  const [viewModel, setViewModel] = useState(() =>
-    createPendingViewModel(date, language),
-  )
+  const [viewModel, setViewModel] = useState(() => createPendingViewModel(date))
   const [loading, setLoading] = useState(true)
   const [actionError, setActionError] = useState<string | null>(null)
   const [waitingActionError, setWaitingActionError] = useState<string | null>(
@@ -118,24 +110,24 @@ export function TodayWorkspaceProvider({
         memos: taskRuntime.memoRepository,
         routines: taskRuntime.routineRepository,
         routineLogs: taskRuntime.routineLogRepository,
+        activities: taskRuntime.activityRepository,
         projectNames: new MockTodayProjectNameResolver(),
-        supportingData: new MockTodaySupportingViewModelSource(language),
         assembler: new DefaultTodayDashboardViewModelAssembler(),
       }),
-    [language, taskRuntime],
+    [taskRuntime],
   )
 
   const refresh = useCallback(async () => {
     await taskRuntime.ready
-    const data = await query.execute({ date, timezone })
+    const data = await query.execute({ date, timezone, language })
     setViewModel(data)
     setLoading(false)
-  }, [date, query, taskRuntime, timezone])
+  }, [date, language, query, taskRuntime, timezone])
 
   useEffect(() => {
     let active = true
     void taskRuntime.ready
-      .then(() => query.execute({ date, timezone }))
+      .then(() => query.execute({ date, timezone, language }))
       .then((data) => {
         if (!active) return
         setViewModel(data)
@@ -149,7 +141,7 @@ export function TodayWorkspaceProvider({
     return () => {
       active = false
     }
-  }, [date, localDatabaseError, query, taskRuntime, timezone])
+  }, [date, language, localDatabaseError, query, taskRuntime, timezone])
 
   const runCommand = async (command: () => Promise<unknown>) => {
     setActionError(null)

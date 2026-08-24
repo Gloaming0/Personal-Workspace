@@ -41,3 +41,17 @@ export class RoutineLogUniquenessError extends Error {
     this.name = 'RoutineLogUniquenessError'
   }
 }
+
+export class ActivityAppendConflictError extends Error {
+  constructor(id: EntityId) {
+    super(`Activity ${id} already exists and cannot be changed.`)
+    this.name = 'ActivityAppendConflictError'
+  }
+}
+
+export class ActivityPersistenceError extends Error {
+  constructor(message: string, options: { cause?: unknown } = {}) {
+    super(message, options)
+    this.name = 'ActivityPersistenceError'
+  }
+}

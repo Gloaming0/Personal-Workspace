@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
 import type {
+  Activity,
   Memo,
   Routine,
   RoutineLog,
@@ -8,7 +9,7 @@ import type {
 } from '@/domain/entities'
 
 export const dailyWorkDatabaseName = 'daily-work-os'
-export const currentDatabaseVersion = 4
+export const currentDatabaseVersion = 5
 
 export const taskStoreSchema =
   'id, userId, status, priority, plannedDate, dueAt, projectId, focusDate, completedAt, deletedAt, updatedAt, [userId+plannedDate], [userId+focusDate], [userId+status]'
@@ -20,6 +21,8 @@ export const routineStoreSchema =
   'id, userId, status, timezone, sortOrder, deletedAt, updatedAt, [userId+status]'
 export const routineLogStoreSchema =
   'id, userId, routineId, date, completedAt, deletedAt, updatedAt, [routineId+date], [userId+routineId+date], [userId+date]'
+export const activityStoreSchema =
+  'id, userId, eventType, entityType, entityId, occurredAt, deviceId, [userId+occurredAt], [entityType+entityId], [userId+eventType]'
 
 const version1Stores = {
   tasks: taskStoreSchema,
@@ -41,12 +44,18 @@ const version4Stores = {
   routine_logs: routineLogStoreSchema,
 }
 
+const version5Stores = {
+  ...version4Stores,
+  activities: activityStoreSchema,
+}
+
 export class DailyWorkDatabase extends Dexie {
   tasks!: EntityTable<Task, 'id'>
   confirmations!: EntityTable<Waiting, 'id'>
   memos!: EntityTable<Memo, 'id'>
   routines!: EntityTable<Routine, 'id'>
   routine_logs!: EntityTable<RoutineLog, 'id'>
+  activities!: EntityTable<Activity, 'id'>
 
   constructor(name = dailyWorkDatabaseName) {
     super(name)
@@ -54,7 +63,8 @@ export class DailyWorkDatabase extends Dexie {
     this.version(1).stores(version1Stores)
     this.version(2).stores(version2Stores)
     this.version(3).stores(version3Stores)
-    this.version(currentDatabaseVersion).stores(version4Stores)
+    this.version(4).stores(version4Stores)
+    this.version(currentDatabaseVersion).stores(version5Stores)
   }
 }
 

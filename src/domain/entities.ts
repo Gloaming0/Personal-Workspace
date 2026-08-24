@@ -120,14 +120,21 @@ export interface DailyLog extends SyncEntity {
 
 export type ActivityEventType =
   | 'task_created'
-  | 'task_status_changed'
   | 'task_completed'
+  | 'task_reopened'
+  | 'task_focus_set'
+  | 'task_focus_removed'
   | 'waiting_created'
   | 'waiting_confirmed'
   | 'waiting_closed'
+  | 'waiting_reopened'
+  | 'waiting_followup_changed'
   | 'routine_completed'
+  | 'routine_completion_undone'
   | 'memo_created'
   | 'memo_updated'
+  | 'memo_pinned'
+  | 'memo_unpinned'
   | 'project_status_changed'
   | 'daily_log_finalized'
 

@@ -8,12 +8,12 @@ import {
 import { TaskService } from '@/features/tasks/TaskService'
 import { DefaultTodayDashboardQuery } from '@/features/today/TodayDashboardQuery'
 import { DefaultTodayDashboardViewModelAssembler } from '@/features/today/TodayDashboardViewModelAssembler'
-import { MockTodaySupportingViewModelSource } from '@/features/today/MockTodaySupportingViewModelSource'
 import { MockTodayProjectNameResolver } from '@/features/today/MockTodayProjectNameResolver'
 import { InMemoryWaitingRepository } from '@/repositories/inMemory/InMemoryWaitingRepository'
 import { InMemoryMemoRepository } from '@/repositories/inMemory/InMemoryMemoRepository'
 import { InMemoryRoutineRepository } from '@/repositories/inMemory/InMemoryRoutineRepository'
 import { InMemoryRoutineLogRepository } from '@/repositories/inMemory/InMemoryRoutineLogRepository'
+import { InMemoryActivityRepository } from '@/repositories/inMemory/InMemoryActivityRepository'
 import { RepositoryVersionConflictError } from '@/repositories/errors'
 import { DexieTaskRepository } from './DexieTaskRepository'
 
@@ -172,13 +172,14 @@ describe('DexieTaskRepository', () => {
       memos: new InMemoryMemoRepository(),
       routines: new InMemoryRoutineRepository(),
       routineLogs: new InMemoryRoutineLogRepository(),
+      activities: new InMemoryActivityRepository(),
       projectNames: new MockTodayProjectNameResolver(),
-      supportingData: new MockTodaySupportingViewModelSource('en'),
       assembler: new DefaultTodayDashboardViewModelAssembler(),
     })
     const result = await query.execute({
       date: '2026-08-24',
       timezone: 'Asia/Shanghai',
+      language: 'en',
     })
 
     expect(result.tasks.map((task) => task.title)).toEqual([

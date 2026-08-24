@@ -11,7 +11,6 @@ import {
 import { WaitingService } from '@/features/waiting/WaitingService'
 import { DefaultTodayDashboardQuery } from '@/features/today/TodayDashboardQuery'
 import { DefaultTodayDashboardViewModelAssembler } from '@/features/today/TodayDashboardViewModelAssembler'
-import { MockTodaySupportingViewModelSource } from '@/features/today/MockTodaySupportingViewModelSource'
 import { MockTodayProjectNameResolver } from '@/features/today/MockTodayProjectNameResolver'
 import { RepositoryVersionConflictError } from '@/repositories/errors'
 import { DexieTaskRepository } from './DexieTaskRepository'
@@ -19,6 +18,7 @@ import { DexieWaitingRepository } from './DexieWaitingRepository'
 import { InMemoryMemoRepository } from '@/repositories/inMemory/InMemoryMemoRepository'
 import { InMemoryRoutineRepository } from '@/repositories/inMemory/InMemoryRoutineRepository'
 import { InMemoryRoutineLogRepository } from '@/repositories/inMemory/InMemoryRoutineLogRepository'
+import { InMemoryActivityRepository } from '@/repositories/inMemory/InMemoryActivityRepository'
 
 class Version1Database extends Dexie {
   tasks!: EntityTable<Task, 'id'>
@@ -190,15 +190,16 @@ describe('DexieWaitingRepository', () => {
       memos: new InMemoryMemoRepository(),
       routines: new InMemoryRoutineRepository(),
       routineLogs: new InMemoryRoutineLogRepository(),
+      activities: new InMemoryActivityRepository(),
       projectNames: new MockTodayProjectNameResolver(
         new Map([['project-1', 'Launch project']]),
       ),
-      supportingData: new MockTodaySupportingViewModelSource('en'),
       assembler: new DefaultTodayDashboardViewModelAssembler(),
     })
     const result = await query.execute({
       date: '2026-08-24',
       timezone: 'Asia/Shanghai',
+      language: 'en',
     })
 
     expect(result.waiting.map((item) => item.title)).toEqual([

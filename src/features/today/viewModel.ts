@@ -1,5 +1,5 @@
 import type { TaskPriority, TaskStatus, WaitingStatus } from '@/domain/entities'
-import type { Instant, LocalDate } from '@/domain/shared'
+import type { ActivityEntityType, Instant, LocalDate } from '@/domain/shared'
 
 export type TodayWidgetStatus = 'loading' | 'ready' | 'empty'
 
@@ -50,13 +50,10 @@ export interface TodayQuickMemoViewModel {
   updatedAt: Instant
 }
 
-export type TodayActivityKind =
-  'task_completed' | 'memo_updated' | 'waiting_created'
-
 export interface TodayActivityItemViewModel {
   activityId: string
-  kind: TodayActivityKind
-  entityTitle: string
+  entityType: ActivityEntityType
+  text: string
   occurredAt: Instant
 }
 

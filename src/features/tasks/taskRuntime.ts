@@ -3,6 +3,7 @@ import {
   initializeLocalDatabase,
 } from '@/database/DailyWorkDatabase'
 import type {
+  ActivityRepository,
   TaskRepository,
   MemoRepository,
   RoutineLogRepository,
@@ -19,6 +20,8 @@ import { DexieRoutineRepository } from '@/repositories/dexie/DexieRoutineReposit
 import { DexieRoutineLogRepository } from '@/repositories/dexie/DexieRoutineLogRepository'
 import { MemoService } from '@/features/memos/MemoService'
 import { RoutineService } from '@/features/routines/RoutineService'
+import { DexieActivityRepository } from '@/repositories/dexie/DexieActivityRepository'
+import { ActivityService } from '@/features/activity/ActivityService'
 
 export const localUserId = 'local-user'
 
@@ -32,6 +35,8 @@ export interface TaskRuntime {
   routineRepository: RoutineRepository
   routineLogRepository: RoutineLogRepository
   routineService: RoutineService
+  activityRepository: ActivityRepository
+  activityService: ActivityService
   ready: Promise<void>
 }
 
@@ -43,16 +48,25 @@ export function createTaskRuntime(
   const memoRepository = new DexieMemoRepository(database)
   const routineRepository = new DexieRoutineRepository(database)
   const routineLogRepository = new DexieRoutineLogRepository(database)
+  const activityRepository = new DexieActivityRepository(database)
+  const activityService = new ActivityService(activityRepository)
   return {
     repository,
-    service: new TaskService(repository),
+    service: new TaskService(repository, {}, activityService),
     waitingRepository,
-    waitingService: new WaitingService(waitingRepository),
+    waitingService: new WaitingService(waitingRepository, {}, activityService),
     memoRepository,
-    memoService: new MemoService(memoRepository),
+    memoService: new MemoService(memoRepository, undefined, activityService),
     routineRepository,
     routineLogRepository,
-    routineService: new RoutineService(routineRepository, routineLogRepository),
+    routineService: new RoutineService(
+      routineRepository,
+      routineLogRepository,
+      undefined,
+      activityService,
+    ),
+    activityRepository,
+    activityService,
     ready: initializeLocalDatabase(database).catch((error: unknown) => {
       throw new TaskPersistenceError('Task storage could not be initialized.', {
         cause: error,

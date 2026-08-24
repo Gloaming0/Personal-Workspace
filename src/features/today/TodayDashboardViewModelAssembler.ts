@@ -1,5 +1,11 @@
 import { differenceInCalendarDays, parseISO } from 'date-fns'
-import type { Memo, Task, Waiting } from '@/domain/entities'
+import type {
+  Activity,
+  ActivityEventType,
+  Memo,
+  Task,
+  Waiting,
+} from '@/domain/entities'
 import { deriveNeedsFollowUp } from '@/domain/waiting'
 import type {
   TodayDashboardAggregate,
@@ -10,6 +16,47 @@ import type {
   TodayFocusItemViewModel,
   TodayTaskItemViewModel,
 } from './viewModel'
+import {
+  messages,
+  type MessageKey,
+} from '@/features/settings/language/messages'
+
+const activityMessageKeys = {
+  task_created: 'today.activityTaskCreated',
+  task_completed: 'today.activityTaskCompleted',
+  task_reopened: 'today.activityTaskReopened',
+  task_focus_set: 'today.activityTaskFocusSet',
+  task_focus_removed: 'today.activityTaskFocusRemoved',
+  waiting_created: 'today.activityWaitingCreated',
+  waiting_confirmed: 'today.activityWaitingConfirmed',
+  waiting_closed: 'today.activityWaitingClosed',
+  waiting_reopened: 'today.activityWaitingReopened',
+  waiting_followup_changed: 'today.activityWaitingFollowUpChanged',
+  memo_created: 'today.activityMemoCreated',
+  memo_updated: 'today.activityMemoUpdated',
+  memo_pinned: 'today.activityMemoPinned',
+  memo_unpinned: 'today.activityMemoUnpinned',
+  routine_completed: 'today.activityRoutineCompleted',
+  routine_completion_undone: 'today.activityRoutineUndone',
+  project_status_changed: 'today.activityProjectChanged',
+  daily_log_finalized: 'today.activityDailyLogFinalized',
+} as const satisfies Record<ActivityEventType, MessageKey>
+
+function toActivityViewModel(
+  activity: Activity,
+  aggregate: TodayDashboardAggregate,
+) {
+  const title =
+    typeof activity.payload.title === 'string' ? activity.payload.title : ''
+  return {
+    activityId: activity.id,
+    entityType: activity.entityType,
+    text: messages[aggregate.language][
+      activityMessageKeys[activity.eventType]
+    ].replace('{title}', title),
+    occurredAt: activity.occurredAt,
+  }
+}
 
 function toQuickMemoViewModel(memo: Memo, aggregate: TodayDashboardAggregate) {
   return {
@@ -115,6 +162,10 @@ export class DefaultTodayDashboardViewModelAssembler implements TodayDashboardVi
         completed: Boolean(log),
       }
     })
+    const recentActivity = [...aggregate.activities]
+      .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))
+      .slice(0, 10)
+      .map((activity) => toActivityViewModel(activity, aggregate))
 
     return {
       date: aggregate.date,
@@ -129,7 +180,7 @@ export class DefaultTodayDashboardViewModelAssembler implements TodayDashboardVi
       waiting,
       checkIns,
       quickMemo: quickMemo ? toQuickMemoViewModel(quickMemo, aggregate) : null,
-      recentActivity: aggregate.supportingData.recentActivity,
+      recentActivity,
     }
   }
 }

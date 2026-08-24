@@ -1,6 +1,6 @@
 # Daily Work OS Database Schema
 
-Version: 1.4
+Version: 1.5
 
 
 # Purpose
@@ -702,6 +702,37 @@ xxxx
 {
  title:"Finish proposal"
 }
+
+## Local IndexedDB Implementation
+
+Phase 1.7 adds `activities` in IndexedDB Version 5 while preserving every
+Version 1–4 declaration. Indexes cover `userId`, `eventType`, `entityType`,
+`entityId`, `occurredAt`, and `deviceId`, plus `[userId+occurredAt]`,
+`[entityType+entityId]`, and `[userId+eventType]`.
+
+Activity is append-only. `ActivityRepository` exposes `append` and `find`; it
+does not expose update, save, soft delete, or physical delete. A duplicate
+Activity `id` is rejected. Events start and remain at Version 1 with
+`deletedAt = null`; `createdAt`, `updatedAt`, and `occurredAt` are fixed at the
+append instant.
+
+Phase 1.7 records these minimum event types:
+
+- Task: `task_created`, `task_completed`, `task_reopened`, `task_focus_set`,
+  `task_focus_removed`
+- Waiting: `waiting_created`, `waiting_confirmed`, `waiting_closed`,
+  `waiting_reopened`, `waiting_followup_changed`
+- Memo: `memo_created`, `memo_updated`, `memo_pinned`, `memo_unpinned`
+- Routine: `routine_completed`, `routine_completion_undone`
+
+`payload` stores only the original snapshot fields needed for later rendering:
+`title`, `entityId`, and optional `projectId`. It never stores a translated
+sentence, language code, or `{ en, zh-CN }` content. Today sorts by
+`occurredAt` descending and reads at most the newest 10 events. The View Model
+Assembler combines `eventType`, raw payload, and current UI i18n messages.
+
+The Version 4 → Version 5 migration is additive. Existing Task, Waiting, Memo,
+Routine, and RoutineLog rows require no transform and remain unchanged.
 
 
 

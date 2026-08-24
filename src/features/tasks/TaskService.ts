@@ -9,6 +9,7 @@ import {
 import type { Task } from '@/domain/entities'
 import type { EntityId, Instant, LocalDate } from '@/domain/shared'
 import type { TaskRepository } from '@/repositories/contracts'
+import { ActivityService } from '@/features/activity/ActivityService'
 
 export class TaskNotFoundError extends Error {
   constructor(id: EntityId) {
@@ -36,6 +37,7 @@ export class TaskService {
   constructor(
     private readonly tasks: TaskRepository,
     dependencies: TaskServiceDependencies = {},
+    private readonly activities?: ActivityService,
   ) {
     this.now = dependencies.now ?? (() => new Date().toISOString())
     this.createId = dependencies.createId ?? (() => crypto.randomUUID())
@@ -44,15 +46,24 @@ export class TaskService {
   async create(input: CreateTaskInput): Promise<Task> {
     const task = createTask(input, { id: this.createId(), now: this.now() })
     await this.tasks.save(task)
+    await this.record(task, 'task_created')
     return task
   }
 
   async complete(id: EntityId): Promise<Task> {
-    return this.change(id, (task) => completeTask(task, this.now()))
+    const task = await this.change(id, (entity) =>
+      completeTask(entity, this.now()),
+    )
+    await this.record(task, 'task_completed')
+    return task
   }
 
   async reopen(id: EntityId): Promise<Task> {
-    return this.change(id, (task) => reopenTask(task, this.now()))
+    const task = await this.change(id, (entity) =>
+      reopenTask(entity, this.now()),
+    )
+    await this.record(task, 'task_reopened')
+    return task
   }
 
   async setFocus(id: EntityId, date: LocalDate): Promise<Task> {
@@ -75,11 +86,17 @@ export class TaskService {
 
     const focused = setTaskFocus(task, date, order, this.now())
     await this.tasks.save(focused, { expectedVersion: task.version })
+    await this.record(focused, 'task_focus_set')
     return focused
   }
 
   async removeFocus(id: EntityId): Promise<Task> {
-    return this.change(id, (task) => removeTaskFocus(task, this.now()))
+    const task = await this.requireTask(id)
+    const updated = removeTaskFocus(task, this.now())
+    if (updated === task) return task
+    await this.tasks.save(updated, { expectedVersion: task.version })
+    await this.record(updated, 'task_focus_removed')
+    return updated
   }
 
   private async change(
@@ -97,5 +114,24 @@ export class TaskService {
     const task = await this.tasks.getById(id)
     if (!task) throw new TaskNotFoundError(id)
     return task
+  }
+
+  private async record(
+    task: Task,
+    eventType:
+      | 'task_created'
+      | 'task_completed'
+      | 'task_reopened'
+      | 'task_focus_set'
+      | 'task_focus_removed',
+  ): Promise<void> {
+    await this.activities?.record({
+      userId: task.userId,
+      eventType,
+      entityType: 'task',
+      entityId: task.id,
+      title: task.title,
+      projectId: task.projectId,
+    })
   }
 }

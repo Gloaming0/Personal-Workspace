@@ -6,10 +6,12 @@ import { InMemoryWaitingRepository } from '@/repositories/inMemory/InMemoryWaiti
 import { InMemoryMemoRepository } from '@/repositories/inMemory/InMemoryMemoRepository'
 import { InMemoryRoutineRepository } from '@/repositories/inMemory/InMemoryRoutineRepository'
 import { InMemoryRoutineLogRepository } from '@/repositories/inMemory/InMemoryRoutineLogRepository'
+import { InMemoryActivityRepository } from '@/repositories/inMemory/InMemoryActivityRepository'
 import { TaskService } from '@/features/tasks/TaskService'
 import { WaitingService } from '@/features/waiting/WaitingService'
 import { MemoService } from '@/features/memos/MemoService'
 import { RoutineService } from '@/features/routines/RoutineService'
+import { ActivityService } from '@/features/activity/ActivityService'
 import type { TaskRuntime } from '@/features/tasks/taskRuntime'
 import {
   getDefaultPreferences,
@@ -22,6 +24,7 @@ describe('Task Today UI boundary', () => {
     const memoRepository = new InMemoryMemoRepository()
     const routineRepository = new InMemoryRoutineRepository()
     const routineLogRepository = new InMemoryRoutineLogRepository()
+    const activityRepository = new InMemoryActivityRepository()
     return {
       memoRepository,
       memoService: new MemoService(memoRepository),
@@ -31,6 +34,8 @@ describe('Task Today UI boundary', () => {
         routineRepository,
         routineLogRepository,
       ),
+      activityRepository,
+      activityService: new ActivityService(activityRepository),
     }
   }
   beforeEach(() => {
@@ -126,6 +131,7 @@ describe('Task Today UI boundary', () => {
     const memoRepository = new InMemoryMemoRepository()
     const routineRepository = new InMemoryRoutineRepository()
     const routineLogRepository = new InMemoryRoutineLogRepository()
+    const activityRepository = new InMemoryActivityRepository()
     const runtime: TaskRuntime = {
       repository,
       service: new TaskService(repository),
@@ -146,6 +152,8 @@ describe('Task Today UI boundary', () => {
           now: () => '2026-08-24T10:00:00.000Z',
         },
       ),
+      activityRepository,
+      activityService: new ActivityService(activityRepository),
       ready: Promise.resolve(),
     }
     render(<TaskTodayWorkspace runtime={runtime} />)
