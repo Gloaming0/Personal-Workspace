@@ -10,9 +10,24 @@ import {
   assertUserId,
   validateActivity,
 } from '@/repositories/validation'
+import {
+  createMapSnapshot,
+  restoreMapSnapshot,
+  type InMemoryTransactionalStore,
+} from '@/unitOfWork/inMemory/transactionalStore'
 
-export class InMemoryActivityRepository implements ActivityRepository {
+export class InMemoryActivityRepository
+  implements ActivityRepository, InMemoryTransactionalStore
+{
   private readonly records = new Map<string, Activity>()
+
+  createTransactionSnapshot(): unknown {
+    return createMapSnapshot(this.records)
+  }
+
+  restoreTransactionSnapshot(snapshot: unknown): void {
+    restoreMapSnapshot(this.records, snapshot)
+  }
 
   async find(userId: UserId, query: ActivityQuery): Promise<Activity[]> {
     assertUserId(userId)

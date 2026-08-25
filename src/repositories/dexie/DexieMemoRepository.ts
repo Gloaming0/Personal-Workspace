@@ -18,6 +18,7 @@ import {
   assertUserId,
   validateMemo,
 } from '@/repositories/validation'
+import { executeDexieWrite } from './executeDexieWrite'
 
 const cloneMemo = (memo: Memo) => structuredClone(memo)
 
@@ -33,12 +34,16 @@ function matches(memo: Memo, query: MemoQuery): boolean {
 }
 
 export class DexieMemoRepository implements MemoRepository {
-  constructor(private readonly database: DailyWorkDatabase) {}
+  constructor(
+    private readonly database: DailyWorkDatabase,
+    private readonly table = database.memos,
+    private readonly transactionBound = false,
+  ) {}
 
   async getById(userId: UserId, id: EntityId): Promise<Memo | null> {
     try {
       assertUserId(userId)
-      const memo = await this.database.memos.get(id)
+      const memo = await this.table.get(id)
       if (!memo || memo.userId !== userId) return null
       const validated = validateMemo(memo)
       return validated.deletedAt === null ? cloneMemo(validated) : null
@@ -52,7 +57,7 @@ export class DexieMemoRepository implements MemoRepository {
   async find(userId: UserId, query: MemoQuery): Promise<Memo[]> {
     try {
       assertUserId(userId)
-      const memos = (await this.database.memos.toArray())
+      const memos = (await this.table.toArray())
         .filter((memo) => memo.userId === userId)
         .map(validateMemo)
         .filter((memo) => matches(memo, query))
@@ -73,8 +78,8 @@ export class DexieMemoRepository implements MemoRepository {
     try {
       validateMemo(memo)
       assertRepositoryOwner(userId, memo)
-      await this.database.transaction('rw', this.database.memos, async () => {
-        const current = await this.database.memos.get(memo.id)
+      const write = async () => {
+        const current = await this.table.get(memo.id)
         if (current) assertRepositoryOwner(userId, current)
         const conflict = current
           ? (options.expectedVersion !== undefined &&
@@ -82,8 +87,11 @@ export class DexieMemoRepository implements MemoRepository {
             memo.version !== current.version + 1
           : options.expectedVersion !== undefined || memo.version !== 1
         if (conflict) throw new RepositoryVersionConflictError(memo.id, 'Memo')
-        await this.database.memos.put(cloneMemo(memo))
-      })
+        await this.table.put(cloneMemo(memo))
+      }
+      await (this.transactionBound
+        ? write()
+        : executeDexieWrite(this.database, this.table, write))
     } catch (error) {
       if (
         error instanceof RepositoryVersionConflictError ||

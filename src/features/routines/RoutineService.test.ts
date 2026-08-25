@@ -5,6 +5,7 @@ import { InMemoryRoutineRepository } from '@/repositories/inMemory/InMemoryRouti
 import { InMemoryRoutineLogRepository } from '@/repositories/inMemory/InMemoryRoutineLogRepository'
 import { RoutineLogUniquenessError } from '@/repositories/errors'
 import { RoutineService } from './RoutineService'
+import { InMemoryUnitOfWork } from '@/unitOfWork/inMemory/InMemoryUnitOfWork'
 
 describe('Routine schedule', () => {
   it('supports daily, weekdays, and weekly daysOfWeek', () => {
@@ -38,10 +39,15 @@ describe('RoutineService', () => {
     const logs = new InMemoryRoutineLogRepository()
     let id = 0
     let tick = 0
-    const service = new RoutineService(routines, logs, {
-      createId: () => `entity-${++id}`,
-      now: () => `2026-08-24T10:00:0${tick++}.000Z`,
-    })
+    const service = new RoutineService(
+      routines,
+      logs,
+      new InMemoryUnitOfWork({ routines, routineLogs: logs }),
+      {
+        createId: () => `entity-${++id}`,
+        now: () => `2026-08-24T10:00:0${tick++}.000Z`,
+      },
+    )
     const routine = await service.create({
       userId: 'user-1',
       title: 'Daily review',
@@ -78,10 +84,15 @@ describe('RoutineService', () => {
   it('excludes paused and archived routines from active queries and can resume', async () => {
     const routines = new InMemoryRoutineRepository()
     const logs = new InMemoryRoutineLogRepository()
-    const service = new RoutineService(routines, logs, {
-      createId: () => 'routine-state',
-      now: () => '2026-08-24T10:00:00.000Z',
-    })
+    const service = new RoutineService(
+      routines,
+      logs,
+      new InMemoryUnitOfWork({ routines, routineLogs: logs }),
+      {
+        createId: () => 'routine-state',
+        now: () => '2026-08-24T10:00:00.000Z',
+      },
+    )
     const routine = await service.create({
       userId: 'user-1',
       title: 'State routine',

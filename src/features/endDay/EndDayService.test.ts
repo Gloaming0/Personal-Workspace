@@ -16,21 +16,37 @@ import { InMemoryWaitingRepository } from '@/repositories/inMemory/InMemoryWaiti
 import { DailyLogAlreadyFinalizedError } from '@/repositories/errors'
 import { EndDayQuery } from './EndDayQuery'
 import { EndDayService } from './EndDayService'
+import { InMemoryUnitOfWork } from '@/unitOfWork/inMemory/InMemoryUnitOfWork'
 
 const userId = 'user-1'
 const date = '2026-08-25'
 const now = '2026-08-25T12:00:00.000Z'
 
-function setup() {
-  const tasks = new InMemoryTaskRepository()
+function setup(
+  overrides: {
+    tasks?: InMemoryTaskRepository
+    logs?: InMemoryDailyLogRepository
+    activities?: InMemoryActivityRepository
+  } = {},
+) {
+  const tasks = overrides.tasks ?? new InMemoryTaskRepository()
   const waiting = new InMemoryWaitingRepository()
   const memos = new InMemoryMemoRepository()
   const routines = new InMemoryRoutineRepository()
   const routineLogs = new InMemoryRoutineLogRepository()
-  const activities = new InMemoryActivityRepository()
-  const logs = new InMemoryDailyLogRepository()
+  const activities = overrides.activities ?? new InMemoryActivityRepository()
+  const logs = overrides.logs ?? new InMemoryDailyLogRepository()
+  const unitOfWork = new InMemoryUnitOfWork({
+    tasks,
+    waiting,
+    memos,
+    routines,
+    routineLogs,
+    activities,
+    dailyLogs: logs,
+  })
   let taskId = 0
-  const taskService = new TaskService(tasks, {
+  const taskService = new TaskService(tasks, unitOfWork, {
     createId: () => `task-${++taskId}`,
     now: () => now,
   })
@@ -46,11 +62,12 @@ function setup() {
     query,
     taskService,
     logs,
+    unitOfWork,
     new ActivityService(activities, {
       createId: () => 'activity-1',
       now: () => now,
     }),
-    { createId: () => 'log-1', now: () => now },
+    { now: () => now },
   )
   return {
     tasks,
@@ -154,6 +171,7 @@ describe('End Day service', () => {
     )
 
     const log = await context.service.finalize({
+      commandId: 'log-1',
       userId,
       date,
       timezone: 'Asia/Shanghai',
@@ -217,6 +235,7 @@ describe('End Day service', () => {
 
     await expect(
       context.service.finalize({
+        commandId: 'different-command',
         userId,
         date,
         timezone: 'UTC',
@@ -234,23 +253,36 @@ describe('End Day service', () => {
       }
     }
     const tasks = new FailingTaskRepository()
-    const taskService = new TaskService(tasks, {
+    const logs = new InMemoryDailyLogRepository()
+    const waiting = new InMemoryWaitingRepository()
+    const memos = new InMemoryMemoRepository()
+    const routines = new InMemoryRoutineRepository()
+    const routineLogs = new InMemoryRoutineLogRepository()
+    const unitOfWork = new InMemoryUnitOfWork({
+      tasks,
+      waiting,
+      memos,
+      routines,
+      routineLogs,
+      dailyLogs: logs,
+    })
+    const taskService = new TaskService(tasks, unitOfWork, {
       createId: () => 'task-1',
       now: () => now,
     })
     await taskService.create({ userId, title: 'Will fail', plannedDate: date })
-    const logs = new InMemoryDailyLogRepository()
     const query = new EndDayQuery({
       tasks,
-      waiting: new InMemoryWaitingRepository(),
-      memos: new InMemoryMemoRepository(),
-      routines: new InMemoryRoutineRepository(),
-      routineLogs: new InMemoryRoutineLogRepository(),
+      waiting,
+      memos,
+      routines,
+      routineLogs,
       projectNames: new MockTodayProjectNameResolver(),
     })
-    const service = new EndDayService(query, taskService, logs)
+    const service = new EndDayService(query, taskService, logs, unitOfWork)
     await expect(
       service.finalize({
+        commandId: 'failing-command',
         userId,
         date,
         timezone: 'UTC',
@@ -259,5 +291,148 @@ describe('End Day service', () => {
       }),
     ).rejects.toThrow('write failed')
     await expect(logs.findByDate(userId, date)).resolves.toBeNull()
+  })
+
+  it('rolls back every Task when the Nth End Day decision fails', async () => {
+    class FailingSecondUpdateRepository extends InMemoryTaskRepository {
+      private updates = 0
+
+      override async save(...args: Parameters<InMemoryTaskRepository['save']>) {
+        if (args[1].version > 1 && ++this.updates === 2) {
+          throw new Error('second Task update failed')
+        }
+        return super.save(...args)
+      }
+    }
+    const tasks = new FailingSecondUpdateRepository()
+    const context = setup({ tasks })
+    const first = await context.taskService.create({
+      userId,
+      title: 'First rollback Task',
+      plannedDate: date,
+    })
+    const second = await context.taskService.create({
+      userId,
+      title: 'Second rollback Task',
+      plannedDate: date,
+    })
+
+    await expect(
+      context.service.finalize({
+        commandId: 'nth-task-failure',
+        userId,
+        date,
+        timezone: 'UTC',
+        summary: '',
+        taskActions: { [first.id]: 'later', [second.id]: 'tomorrow' },
+      }),
+    ).rejects.toThrow('second Task update failed')
+
+    await expect(
+      context.tasks.getById(userId, first.id),
+    ).resolves.toMatchObject({ status: 'todo', plannedDate: date, version: 1 })
+    await expect(
+      context.tasks.getById(userId, second.id),
+    ).resolves.toMatchObject({ status: 'todo', plannedDate: date, version: 1 })
+    await expect(context.logs.findByDate(userId, date)).resolves.toBeNull()
+  })
+
+  it('rolls back Task decisions when DailyLog persistence fails', async () => {
+    class FailingDailyLogRepository extends InMemoryDailyLogRepository {
+      override async finalize(
+        ...args: Parameters<InMemoryDailyLogRepository['finalize']>
+      ) {
+        await super.finalize(...args)
+        throw new Error('DailyLog write failed')
+      }
+    }
+    const context = setup({ logs: new FailingDailyLogRepository() })
+    const task = await context.taskService.create({
+      userId,
+      title: 'DailyLog rollback Task',
+      plannedDate: date,
+    })
+
+    await expect(
+      context.service.finalize({
+        commandId: 'daily-log-failure',
+        userId,
+        date,
+        timezone: 'UTC',
+        summary: '',
+        taskActions: { [task.id]: 'later' },
+      }),
+    ).rejects.toThrow('DailyLog write failed')
+
+    await expect(context.tasks.getById(userId, task.id)).resolves.toMatchObject(
+      {
+        status: 'todo',
+        version: 1,
+      },
+    )
+    await expect(context.logs.findByDate(userId, date)).resolves.toBeNull()
+  })
+
+  it('rolls back Tasks and DailyLog when final Activity append fails', async () => {
+    class FailingActivityRepository extends InMemoryActivityRepository {
+      override async append(
+        ...args: Parameters<InMemoryActivityRepository['append']>
+      ) {
+        await super.append(...args)
+        throw new Error('Activity append failed')
+      }
+    }
+    const activities = new FailingActivityRepository()
+    const context = setup({ activities })
+    const task = await context.taskService.create({
+      userId,
+      title: 'Activity rollback Task',
+      plannedDate: date,
+    })
+
+    await expect(
+      context.service.finalize({
+        commandId: 'activity-failure',
+        userId,
+        date,
+        timezone: 'UTC',
+        summary: '',
+        taskActions: { [task.id]: 'tomorrow' },
+      }),
+    ).rejects.toThrow('Activity append failed')
+
+    await expect(context.tasks.getById(userId, task.id)).resolves.toMatchObject(
+      {
+        status: 'todo',
+        plannedDate: date,
+        version: 1,
+      },
+    )
+    await expect(context.logs.findByDate(userId, date)).resolves.toBeNull()
+    await expect(activities.find(userId, {})).resolves.toEqual([])
+  })
+
+  it('returns the same finalized result when commandId is retried', async () => {
+    const context = setup()
+    const task = await context.taskService.create({
+      userId,
+      title: 'Idempotent Task',
+      plannedDate: date,
+    })
+    const input = {
+      commandId: 'idempotent-finalize',
+      userId,
+      date,
+      timezone: 'UTC',
+      summary: 'once',
+      taskActions: { [task.id]: 'later' as const },
+    }
+
+    const first = await context.service.finalize(input)
+    const retried = await context.service.finalize(input)
+
+    expect(retried).toEqual(first)
+    await expect(context.activities.find(userId, {})).resolves.toHaveLength(1)
+    await expect(context.logs.findByDate(userId, date)).resolves.toEqual(first)
   })
 })

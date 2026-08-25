@@ -12,6 +12,11 @@ import {
 } from '@/domain/waiting'
 import type { WaitingRepository } from '@/repositories/contracts'
 import { ActivityService } from '@/features/activity/ActivityService'
+import {
+  executeAtomic,
+  type UnitOfWork,
+  type UnitOfWorkTransaction,
+} from '@/unitOfWork/contracts'
 
 export class WaitingNotFoundError extends Error {
   constructor(id: EntityId) {
@@ -31,6 +36,7 @@ export class WaitingService {
 
   constructor(
     private readonly waiting: WaitingRepository,
+    private readonly unitOfWork: UnitOfWork,
     dependencies: WaitingServiceDependencies = {},
     private readonly activities?: ActivityService,
   ) {
@@ -39,13 +45,20 @@ export class WaitingService {
   }
 
   async create(input: CreateWaitingInput): Promise<Waiting> {
-    const entity = createWaiting(input, {
-      id: this.createId(),
-      now: this.now(),
-    })
-    await this.waiting.save(input.userId, entity)
-    await this.record(entity, 'waiting_created')
-    return entity
+    return executeAtomic(
+      this.unitOfWork,
+      this.stores(true),
+      async (transaction) => {
+        const waiting = transaction.repository('waiting')
+        const entity = createWaiting(input, {
+          id: this.createId(),
+          now: this.now(),
+        })
+        await waiting.save(input.userId, entity)
+        await this.record(entity, 'waiting_created', transaction)
+        return entity
+      },
+    )
   }
 
   async edit(
@@ -114,19 +127,36 @@ export class WaitingService {
       | 'waiting_followup_changed',
     shouldRecord: (previous: Waiting, next: Waiting) => boolean = () => true,
   ): Promise<Waiting> {
-    const entity = await this.requireWaiting(userId, id)
-    const updated = update(entity)
-    await this.waiting.save(userId, updated, {
-      expectedVersion: entity.version,
-    })
-    if (eventType && shouldRecord(entity, updated)) {
-      await this.record(updated, eventType)
-    }
-    return updated
+    return executeAtomic(
+      this.unitOfWork,
+      this.stores(Boolean(eventType)),
+      async (transaction) => {
+        const waiting = transaction.repository('waiting')
+        const entity = await this.requireWaiting(waiting, userId, id)
+        const updated = update(entity)
+        await waiting.save(userId, updated, {
+          expectedVersion: entity.version,
+        })
+        if (eventType && shouldRecord(entity, updated)) {
+          await this.record(updated, eventType, transaction)
+        }
+        return updated
+      },
+    )
   }
 
-  private async requireWaiting(userId: UserId, id: EntityId): Promise<Waiting> {
-    const waiting = await this.waiting.getById(userId, id)
+  private stores(includeActivity: boolean) {
+    return includeActivity && this.activities
+      ? (['waiting', 'activities'] as const)
+      : (['waiting'] as const)
+  }
+
+  private async requireWaiting(
+    repository: WaitingRepository,
+    userId: UserId,
+    id: EntityId,
+  ): Promise<Waiting> {
+    const waiting = await repository.getById(userId, id)
     if (!waiting) throw new WaitingNotFoundError(id)
     return waiting
   }
@@ -139,14 +169,19 @@ export class WaitingService {
       | 'waiting_closed'
       | 'waiting_reopened'
       | 'waiting_followup_changed',
+    transaction: UnitOfWorkTransaction,
   ): Promise<void> {
-    await this.activities?.record({
-      userId: waiting.userId,
-      eventType,
-      entityType: 'waiting',
-      entityId: waiting.id,
-      title: waiting.title,
-      projectId: waiting.projectId,
-    })
+    if (this.activities)
+      await this.activities.record(
+        {
+          userId: waiting.userId,
+          eventType,
+          entityType: 'waiting',
+          entityId: waiting.id,
+          title: waiting.title,
+          projectId: waiting.projectId,
+        },
+        transaction.repository('activities'),
+      )
   }
 }

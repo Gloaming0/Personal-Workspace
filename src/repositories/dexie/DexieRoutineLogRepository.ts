@@ -17,18 +17,21 @@ import {
   assertUserId,
   validateRoutineLog,
 } from '@/repositories/validation'
+import { executeDexieWrite } from './executeDexieWrite'
 
 const cloneLog = (log: RoutineLog) => structuredClone(log)
 
 export class DexieRoutineLogRepository implements RoutineLogRepository {
-  constructor(private readonly database: DailyWorkDatabase) {}
+  constructor(
+    private readonly database: DailyWorkDatabase,
+    private readonly table = database.routine_logs,
+    private readonly transactionBound = false,
+  ) {}
 
   async findForDate(userId: UserId, date: LocalDate): Promise<RoutineLog[]> {
     try {
       assertUserId(userId)
-      return (
-        await this.database.routine_logs.where('date').equals(date).toArray()
-      )
+      return (await this.table.where('date').equals(date).toArray())
         .filter((log) => log.userId === userId)
         .map(validateRoutineLog)
         .filter((log) => log.deletedAt === null)
@@ -47,7 +50,7 @@ export class DexieRoutineLogRepository implements RoutineLogRepository {
   ): Promise<RoutineLog | null> {
     try {
       assertUserId(userId)
-      const logs = await this.database.routine_logs
+      const logs = await this.table
         .where('[routineId+date]')
         .equals([routineId, date])
         .toArray()
@@ -71,37 +74,36 @@ export class DexieRoutineLogRepository implements RoutineLogRepository {
     try {
       validateRoutineLog(log)
       assertRepositoryOwner(userId, log)
-      await this.database.transaction(
-        'rw',
-        this.database.routine_logs,
-        async () => {
-          const current = await this.database.routine_logs.get(log.id)
-          if (current) assertRepositoryOwner(userId, current)
-          const conflict = current
-            ? (options.expectedVersion !== undefined &&
-                current.version !== options.expectedVersion) ||
-              log.version !== current.version + 1
-            : options.expectedVersion !== undefined || log.version !== 1
-          if (conflict) {
-            throw new RepositoryVersionConflictError(log.id, 'RoutineLog')
+      const write = async () => {
+        const current = await this.table.get(log.id)
+        if (current) assertRepositoryOwner(userId, current)
+        const conflict = current
+          ? (options.expectedVersion !== undefined &&
+              current.version !== options.expectedVersion) ||
+            log.version !== current.version + 1
+          : options.expectedVersion !== undefined || log.version !== 1
+        if (conflict) {
+          throw new RepositoryVersionConflictError(log.id, 'RoutineLog')
+        }
+        if (log.deletedAt === null) {
+          const sameDay = await this.table
+            .where('[userId+routineId+date]')
+            .equals([log.userId, log.routineId, log.date])
+            .toArray()
+          if (
+            sameDay.some(
+              (existing) =>
+                existing.id !== log.id && existing.deletedAt === null,
+            )
+          ) {
+            throw new RoutineLogUniquenessError(log.routineId, log.date)
           }
-          if (log.deletedAt === null) {
-            const sameDay = await this.database.routine_logs
-              .where('[userId+routineId+date]')
-              .equals([log.userId, log.routineId, log.date])
-              .toArray()
-            if (
-              sameDay.some(
-                (existing) =>
-                  existing.id !== log.id && existing.deletedAt === null,
-              )
-            ) {
-              throw new RoutineLogUniquenessError(log.routineId, log.date)
-            }
-          }
-          await this.database.routine_logs.put(cloneLog(log))
-        },
-      )
+        }
+        await this.table.put(cloneLog(log))
+      }
+      await (this.transactionBound
+        ? write()
+        : executeDexieWrite(this.database, this.table, write))
     } catch (error) {
       if (
         error instanceof RepositoryVersionConflictError ||

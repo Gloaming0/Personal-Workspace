@@ -25,6 +25,7 @@ export interface EndDayOverview {
 }
 
 export interface FinalizeEndDayInput {
+  commandId: EntityId
   userId: UserId
   date: LocalDate
   timezone: string

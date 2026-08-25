@@ -18,6 +18,7 @@ import {
   usePreferencesStore,
 } from '@/features/settings/preferences/preferencesStore'
 import { TaskTodayWorkspace } from './TaskTodayWorkspace'
+import { InMemoryUnitOfWork } from '@/unitOfWork/inMemory/InMemoryUnitOfWork'
 
 describe('Task Today UI boundary', () => {
   function supportingRuntime() {
@@ -25,14 +26,21 @@ describe('Task Today UI boundary', () => {
     const routineRepository = new InMemoryRoutineRepository()
     const routineLogRepository = new InMemoryRoutineLogRepository()
     const activityRepository = new InMemoryActivityRepository()
+    const unitOfWork = new InMemoryUnitOfWork({
+      memos: memoRepository,
+      routines: routineRepository,
+      routineLogs: routineLogRepository,
+      activities: activityRepository,
+    })
     return {
       memoRepository,
-      memoService: new MemoService(memoRepository),
+      memoService: new MemoService(memoRepository, unitOfWork),
       routineRepository,
       routineLogRepository,
       routineService: new RoutineService(
         routineRepository,
         routineLogRepository,
+        unitOfWork,
       ),
       activityRepository,
       activityService: new ActivityService(activityRepository),
@@ -51,12 +59,19 @@ describe('Task Today UI boundary', () => {
     const waitingRepository = new InMemoryWaitingRepository()
     const runtime: TaskRuntime = {
       repository,
-      service: new TaskService(repository, {
-        createId: () => 'task-user-input',
-        now: () => '2026-08-24T10:00:00.000Z',
-      }),
+      service: new TaskService(
+        repository,
+        new InMemoryUnitOfWork({ tasks: repository }),
+        {
+          createId: () => 'task-user-input',
+          now: () => '2026-08-24T10:00:00.000Z',
+        },
+      ),
       waitingRepository,
-      waitingService: new WaitingService(waitingRepository),
+      waitingService: new WaitingService(
+        waitingRepository,
+        new InMemoryUnitOfWork({ waiting: waitingRepository }),
+      ),
       ...supportingRuntime(),
       ready: Promise.resolve(),
     }
@@ -87,12 +102,19 @@ describe('Task Today UI boundary', () => {
     const waitingRepository = new InMemoryWaitingRepository()
     const runtime: TaskRuntime = {
       repository,
-      service: new TaskService(repository),
+      service: new TaskService(
+        repository,
+        new InMemoryUnitOfWork({ tasks: repository }),
+      ),
       waitingRepository,
-      waitingService: new WaitingService(waitingRepository, {
-        createId: () => 'waiting-user-input',
-        now: () => '2026-08-24T10:00:00.000Z',
-      }),
+      waitingService: new WaitingService(
+        waitingRepository,
+        new InMemoryUnitOfWork({ waiting: waitingRepository }),
+        {
+          createId: () => 'waiting-user-input',
+          now: () => '2026-08-24T10:00:00.000Z',
+        },
+      ),
       ...supportingRuntime(),
       ready: Promise.resolve(),
     }
@@ -132,13 +154,21 @@ describe('Task Today UI boundary', () => {
     const routineRepository = new InMemoryRoutineRepository()
     const routineLogRepository = new InMemoryRoutineLogRepository()
     const activityRepository = new InMemoryActivityRepository()
+    const unitOfWork = new InMemoryUnitOfWork({
+      tasks: repository,
+      waiting: waitingRepository,
+      memos: memoRepository,
+      routines: routineRepository,
+      routineLogs: routineLogRepository,
+      activities: activityRepository,
+    })
     const runtime: TaskRuntime = {
       repository,
-      service: new TaskService(repository),
+      service: new TaskService(repository, unitOfWork),
       waitingRepository,
-      waitingService: new WaitingService(waitingRepository),
+      waitingService: new WaitingService(waitingRepository, unitOfWork),
       memoRepository,
-      memoService: new MemoService(memoRepository, {
+      memoService: new MemoService(memoRepository, unitOfWork, {
         createId: () => 'memo-user-input',
         now: () => '2026-08-25T10:00:00.000Z',
       }),
@@ -147,6 +177,7 @@ describe('Task Today UI boundary', () => {
       routineService: new RoutineService(
         routineRepository,
         routineLogRepository,
+        unitOfWork,
         {
           createId: () => 'routine-user-input',
           now: () => '2026-08-25T10:00:00.000Z',

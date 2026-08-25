@@ -15,6 +15,7 @@ import { MockTodayProjectNameResolver } from '@/features/today/MockTodayProjectN
 import { RepositoryVersionConflictError } from '@/repositories/errors'
 import { DexieTaskRepository } from './DexieTaskRepository'
 import { DexieWaitingRepository } from './DexieWaitingRepository'
+import { DexieUnitOfWork } from '@/unitOfWork/dexie/DexieUnitOfWork'
 import { InMemoryMemoRepository } from '@/repositories/inMemory/InMemoryMemoRepository'
 import { InMemoryRoutineRepository } from '@/repositories/inMemory/InMemoryRoutineRepository'
 import { InMemoryRoutineLogRepository } from '@/repositories/inMemory/InMemoryRoutineLogRepository'
@@ -52,10 +53,14 @@ describe('DexieWaitingRepository', () => {
     const firstDatabase = await openDatabase()
     const firstRepository = new DexieWaitingRepository(firstDatabase)
     let tick = 0
-    const firstService = new WaitingService(firstRepository, {
-      createId: () => 'waiting-persistent',
-      now: () => `2026-08-24T10:00:0${tick++}.000Z`,
-    })
+    const firstService = new WaitingService(
+      firstRepository,
+      new DexieUnitOfWork(firstDatabase),
+      {
+        createId: () => 'waiting-persistent',
+        now: () => `2026-08-24T10:00:0${tick++}.000Z`,
+      },
+    )
     const created = await firstService.create({
       userId: 'local-user',
       title: 'Persistent approval',
@@ -81,18 +86,26 @@ describe('DexieWaitingRepository', () => {
       status: 'confirmed',
       version: 3,
     })
-    const secondService = new WaitingService(secondRepository, {
-      now: () => '2026-08-24T11:00:00.000Z',
-    })
+    const secondService = new WaitingService(
+      secondRepository,
+      new DexieUnitOfWork(secondDatabase),
+      {
+        now: () => '2026-08-24T11:00:00.000Z',
+      },
+    )
     const closed = await secondService.close('local-user', created.id)
     expect(closed).toMatchObject({ status: 'closed', version: 4 })
     secondDatabase.close()
 
     const thirdDatabase = await openDatabase()
     const thirdRepository = new DexieWaitingRepository(thirdDatabase)
-    const thirdService = new WaitingService(thirdRepository, {
-      now: () => '2026-08-24T12:00:00.000Z',
-    })
+    const thirdService = new WaitingService(
+      thirdRepository,
+      new DexieUnitOfWork(thirdDatabase),
+      {
+        now: () => '2026-08-24T12:00:00.000Z',
+      },
+    )
     const reopened = await thirdService.reopen('local-user', created.id)
     expect(reopened).toMatchObject({
       status: 'waiting',
@@ -115,10 +128,14 @@ describe('DexieWaitingRepository', () => {
     databaseName = `waiting-soft-delete-${++databaseSequence}`
     const database = await openDatabase()
     const repository = new DexieWaitingRepository(database)
-    const service = new WaitingService(repository, {
-      createId: () => 'waiting-soft-delete',
-      now: () => '2026-08-24T09:00:00.000Z',
-    })
+    const service = new WaitingService(
+      repository,
+      new DexieUnitOfWork(database),
+      {
+        createId: () => 'waiting-soft-delete',
+        now: () => '2026-08-24T09:00:00.000Z',
+      },
+    )
     const waiting = await service.create({
       userId: 'local-user',
       title: 'Soft delete waiting',
@@ -176,10 +193,14 @@ describe('DexieWaitingRepository', () => {
     const database = await openDatabase()
     const waitingRepository = new DexieWaitingRepository(database)
     let id = 0
-    const service = new WaitingService(waitingRepository, {
-      createId: () => `waiting-${++id}`,
-      now: () => '2026-08-20T09:00:00.000Z',
-    })
+    const service = new WaitingService(
+      waitingRepository,
+      new DexieUnitOfWork(database),
+      {
+        createId: () => `waiting-${++id}`,
+        now: () => '2026-08-20T09:00:00.000Z',
+      },
+    )
     await service.create({
       userId: 'local-user',
       title: 'Future follow-up',

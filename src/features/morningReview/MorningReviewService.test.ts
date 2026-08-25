@@ -9,6 +9,7 @@ import {
   resolveMorningReviewDate,
 } from './MorningReviewQuery'
 import { MorningReviewService } from './MorningReviewService'
+import { InMemoryUnitOfWork } from '@/unitOfWork/inMemory/InMemoryUnitOfWork'
 
 class MemorySeenStore implements MorningReviewSeenStore {
   private readonly seen = new Map<UserId, LocalDate>()
@@ -68,7 +69,13 @@ describe('Morning Review', () => {
     ])
     const service = new MorningReviewService(
       new MorningReviewQuery(repository),
-      new TaskService(repository, { now: () => now }),
+      new TaskService(
+        repository,
+        new InMemoryUnitOfWork({ tasks: repository }),
+        {
+          now: () => now,
+        },
+      ),
       new MemorySeenStore(),
     )
     const input = { userId, date: today, timezone: 'Asia/Shanghai' }
@@ -100,7 +107,13 @@ describe('Morning Review', () => {
     const seen = new MemorySeenStore()
     const service = new MorningReviewService(
       new MorningReviewQuery(repository),
-      new TaskService(repository, { now: () => now }),
+      new TaskService(
+        repository,
+        new InMemoryUnitOfWork({ tasks: repository }),
+        {
+          now: () => now,
+        },
+      ),
       seen,
     )
     const input = { userId, date: today, timezone: 'UTC' }
@@ -131,16 +144,23 @@ describe('Morning Review', () => {
     const repository = new InMemoryTaskRepository([task('yesterday', 'todo')])
     const service = new MorningReviewService(
       new MorningReviewQuery(repository),
-      new TaskService(repository),
+      new TaskService(
+        repository,
+        new InMemoryUnitOfWork({ tasks: repository }),
+      ),
       new MemorySeenStore(),
     )
     const firstDay = { userId, date: today, timezone: 'Asia/Shanghai' }
     expect(await service.load(firstDay)).not.toBeNull()
     await service.skip(firstDay)
-    await new TaskService(repository, {
-      createId: () => 'today-task',
-      now: () => now,
-    }).create({ userId, title: 'Today carryover', plannedDate: today })
+    await new TaskService(
+      repository,
+      new InMemoryUnitOfWork({ tasks: repository }),
+      {
+        createId: () => 'today-task',
+        now: () => now,
+      },
+    ).create({ userId, title: 'Today carryover', plannedDate: today })
     await expect(
       service.load({ ...firstDay, date: '2026-08-26' }),
     ).resolves.toMatchObject({

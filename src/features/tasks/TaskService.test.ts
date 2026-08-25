@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { TaskRuleError, transitionTask } from '@/domain/task'
 import { InMemoryTaskRepository } from '@/repositories/inMemory/InMemoryTaskRepository'
 import { FocusLimitError, TaskService } from './TaskService'
+import { InMemoryUnitOfWork } from '@/unitOfWork/inMemory/InMemoryUnitOfWork'
 
 const today = '2026-08-24'
 const userId = 'user-1'
@@ -16,10 +17,14 @@ describe('Task vertical slice domain rules', () => {
     repository = new InMemoryTaskRepository()
     idSequence = 0
     timeSequence = 0
-    service = new TaskService(repository, {
-      createId: () => `task-${++idSequence}`,
-      now: () => `2026-08-24T10:00:0${timeSequence++}.000Z`,
-    })
+    service = new TaskService(
+      repository,
+      new InMemoryUnitOfWork({ tasks: repository }),
+      {
+        createId: () => `task-${++idSequence}`,
+        now: () => `2026-08-24T10:00:0${timeSequence++}.000Z`,
+      },
+    )
   })
 
   async function create(title: string) {

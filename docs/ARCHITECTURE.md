@@ -1298,3 +1298,52 @@ compatibility.
 
 This hardening does not introduce a Unit of Work, cross-store transactions,
 multi-tab observation, cloud persistence, or synchronization.
+
+# Phase 2.1B Atomic Command Boundaries
+
+`UnitOfWork` is a storage-neutral application port. A Feature Service declares
+the stores required by one command and receives transaction-scoped Repository
+ports; Domain code and UI code never import Dexie or a transaction type from a
+storage library.
+
+```text
+UI command
+    ↓
+Feature Service
+    ↓ execute([stores], command)
+UnitOfWorkTransaction ──→ transaction-scoped Repository ports
+    ├─ DexieUnitOfWork: one IndexedDB read-write transaction
+    └─ InMemoryUnitOfWork: serialized command + snapshot rollback
+```
+
+The supported scope includes Task, Waiting, Memo, Routine, RoutineLog,
+DailyLog, and Activity. A Service participating in an existing Unit of Work
+must reuse its transaction token; it must not open a nested transaction or use
+the runtime Repository instance directly. Dexie creates scoped Repository
+adapters over the active transaction tables. The In-memory adapter serializes
+commands and restores all participating Repository snapshots on failure so its
+observable commit/rollback behavior matches production.
+
+Every existing command that produces Activity now saves the Entity and appends
+the event in one atomic boundary. Activity failure rejects the command and
+rolls back the Entity. Focus assignment reads all active Focus Tasks, selects a
+free order from 1–3, saves the Task with `expectedVersion`, and appends Activity
+inside one Task/Activity transaction. Concurrent local commands therefore
+cannot claim the same order or exceed three Focus Tasks.
+
+End Day finalization is one transaction covering its live snapshot reads, all
+Tomorrow/Later/Delete Task decisions, immutable DailyLog insertion, and the
+`daily_log_finalized` Activity. This supersedes the Phase 1.8 temporary
+partial-success behavior: any Task, DailyLog, Activity, or version failure now
+rolls back the entire finalize command. The four-step UI remains preparatory
+and performs no Task writes before Finalize.
+
+`FinalizeEndDayInput.commandId` is the local idempotency key and is also the new
+DailyLog id. Retrying the same command for the same user/date returns the
+existing log before applying decisions or appending Activity. A different
+command for an already-finalized user/date is rejected. This reuses the v6
+DailyLog schema and `[userId+date]` uniqueness contract, so no Dexie schema
+version is added.
+
+This phase does not add multi-tab observation, cloud sync, Realtime, Sync
+Queue, or a new date policy.

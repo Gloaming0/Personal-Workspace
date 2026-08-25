@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { deriveNeedsFollowUp } from '@/domain/waiting'
 import { InMemoryWaitingRepository } from '@/repositories/inMemory/InMemoryWaitingRepository'
 import { WaitingService } from './WaitingService'
+import { InMemoryUnitOfWork } from '@/unitOfWork/inMemory/InMemoryUnitOfWork'
 
 describe('Waiting vertical slice domain rules', () => {
   let repository: InMemoryWaitingRepository
@@ -11,10 +12,14 @@ describe('Waiting vertical slice domain rules', () => {
   beforeEach(() => {
     repository = new InMemoryWaitingRepository()
     timeSequence = 0
-    service = new WaitingService(repository, {
-      createId: () => 'waiting-1',
-      now: () => `2026-08-24T10:00:0${timeSequence++}.000Z`,
-    })
+    service = new WaitingService(
+      repository,
+      new InMemoryUnitOfWork({ waiting: repository }),
+      {
+        createId: () => 'waiting-1',
+        now: () => `2026-08-24T10:00:0${timeSequence++}.000Z`,
+      },
+    )
   })
 
   it('creates and edits raw Waiting fields while preserving Task origin', async () => {

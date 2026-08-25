@@ -30,6 +30,7 @@ import { MockTodayProjectNameResolver } from '@/features/today/MockTodayProjectN
 import { MorningReviewQuery } from '@/features/morningReview/MorningReviewQuery'
 import { MorningReviewService } from '@/features/morningReview/MorningReviewService'
 import { LocalMorningReviewSeenStore } from '@/features/morningReview/LocalMorningReviewSeenStore'
+import { DexieUnitOfWork } from '@/unitOfWork/dexie/DexieUnitOfWork'
 
 export const localUserId = 'local-user'
 
@@ -61,6 +62,7 @@ export function createTaskRuntime(
   const routineLogRepository = new DexieRoutineLogRepository(database)
   const activityRepository = new DexieActivityRepository(database)
   const activityService = new ActivityService(activityRepository)
+  const unitOfWork = new DexieUnitOfWork(database)
   const dailyLogRepository = new DexieDailyLogRepository(database)
   const endDayQuery = new EndDayQuery({
     tasks: repository,
@@ -70,7 +72,12 @@ export function createTaskRuntime(
     routineLogs: routineLogRepository,
     projectNames: new MockTodayProjectNameResolver(),
   })
-  const taskService = new TaskService(repository, {}, activityService)
+  const taskService = new TaskService(
+    repository,
+    unitOfWork,
+    {},
+    activityService,
+  )
   const morningReviewService = new MorningReviewService(
     new MorningReviewQuery(repository),
     taskService,
@@ -80,14 +87,25 @@ export function createTaskRuntime(
     repository,
     service: taskService,
     waitingRepository,
-    waitingService: new WaitingService(waitingRepository, {}, activityService),
+    waitingService: new WaitingService(
+      waitingRepository,
+      unitOfWork,
+      {},
+      activityService,
+    ),
     memoRepository,
-    memoService: new MemoService(memoRepository, undefined, activityService),
+    memoService: new MemoService(
+      memoRepository,
+      unitOfWork,
+      undefined,
+      activityService,
+    ),
     routineRepository,
     routineLogRepository,
     routineService: new RoutineService(
       routineRepository,
       routineLogRepository,
+      unitOfWork,
       undefined,
       activityService,
     ),
@@ -98,6 +116,7 @@ export function createTaskRuntime(
       endDayQuery,
       taskService,
       dailyLogRepository,
+      unitOfWork,
       activityService,
     ),
     morningReviewService,

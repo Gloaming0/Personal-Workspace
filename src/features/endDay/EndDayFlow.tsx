@@ -7,6 +7,7 @@ interface EndDayFlowProps {
   onClose: () => void
   onLoad: () => Promise<EndDayOverview>
   onFinalize: (
+    commandId: string,
     summary: string,
     actions: Record<string, UnfinishedTaskAction>,
   ) => Promise<unknown>
@@ -23,6 +24,7 @@ export function EndDayFlow({ onClose, onLoad, onFinalize }: EndDayFlowProps) {
   const [error, setError] = useState(false)
   const [saving, setSaving] = useState(false)
   const dialogRef = useRef<HTMLElement>(null)
+  const commandIdRef = useRef(crypto.randomUUID())
 
   useEffect(() => {
     let active = true
@@ -74,7 +76,7 @@ export function EndDayFlow({ onClose, onLoad, onFinalize }: EndDayFlowProps) {
     setSaving(true)
     setError(false)
     try {
-      await onFinalize(summary, actions)
+      await onFinalize(commandIdRef.current, summary, actions)
       onClose()
     } catch {
       setError(true)

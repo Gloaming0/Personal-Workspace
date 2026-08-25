@@ -20,12 +20,15 @@ import {
 const cloneActivity = (activity: Activity) => structuredClone(activity)
 
 export class DexieActivityRepository implements ActivityRepository {
-  constructor(private readonly database: DailyWorkDatabase) {}
+  constructor(
+    private readonly database: DailyWorkDatabase,
+    private readonly table = database.activities,
+  ) {}
 
   async find(userId: UserId, query: ActivityQuery): Promise<Activity[]> {
     try {
       assertUserId(userId)
-      const activities = (await this.database.activities.toArray())
+      const activities = (await this.table.toArray())
         .filter((activity) => activity.userId === userId)
         .map(validateActivity)
         .filter(
@@ -55,7 +58,7 @@ export class DexieActivityRepository implements ActivityRepository {
     try {
       validateActivity(activity)
       assertRepositoryOwner(userId, activity)
-      await this.database.activities.add(cloneActivity(activity))
+      await this.table.add(cloneActivity(activity))
     } catch (error) {
       if ((error as { name?: string }).name === 'ConstraintError') {
         throw new ActivityAppendConflictError(activity.id)

@@ -12,9 +12,24 @@ import {
   assertUserId,
   validateMemo,
 } from '@/repositories/validation'
+import {
+  createMapSnapshot,
+  restoreMapSnapshot,
+  type InMemoryTransactionalStore,
+} from '@/unitOfWork/inMemory/transactionalStore'
 
-export class InMemoryMemoRepository implements MemoRepository {
+export class InMemoryMemoRepository
+  implements MemoRepository, InMemoryTransactionalStore
+{
   private readonly records = new Map<EntityId, Memo>()
+
+  createTransactionSnapshot(): unknown {
+    return createMapSnapshot(this.records)
+  }
+
+  restoreTransactionSnapshot(snapshot: unknown): void {
+    restoreMapSnapshot(this.records, snapshot)
+  }
 
   async getById(userId: UserId, id: EntityId): Promise<Memo | null> {
     assertUserId(userId)

@@ -10,9 +10,24 @@ import {
   assertUserId,
   validateRoutine,
 } from '@/repositories/validation'
+import {
+  createMapSnapshot,
+  restoreMapSnapshot,
+  type InMemoryTransactionalStore,
+} from '@/unitOfWork/inMemory/transactionalStore'
 
-export class InMemoryRoutineRepository implements RoutineRepository {
+export class InMemoryRoutineRepository
+  implements RoutineRepository, InMemoryTransactionalStore
+{
   private readonly records = new Map<EntityId, Routine>()
+
+  createTransactionSnapshot(): unknown {
+    return createMapSnapshot(this.records)
+  }
+
+  restoreTransactionSnapshot(snapshot: unknown): void {
+    restoreMapSnapshot(this.records, snapshot)
+  }
 
   async getById(userId: UserId, id: EntityId): Promise<Routine | null> {
     assertUserId(userId)

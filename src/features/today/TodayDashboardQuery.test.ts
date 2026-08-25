@@ -13,6 +13,7 @@ import { WaitingService } from '@/features/waiting/WaitingService'
 import { DefaultTodayDashboardQuery } from './TodayDashboardQuery'
 import { DefaultTodayDashboardViewModelAssembler } from './TodayDashboardViewModelAssembler'
 import { MockTodayProjectNameResolver } from './MockTodayProjectNameResolver'
+import { InMemoryUnitOfWork } from '@/unitOfWork/inMemory/InMemoryUnitOfWork'
 
 describe('TodayDashboardQuery aggregation', () => {
   it('isolates every aggregate source by the requested user', async () => {
@@ -24,22 +25,39 @@ describe('TodayDashboardQuery aggregation', () => {
     const activities = new InMemoryActivityRepository()
     let id = 0
     const now = () => '2026-08-24T09:00:00.000Z'
-    const taskService = new TaskService(tasks, {
-      createId: () => `task-isolation-${++id}`,
-      now,
-    })
-    const waitingService = new WaitingService(waiting, {
-      createId: () => `waiting-isolation-${++id}`,
-      now,
-    })
-    const memoService = new MemoService(memos, {
-      createId: () => `memo-isolation-${++id}`,
-      now,
-    })
-    const routineService = new RoutineService(routines, routineLogs, {
-      createId: () => `routine-isolation-${++id}`,
-      now,
-    })
+    const taskService = new TaskService(
+      tasks,
+      new InMemoryUnitOfWork({ tasks }),
+      {
+        createId: () => `task-isolation-${++id}`,
+        now,
+      },
+    )
+    const waitingService = new WaitingService(
+      waiting,
+      new InMemoryUnitOfWork({ waiting }),
+      {
+        createId: () => `waiting-isolation-${++id}`,
+        now,
+      },
+    )
+    const memoService = new MemoService(
+      memos,
+      new InMemoryUnitOfWork({ memos }),
+      {
+        createId: () => `memo-isolation-${++id}`,
+        now,
+      },
+    )
+    const routineService = new RoutineService(
+      routines,
+      routineLogs,
+      new InMemoryUnitOfWork({ routines, routineLogs }),
+      {
+        createId: () => `routine-isolation-${++id}`,
+        now,
+      },
+    )
     const activityService = new ActivityService(activities, {
       createId: () => `activity-isolation-${++id}`,
       now,
@@ -102,10 +120,14 @@ describe('TodayDashboardQuery aggregation', () => {
   it('projects repository data without a supporting Mock dependency', async () => {
     const repository = new InMemoryTaskRepository()
     let id = 0
-    const service = new TaskService(repository, {
-      createId: () => `task-${++id}`,
-      now: () => '2026-08-24T09:00:00.000Z',
-    })
+    const service = new TaskService(
+      repository,
+      new InMemoryUnitOfWork({ tasks: repository }),
+      {
+        createId: () => `task-${++id}`,
+        now: () => '2026-08-24T09:00:00.000Z',
+      },
+    )
     const first = await service.create({
       userId: 'user-1',
       title: 'User-authored task',
@@ -159,16 +181,20 @@ describe('TodayDashboardQuery aggregation', () => {
     const memos = new InMemoryMemoRepository()
     let memoId = 0
     let memoTick = 0
-    const memoService = new MemoService(memos, {
-      createId: () => `memo-${++memoId}`,
-      now: () =>
-        [
-          '2026-08-24T08:00:00.000Z',
-          '2026-08-24T10:00:00.000Z',
-          '2026-08-24T11:00:00.000Z',
-          '2026-08-24T12:00:00.000Z',
-        ][memoTick++] ?? '2026-08-24T11:00:00.000Z',
-    })
+    const memoService = new MemoService(
+      memos,
+      new InMemoryUnitOfWork({ memos }),
+      {
+        createId: () => `memo-${++memoId}`,
+        now: () =>
+          [
+            '2026-08-24T08:00:00.000Z',
+            '2026-08-24T10:00:00.000Z',
+            '2026-08-24T11:00:00.000Z',
+            '2026-08-24T12:00:00.000Z',
+          ][memoTick++] ?? '2026-08-24T11:00:00.000Z',
+      },
+    )
     const pinned = await memoService.create({
       userId: 'user-1',
       content: 'Older pinned memo',
@@ -183,10 +209,15 @@ describe('TodayDashboardQuery aggregation', () => {
     const routines = new InMemoryRoutineRepository()
     const routineLogs = new InMemoryRoutineLogRepository()
     let routineId = 0
-    const routineService = new RoutineService(routines, routineLogs, {
-      createId: () => `routine-entity-${++routineId}`,
-      now: () => '2026-08-24T09:00:00.000Z',
-    })
+    const routineService = new RoutineService(
+      routines,
+      routineLogs,
+      new InMemoryUnitOfWork({ routines, routineLogs }),
+      {
+        createId: () => `routine-entity-${++routineId}`,
+        now: () => '2026-08-24T09:00:00.000Z',
+      },
+    )
     const daily = await routineService.create({
       userId: 'user-1',
       title: 'Daily check',

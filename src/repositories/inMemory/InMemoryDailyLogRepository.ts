@@ -7,9 +7,24 @@ import {
   assertUserId,
   validateDailyLog,
 } from '@/repositories/validation'
+import {
+  createMapSnapshot,
+  restoreMapSnapshot,
+  type InMemoryTransactionalStore,
+} from '@/unitOfWork/inMemory/transactionalStore'
 
-export class InMemoryDailyLogRepository implements DailyLogRepository {
+export class InMemoryDailyLogRepository
+  implements DailyLogRepository, InMemoryTransactionalStore
+{
   private readonly logs = new Map<string, DailyLog>()
+
+  createTransactionSnapshot(): unknown {
+    return createMapSnapshot(this.logs)
+  }
+
+  restoreTransactionSnapshot(snapshot: unknown): void {
+    restoreMapSnapshot(this.logs, snapshot)
+  }
 
   private key(userId: UserId, date: LocalDate) {
     return `${userId}:${date}`

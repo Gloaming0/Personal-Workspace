@@ -16,6 +16,7 @@ import { MemoService } from '@/features/memos/MemoService'
 import { RoutineService } from '@/features/routines/RoutineService'
 import { DexieMemoRepository } from './DexieMemoRepository'
 import { DexieRoutineRepository } from './DexieRoutineRepository'
+import { DexieUnitOfWork } from '@/unitOfWork/dexie/DexieUnitOfWork'
 import { DexieRoutineLogRepository } from './DexieRoutineLogRepository'
 
 class Version2Database extends Dexie {
@@ -67,10 +68,14 @@ describe('Dexie Memo and Routine persistence', () => {
     databaseName = `memo-routine-persistence-${++sequence}`
     const first = await openDatabase()
     const memoRepository = new DexieMemoRepository(first)
-    const memoService = new MemoService(memoRepository, {
-      createId: () => 'memo-persistent',
-      now: () => '2026-08-24T09:00:00.000Z',
-    })
+    const memoService = new MemoService(
+      memoRepository,
+      new DexieUnitOfWork(first),
+      {
+        createId: () => 'memo-persistent',
+        now: () => '2026-08-24T09:00:00.000Z',
+      },
+    )
     const memo = await memoService.create({
       userId: 'local-user',
       content: 'Persistent memo',
@@ -83,6 +88,7 @@ describe('Dexie Memo and Routine persistence', () => {
     const routineService = new RoutineService(
       routineRepository,
       logRepository,
+      new DexieUnitOfWork(first),
       {
         createId: () => `routine-entity-${++id}`,
         now: () => '2026-08-24T10:00:00.000Z',
@@ -165,7 +171,7 @@ describe('Dexie Memo and Routine persistence', () => {
     const database = await openDatabase()
     const repository = new DexieMemoRepository(database)
     let tick = 0
-    const service = new MemoService(repository, {
+    const service = new MemoService(repository, new DexieUnitOfWork(database), {
       createId: () => 'memo-deleted',
       now: () => `2026-08-24T12:00:0${tick++}.000Z`,
     })

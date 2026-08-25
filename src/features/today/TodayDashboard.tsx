@@ -49,6 +49,7 @@ export interface TodayDashboardProps {
   onArchiveRoutine?: (routineId: string) => Promise<unknown>
   onLoadEndDay?: () => Promise<EndDayOverview>
   onFinalizeEndDay?: (
+    commandId: string,
     summary: string,
     actions: Record<string, 'tomorrow' | 'later' | 'keep' | 'delete'>,
   ) => Promise<unknown>

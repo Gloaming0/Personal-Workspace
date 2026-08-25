@@ -12,6 +12,11 @@ import type {
   RoutineRepository,
 } from '@/repositories/contracts'
 import { ActivityService } from '@/features/activity/ActivityService'
+import {
+  executeAtomic,
+  type UnitOfWork,
+  type UnitOfWorkTransaction,
+} from '@/unitOfWork/contracts'
 
 export class RoutineNotFoundError extends Error {
   constructor(id: EntityId) {
@@ -43,17 +48,20 @@ export class RoutineService {
   constructor(
     private readonly routines: RoutineRepository,
     private readonly logs: RoutineLogRepository,
+    private readonly unitOfWork: UnitOfWork,
     private readonly context: RoutineServiceContext = defaultContext,
     private readonly activities?: ActivityService,
   ) {}
 
   async create(input: CreateRoutineInput): Promise<Routine> {
-    const routine = createRoutine(input, {
-      id: this.context.createId(),
-      now: this.context.now(),
+    return executeAtomic(this.unitOfWork, ['routines'], async (transaction) => {
+      const routine = createRoutine(input, {
+        id: this.context.createId(),
+        now: this.context.now(),
+      })
+      await transaction.repository('routines').save(input.userId, routine)
+      return routine
     })
-    await this.routines.save(input.userId, routine)
-    return routine
   }
 
   pause(userId: UserId, id: EntityId): Promise<Routine> {
@@ -73,21 +81,29 @@ export class RoutineService {
     id: EntityId,
     date: LocalDate,
   ): Promise<RoutineLog> {
-    const routine = await this.requireRoutine(userId, id)
-    if (routine.status !== 'active')
-      throw new RoutineCompletionError('inactive')
-    if (!isRoutineScheduledOn(routine.schedule, date)) {
-      throw new RoutineCompletionError('not_scheduled')
-    }
-    const existing = await this.logs.findByRoutineAndDate(userId, id, date)
-    if (existing) return existing
-    const log = createRoutineLog(
-      { userId: routine.userId, routineId: id, date },
-      { id: this.context.createId(), now: this.context.now() },
+    return executeAtomic(
+      this.unitOfWork,
+      this.logStores(),
+      async (transaction) => {
+        const routines = transaction.repository('routines')
+        const logs = transaction.repository('routineLogs')
+        const routine = await this.requireRoutine(routines, userId, id)
+        if (routine.status !== 'active')
+          throw new RoutineCompletionError('inactive')
+        if (!isRoutineScheduledOn(routine.schedule, date)) {
+          throw new RoutineCompletionError('not_scheduled')
+        }
+        const existing = await logs.findByRoutineAndDate(userId, id, date)
+        if (existing) return existing
+        const log = createRoutineLog(
+          { userId: routine.userId, routineId: id, date },
+          { id: this.context.createId(), now: this.context.now() },
+        )
+        await logs.save(userId, log)
+        await this.record(routine, 'routine_completed', transaction)
+        return log
+      },
     )
-    await this.logs.save(userId, log)
-    await this.record(routine, 'routine_completed')
-    return log
   }
 
   async undo(
@@ -95,13 +111,21 @@ export class RoutineService {
     id: EntityId,
     date: LocalDate,
   ): Promise<RoutineLog> {
-    const routine = await this.requireRoutine(userId, id)
-    const log = await this.logs.findByRoutineAndDate(userId, id, date)
-    if (!log) throw new RoutineCompletionError('not_completed')
-    const deleted = softDeleteRoutineLog(log, this.context.now())
-    await this.logs.save(userId, deleted, { expectedVersion: log.version })
-    await this.record(routine, 'routine_completion_undone')
-    return deleted
+    return executeAtomic(
+      this.unitOfWork,
+      this.logStores(),
+      async (transaction) => {
+        const routines = transaction.repository('routines')
+        const logs = transaction.repository('routineLogs')
+        const routine = await this.requireRoutine(routines, userId, id)
+        const log = await logs.findByRoutineAndDate(userId, id, date)
+        if (!log) throw new RoutineCompletionError('not_completed')
+        const deleted = softDeleteRoutineLog(log, this.context.now())
+        await logs.save(userId, deleted, { expectedVersion: log.version })
+        await this.record(routine, 'routine_completion_undone', transaction)
+        return deleted
+      },
+    )
   }
 
   private async transition(
@@ -109,16 +133,29 @@ export class RoutineService {
     id: EntityId,
     status: 'active' | 'paused' | 'archived',
   ): Promise<Routine> {
-    const current = await this.requireRoutine(userId, id)
-    const next = transitionRoutine(current, status, this.context.now())
-    await this.routines.save(userId, next, {
-      expectedVersion: current.version,
+    return executeAtomic(this.unitOfWork, ['routines'], async (transaction) => {
+      const routines = transaction.repository('routines')
+      const current = await this.requireRoutine(routines, userId, id)
+      const next = transitionRoutine(current, status, this.context.now())
+      await routines.save(userId, next, {
+        expectedVersion: current.version,
+      })
+      return next
     })
-    return next
   }
 
-  private async requireRoutine(userId: UserId, id: EntityId): Promise<Routine> {
-    const routine = await this.routines.getById(userId, id)
+  private logStores() {
+    return this.activities
+      ? (['routines', 'routineLogs', 'activities'] as const)
+      : (['routines', 'routineLogs'] as const)
+  }
+
+  private async requireRoutine(
+    repository: RoutineRepository,
+    userId: UserId,
+    id: EntityId,
+  ): Promise<Routine> {
+    const routine = await repository.getById(userId, id)
     if (!routine) throw new RoutineNotFoundError(id)
     return routine
   }
@@ -126,13 +163,18 @@ export class RoutineService {
   private async record(
     routine: Routine,
     eventType: 'routine_completed' | 'routine_completion_undone',
+    transaction: UnitOfWorkTransaction,
   ): Promise<void> {
-    await this.activities?.record({
-      userId: routine.userId,
-      eventType,
-      entityType: 'routine',
-      entityId: routine.id,
-      title: routine.title,
-    })
+    if (this.activities)
+      await this.activities.record(
+        {
+          userId: routine.userId,
+          eventType,
+          entityType: 'routine',
+          entityId: routine.id,
+          title: routine.title,
+        },
+        transaction.repository('activities'),
+      )
   }
 }

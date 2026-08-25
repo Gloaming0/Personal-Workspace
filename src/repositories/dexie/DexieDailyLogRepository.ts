@@ -13,14 +13,19 @@ import {
   assertUserId,
   validateDailyLog,
 } from '@/repositories/validation'
+import { executeDexieWrite } from './executeDexieWrite'
 
 export class DexieDailyLogRepository implements DailyLogRepository {
-  constructor(private readonly database: DailyWorkDatabase) {}
+  constructor(
+    private readonly database: DailyWorkDatabase,
+    private readonly table = database.daily_logs,
+    private readonly transactionBound = false,
+  ) {}
 
   async findByDate(userId: UserId, date: LocalDate) {
     try {
       assertUserId(userId)
-      const log = await this.database.daily_logs
+      const log = await this.table
         .where('[userId+date]')
         .equals([userId, date])
         .and((entry) => entry.deletedAt === null)
@@ -37,21 +42,20 @@ export class DexieDailyLogRepository implements DailyLogRepository {
     try {
       validateDailyLog(log)
       assertRepositoryOwner(userId, log)
-      await this.database.transaction(
-        'rw',
-        this.database.daily_logs,
-        async () => {
-          const existing = await this.database.daily_logs
-            .where('[userId+date]')
-            .equals([log.userId, log.date])
-            .and((entry) => entry.deletedAt === null)
-            .first()
-          if (existing) {
-            throw new DailyLogAlreadyFinalizedError(log.userId, log.date)
-          }
-          await this.database.daily_logs.add(structuredClone(log))
-        },
-      )
+      const write = async () => {
+        const existing = await this.table
+          .where('[userId+date]')
+          .equals([log.userId, log.date])
+          .and((entry) => entry.deletedAt === null)
+          .first()
+        if (existing) {
+          throw new DailyLogAlreadyFinalizedError(log.userId, log.date)
+        }
+        await this.table.add(structuredClone(log))
+      }
+      await (this.transactionBound
+        ? write()
+        : executeDexieWrite(this.database, this.table, write))
     } catch (error) {
       if (
         error instanceof DailyLogAlreadyFinalizedError ||

@@ -1,15 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { InMemoryMemoRepository } from '@/repositories/inMemory/InMemoryMemoRepository'
 import { MemoService } from './MemoService'
+import { InMemoryUnitOfWork } from '@/unitOfWork/inMemory/InMemoryUnitOfWork'
 
 describe('MemoService', () => {
   it('creates, edits, pins, unpins, and soft deletes with versions', async () => {
     const repository = new InMemoryMemoRepository()
     let tick = 0
-    const service = new MemoService(repository, {
-      createId: () => 'memo-1',
-      now: () => `2026-08-24T10:00:0${tick++}.000Z`,
-    })
+    const service = new MemoService(
+      repository,
+      new InMemoryUnitOfWork({ memos: repository }),
+      {
+        createId: () => 'memo-1',
+        now: () => `2026-08-24T10:00:0${tick++}.000Z`,
+      },
+    )
 
     const created = await service.create({
       userId: 'user-1',

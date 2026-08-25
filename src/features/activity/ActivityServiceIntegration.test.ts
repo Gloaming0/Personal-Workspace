@@ -11,6 +11,7 @@ import { InMemoryRoutineLogRepository } from '@/repositories/inMemory/InMemoryRo
 import { InMemoryActivityRepository } from '@/repositories/inMemory/InMemoryActivityRepository'
 import { ActivityAppendConflictError } from '@/repositories/errors'
 import { ActivityService } from './ActivityService'
+import { InMemoryUnitOfWork } from '@/unitOfWork/inMemory/InMemoryUnitOfWork'
 
 describe('Activity-producing Service operations', () => {
   it('records the required raw events without localized presentation text', async () => {
@@ -26,6 +27,10 @@ describe('Activity-producing Service operations', () => {
     const taskRepository = new InMemoryTaskRepository()
     const tasks = new TaskService(
       taskRepository,
+      new InMemoryUnitOfWork({
+        tasks: taskRepository,
+        activities,
+      }),
       {
         createId: () => 'task-activity',
         now: () => '2026-08-24T09:00:00.000Z',
@@ -46,6 +51,10 @@ describe('Activity-producing Service operations', () => {
     const waitingRepository = new InMemoryWaitingRepository()
     const waiting = new WaitingService(
       waitingRepository,
+      new InMemoryUnitOfWork({
+        waiting: waitingRepository,
+        activities,
+      }),
       {
         createId: () => 'waiting-activity',
         now: () => '2026-08-24T09:10:00.000Z',
@@ -64,6 +73,10 @@ describe('Activity-producing Service operations', () => {
     const memoRepository = new InMemoryMemoRepository()
     const memos = new MemoService(
       memoRepository,
+      new InMemoryUnitOfWork({
+        memos: memoRepository,
+        activities,
+      }),
       {
         createId: () => 'memo-activity',
         now: () => '2026-08-24T09:20:00.000Z',
@@ -84,6 +97,11 @@ describe('Activity-producing Service operations', () => {
     const routines = new RoutineService(
       routineRepository,
       routineLogs,
+      new InMemoryUnitOfWork({
+        routines: routineRepository,
+        routineLogs,
+        activities,
+      }),
       {
         createId: () => `routine-entity-${++routineEntityId}`,
         now: () => '2026-08-24T09:30:00.000Z',

@@ -19,6 +19,7 @@ import {
   RepositoryVersionConflictError,
 } from '@/repositories/errors'
 import { createTask } from '@/domain/task'
+import { DexieUnitOfWork } from '@/unitOfWork/dexie/DexieUnitOfWork'
 import { DexieTaskRepository } from './DexieTaskRepository'
 
 let databaseSequence = 0
@@ -46,9 +47,13 @@ describe('DexieTaskRepository', () => {
     databaseName = `task-lifecycle-${++databaseSequence}`
     const firstConnection = await openRepository()
     let clockTick = 0
-    const firstService = new TaskService(firstConnection.repository, {
-      now: () => `2026-08-24T10:00:0${clockTick++}.000Z`,
-    })
+    const firstService = new TaskService(
+      firstConnection.repository,
+      new DexieUnitOfWork(firstConnection.database),
+      {
+        now: () => `2026-08-24T10:00:0${clockTick++}.000Z`,
+      },
+    )
     const created = await firstService.create({
       userId: 'local-user',
       title: 'Persistent task',
@@ -73,9 +78,13 @@ describe('DexieTaskRepository', () => {
         focusDate: '2026-08-24',
       }),
     ).resolves.toHaveLength(1)
-    const secondService = new TaskService(secondConnection.repository, {
-      now: () => '2026-08-24T11:00:00.000Z',
-    })
+    const secondService = new TaskService(
+      secondConnection.repository,
+      new DexieUnitOfWork(secondConnection.database),
+      {
+        now: () => '2026-08-24T11:00:00.000Z',
+      },
+    )
     const completed = await secondService.complete('local-user', created.id)
     expect(completed).toMatchObject({
       status: 'done',
@@ -93,9 +102,13 @@ describe('DexieTaskRepository', () => {
       completedAt: '2026-08-24T11:00:00.000Z',
       version: 3,
     })
-    const thirdService = new TaskService(thirdConnection.repository, {
-      now: () => '2026-08-24T12:00:00.000Z',
-    })
+    const thirdService = new TaskService(
+      thirdConnection.repository,
+      new DexieUnitOfWork(thirdConnection.database),
+      {
+        now: () => '2026-08-24T12:00:00.000Z',
+      },
+    )
     const reopened = await thirdService.reopen('local-user', created.id)
     expect(reopened).toMatchObject({
       status: 'todo',
@@ -119,7 +132,7 @@ describe('DexieTaskRepository', () => {
   it('excludes soft-deleted rows and enforces sequential versions', async () => {
     databaseName = `task-soft-delete-${++databaseSequence}`
     const { database, repository } = await openRepository()
-    const service = new TaskService(repository, {
+    const service = new TaskService(repository, new DexieUnitOfWork(database), {
       createId: () => 'task-soft-delete',
       now: () => '2026-08-24T09:00:00.000Z',
     })
@@ -179,10 +192,14 @@ describe('DexieTaskRepository', () => {
     databaseName = `task-today-query-${++databaseSequence}`
     const firstConnection = await openRepository()
     let id = 0
-    const service = new TaskService(firstConnection.repository, {
-      createId: () => `task-${++id}`,
-      now: () => '2026-08-24T09:00:00.000Z',
-    })
+    const service = new TaskService(
+      firstConnection.repository,
+      new DexieUnitOfWork(firstConnection.database),
+      {
+        createId: () => `task-${++id}`,
+        now: () => '2026-08-24T09:00:00.000Z',
+      },
+    )
     const focused = await service.create({
       userId: 'local-user',
       title: 'Dexie focus',

@@ -19,12 +19,15 @@ export class ActivityService {
     private readonly context: ActivityServiceContext = defaultContext,
   ) {}
 
-  async record(input: RecordActivityInput): Promise<Activity> {
+  async record(
+    input: RecordActivityInput,
+    repository: ActivityRepository = this.activities,
+  ): Promise<Activity> {
     const activity = createActivity(input, {
       id: this.context.createId(),
       now: this.context.now(),
     })
-    await this.activities.append(input.userId, activity)
+    await repository.append(input.userId, activity)
     return activity
   }
 }

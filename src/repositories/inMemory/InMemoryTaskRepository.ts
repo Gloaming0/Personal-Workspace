@@ -11,16 +11,31 @@ import {
   assertUserId,
   validateTask,
 } from '@/repositories/validation'
+import {
+  createMapSnapshot,
+  restoreMapSnapshot,
+  type InMemoryTransactionalStore,
+} from '@/unitOfWork/inMemory/transactionalStore'
 
 function cloneTask(task: Task): Task {
   return structuredClone(task)
 }
 
-export class InMemoryTaskRepository implements TaskRepository {
+export class InMemoryTaskRepository
+  implements TaskRepository, InMemoryTransactionalStore
+{
   private readonly tasks = new Map<EntityId, Task>()
 
   constructor(seed: readonly Task[] = []) {
     seed.forEach((task) => this.tasks.set(task.id, cloneTask(task)))
+  }
+
+  createTransactionSnapshot(): unknown {
+    return createMapSnapshot(this.tasks)
+  }
+
+  restoreTransactionSnapshot(snapshot: unknown): void {
+    restoreMapSnapshot(this.tasks, snapshot)
   }
 
   async getById(userId: UserId, id: EntityId): Promise<Task | null> {

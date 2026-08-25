@@ -11,18 +11,33 @@ import {
   assertUserId,
   validateWaiting,
 } from '@/repositories/validation'
+import {
+  createMapSnapshot,
+  restoreMapSnapshot,
+  type InMemoryTransactionalStore,
+} from '@/unitOfWork/inMemory/transactionalStore'
 
 function cloneWaiting(waiting: Waiting): Waiting {
   return structuredClone(waiting)
 }
 
-export class InMemoryWaitingRepository implements WaitingRepository {
+export class InMemoryWaitingRepository
+  implements WaitingRepository, InMemoryTransactionalStore
+{
   private readonly waiting = new Map<EntityId, Waiting>()
 
   constructor(seed: readonly Waiting[] = []) {
     seed.forEach((waiting) =>
       this.waiting.set(waiting.id, cloneWaiting(waiting)),
     )
+  }
+
+  createTransactionSnapshot(): unknown {
+    return createMapSnapshot(this.waiting)
+  }
+
+  restoreTransactionSnapshot(snapshot: unknown): void {
+    restoreMapSnapshot(this.waiting, snapshot)
   }
 
   async getById(userId: UserId, id: EntityId): Promise<Waiting | null> {

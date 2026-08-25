@@ -17,6 +17,7 @@ import {
   assertUserId,
   validateTask,
 } from '@/repositories/validation'
+import { executeDexieWrite } from './executeDexieWrite'
 
 function cloneTask(task: Task): Task {
   return structuredClone(task)
@@ -38,12 +39,16 @@ function matchesQuery(task: Task, query: TaskQuery): boolean {
 }
 
 export class DexieTaskRepository implements TaskRepository {
-  constructor(private readonly database: DailyWorkDatabase) {}
+  constructor(
+    private readonly database: DailyWorkDatabase,
+    private readonly table = database.tasks,
+    private readonly transactionBound = false,
+  ) {}
 
   async getById(userId: UserId, id: EntityId): Promise<Task | null> {
     try {
       assertUserId(userId)
-      const task = await this.database.tasks.get(id)
+      const task = await this.table.get(id)
       if (!task || task.userId !== userId) return null
       const validated = validateTask(task)
       return validated.deletedAt === null ? cloneTask(validated) : null
@@ -57,7 +62,7 @@ export class DexieTaskRepository implements TaskRepository {
   async find(userId: UserId, query: TaskQuery): Promise<Task[]> {
     try {
       assertUserId(userId)
-      const tasks = await this.database.tasks.toArray()
+      const tasks = await this.table.toArray()
       return tasks
         .filter((task) => task.userId === userId)
         .map(validateTask)
@@ -79,8 +84,8 @@ export class DexieTaskRepository implements TaskRepository {
     try {
       validateTask(task)
       assertRepositoryOwner(userId, task)
-      await this.database.transaction('rw', this.database.tasks, async () => {
-        const current = await this.database.tasks.get(task.id)
+      const write = async () => {
+        const current = await this.table.get(task.id)
         if (current) assertRepositoryOwner(userId, current)
         const versionConflict = current
           ? (options.expectedVersion !== undefined &&
@@ -91,8 +96,11 @@ export class DexieTaskRepository implements TaskRepository {
         if (versionConflict) {
           throw new RepositoryVersionConflictError(task.id, 'Task')
         }
-        await this.database.tasks.put(cloneTask(task))
-      })
+        await this.table.put(cloneTask(task))
+      }
+      await (this.transactionBound
+        ? write()
+        : executeDexieWrite(this.database, this.table, write))
     } catch (error) {
       if (
         error instanceof RepositoryVersionConflictError ||

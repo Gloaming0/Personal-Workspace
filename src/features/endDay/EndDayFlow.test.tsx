@@ -52,7 +52,9 @@ describe('End Day responsive flow contract', () => {
     )
     await user.click(screen.getByRole('button', { name: '下一步' }))
     await user.click(screen.getByRole('button', { name: '完成今日记录' }))
-    expect(finalize).toHaveBeenCalledWith('原始总结', { 'task-1': 'tomorrow' })
+    expect(finalize).toHaveBeenCalledWith(expect.any(String), '原始总结', {
+      'task-1': 'tomorrow',
+    })
     expect(close).toHaveBeenCalled()
   })
 })

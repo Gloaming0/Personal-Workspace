@@ -372,6 +372,7 @@ export function TodayWorkspaceProvider({
             })
           },
           onFinalizeEndDay: async (
+            commandId: string,
             summary: string,
             taskActions: Record<
               string,
@@ -380,6 +381,7 @@ export function TodayWorkspaceProvider({
           ) => {
             await taskRuntime.ready
             await taskRuntime.endDayService!.finalize({
+              commandId,
               userId: localUserId,
               date,
               timezone,

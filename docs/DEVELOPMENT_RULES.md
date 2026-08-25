@@ -880,6 +880,33 @@ DEVELOPMENT_RULES.md
 
 ---
 
+# Atomic Command Contract
+
+- Cross-Repository business commands must declare their complete store set to
+  the storage-neutral `UnitOfWork` port.
+- Code inside a Unit of Work must use only the transaction-scoped Repository
+  ports supplied by `UnitOfWorkTransaction`.
+- Feature Services must not import or call `Dexie.transaction()` and must reuse
+  an existing transaction token when one command composes another Service.
+- An Entity mutation and its Activity append are one commit. Activity failure
+  must reject the command and roll back the Entity mutation.
+- Focus allocation must read, validate, allocate order 1–3, save with
+  `expectedVersion`, and append Activity in one Task/Activity transaction.
+- End Day must not persist Task decisions during the review steps. Finalize
+  atomically applies every Task decision, inserts the immutable DailyLog, and
+  appends `daily_log_finalized`.
+- Retryable finalize commands require a stable `commandId`. The same id must
+  return the existing result without duplicate Entity changes or Activity; a
+  different id for the finalized user/date must fail.
+- In-memory transactional adapters must serialize overlapping commands and
+  restore every participating store after an exception. Tests must verify the
+  same all-or-nothing behavior expected from Dexie.
+- New atomic commands require failure-injection coverage at each meaningful
+  write boundary and an `expectedVersion` conflict case.
+
+
+---
+
 # Final Rule
 
 

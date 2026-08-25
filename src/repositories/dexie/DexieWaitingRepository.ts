@@ -17,6 +17,7 @@ import {
   assertUserId,
   validateWaiting,
 } from '@/repositories/validation'
+import { executeDexieWrite } from './executeDexieWrite'
 
 function cloneWaiting(waiting: Waiting): Waiting {
   return structuredClone(waiting)
@@ -34,12 +35,16 @@ function matchesQuery(waiting: Waiting, query: WaitingQuery): boolean {
 }
 
 export class DexieWaitingRepository implements WaitingRepository {
-  constructor(private readonly database: DailyWorkDatabase) {}
+  constructor(
+    private readonly database: DailyWorkDatabase,
+    private readonly table = database.confirmations,
+    private readonly transactionBound = false,
+  ) {}
 
   async getById(userId: UserId, id: EntityId): Promise<Waiting | null> {
     try {
       assertUserId(userId)
-      const waiting = await this.database.confirmations.get(id)
+      const waiting = await this.table.get(id)
       if (!waiting || waiting.userId !== userId) return null
       const validated = validateWaiting(waiting)
       return validated.deletedAt === null ? cloneWaiting(validated) : null
@@ -53,7 +58,7 @@ export class DexieWaitingRepository implements WaitingRepository {
   async find(userId: UserId, query: WaitingQuery): Promise<Waiting[]> {
     try {
       assertUserId(userId)
-      const waiting = await this.database.confirmations.toArray()
+      const waiting = await this.table.toArray()
       return waiting
         .filter((entity) => entity.userId === userId)
         .map(validateWaiting)
@@ -75,24 +80,23 @@ export class DexieWaitingRepository implements WaitingRepository {
     try {
       validateWaiting(waiting)
       assertRepositoryOwner(userId, waiting)
-      await this.database.transaction(
-        'rw',
-        this.database.confirmations,
-        async () => {
-          const current = await this.database.confirmations.get(waiting.id)
-          if (current) assertRepositoryOwner(userId, current)
-          const versionConflict = current
-            ? (options.expectedVersion !== undefined &&
-                current.version !== options.expectedVersion) ||
-              waiting.version !== current.version + 1
-            : options.expectedVersion !== undefined || waiting.version !== 1
+      const write = async () => {
+        const current = await this.table.get(waiting.id)
+        if (current) assertRepositoryOwner(userId, current)
+        const versionConflict = current
+          ? (options.expectedVersion !== undefined &&
+              current.version !== options.expectedVersion) ||
+            waiting.version !== current.version + 1
+          : options.expectedVersion !== undefined || waiting.version !== 1
 
-          if (versionConflict) {
-            throw new RepositoryVersionConflictError(waiting.id, 'Waiting')
-          }
-          await this.database.confirmations.put(cloneWaiting(waiting))
-        },
-      )
+        if (versionConflict) {
+          throw new RepositoryVersionConflictError(waiting.id, 'Waiting')
+        }
+        await this.table.put(cloneWaiting(waiting))
+      }
+      await (this.transactionBound
+        ? write()
+        : executeDexieWrite(this.database, this.table, write))
     } catch (error) {
       if (
         error instanceof RepositoryVersionConflictError ||

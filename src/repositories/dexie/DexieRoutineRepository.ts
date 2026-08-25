@@ -16,16 +16,21 @@ import {
   assertUserId,
   validateRoutine,
 } from '@/repositories/validation'
+import { executeDexieWrite } from './executeDexieWrite'
 
 const cloneRoutine = (routine: Routine) => structuredClone(routine)
 
 export class DexieRoutineRepository implements RoutineRepository {
-  constructor(private readonly database: DailyWorkDatabase) {}
+  constructor(
+    private readonly database: DailyWorkDatabase,
+    private readonly table = database.routines,
+    private readonly transactionBound = false,
+  ) {}
 
   async getById(userId: UserId, id: EntityId): Promise<Routine | null> {
     try {
       assertUserId(userId)
-      const routine = await this.database.routines.get(id)
+      const routine = await this.table.get(id)
       if (!routine || routine.userId !== userId) return null
       const validated = validateRoutine(routine)
       return validated.deletedAt === null ? cloneRoutine(validated) : null
@@ -42,7 +47,7 @@ export class DexieRoutineRepository implements RoutineRepository {
   ): Promise<Routine[]> {
     try {
       assertUserId(userId)
-      return (await this.database.routines.toArray())
+      return (await this.table.toArray())
         .filter((routine) => routine.userId === userId)
         .map(validateRoutine)
         .filter(
@@ -70,23 +75,22 @@ export class DexieRoutineRepository implements RoutineRepository {
     try {
       validateRoutine(routine)
       assertRepositoryOwner(userId, routine)
-      await this.database.transaction(
-        'rw',
-        this.database.routines,
-        async () => {
-          const current = await this.database.routines.get(routine.id)
-          if (current) assertRepositoryOwner(userId, current)
-          const conflict = current
-            ? (options.expectedVersion !== undefined &&
-                current.version !== options.expectedVersion) ||
-              routine.version !== current.version + 1
-            : options.expectedVersion !== undefined || routine.version !== 1
-          if (conflict) {
-            throw new RepositoryVersionConflictError(routine.id, 'Routine')
-          }
-          await this.database.routines.put(cloneRoutine(routine))
-        },
-      )
+      const write = async () => {
+        const current = await this.table.get(routine.id)
+        if (current) assertRepositoryOwner(userId, current)
+        const conflict = current
+          ? (options.expectedVersion !== undefined &&
+              current.version !== options.expectedVersion) ||
+            routine.version !== current.version + 1
+          : options.expectedVersion !== undefined || routine.version !== 1
+        if (conflict) {
+          throw new RepositoryVersionConflictError(routine.id, 'Routine')
+        }
+        await this.table.put(cloneRoutine(routine))
+      }
+      await (this.transactionBound
+        ? write()
+        : executeDexieWrite(this.database, this.table, write))
     } catch (error) {
       if (
         error instanceof RepositoryVersionConflictError ||

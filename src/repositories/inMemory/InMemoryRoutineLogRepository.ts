@@ -13,9 +13,24 @@ import {
   assertUserId,
   validateRoutineLog,
 } from '@/repositories/validation'
+import {
+  createMapSnapshot,
+  restoreMapSnapshot,
+  type InMemoryTransactionalStore,
+} from '@/unitOfWork/inMemory/transactionalStore'
 
-export class InMemoryRoutineLogRepository implements RoutineLogRepository {
+export class InMemoryRoutineLogRepository
+  implements RoutineLogRepository, InMemoryTransactionalStore
+{
   private readonly records = new Map<EntityId, RoutineLog>()
+
+  createTransactionSnapshot(): unknown {
+    return createMapSnapshot(this.records)
+  }
+
+  restoreTransactionSnapshot(snapshot: unknown): void {
+    restoreMapSnapshot(this.records, snapshot)
+  }
 
   async findForDate(userId: UserId, date: LocalDate): Promise<RoutineLog[]> {
     assertUserId(userId)
