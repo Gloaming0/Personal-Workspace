@@ -1032,8 +1032,21 @@ Supabase, Realtime, Sync Queue, or cloud synchronization.
   Version 7, migration failure/blocked recovery, and non-destructive startup
   integrity checks.
 
-No Supabase, cloud Realtime, Sync Queue, backup/import, or new business feature
-is included. Phase 2.2 remains unstarted.
+No Supabase, cloud Realtime, Sync Queue, or new business feature is included.
+
+## Phase 2.2 — Backup / Export / Restore Complete
+
+- Versioned, Dexie-independent UTF-8 JSON Backup Format v1.
+- Full current-user export including tombstones, Activity payloads, RoutineLog,
+  and immutable DailyLog snapshots.
+- Parse/validate/summary/explicit-confirm restore UX in Settings → Data.
+- Automatic safety backup followed by atomic seven-store replace and integrity
+  readback.
+- Ownership rejection, failure rollback, local query refresh, and multi-tab
+  invalidation coverage.
+
+Phase 2.3, Supabase, cloud synchronization, Realtime, Sync Queue, merge restore,
+and anonymous ownership migration remain unstarted.
 
 
 Always prioritize:

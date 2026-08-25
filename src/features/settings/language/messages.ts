@@ -246,6 +246,54 @@ const englishMessages = {
   'settings.keyboard': 'Keyboard',
   'settings.about': 'About',
   'settings.comingLater': 'Available in a later phase',
+  'backup.sectionTitle': 'Backup & Restore',
+  'backup.sectionDescription':
+    'Keep a portable copy of your complete local work history.',
+  'backup.exportTitle': 'Export backup',
+  'backup.exportDescription':
+    'Download all local data for this user, including history and deleted records.',
+  'backup.exportAction': 'Export backup',
+  'backup.exporting': 'Exporting…',
+  'backup.lastExport': 'Last successful export',
+  'backup.neverExported': 'No successful export on this device yet.',
+  'backup.restoreTitle': 'Restore backup',
+  'backup.restoreDescription':
+    'Validate a Daily Work OS JSON backup before replacing local data.',
+  'backup.selectAction': 'Select backup file',
+  'backup.validating': 'Validating…',
+  'backup.summary': 'Backup content summary',
+  'backup.validTitle': 'Backup is valid',
+  'backup.validDescription':
+    'Review the content summary before continuing. Nothing has been changed yet.',
+  'backup.summaryTasks': 'Tasks',
+  'backup.summaryWaiting': 'Waiting',
+  'backup.summaryMemos': 'Memos',
+  'backup.summaryRoutines': 'Routines',
+  'backup.summaryRoutineLogs': 'Routine logs',
+  'backup.summaryActivities': 'Activities',
+  'backup.summaryDailyLogs': 'Daily logs',
+  'backup.summaryTombstones': 'Deleted history',
+  'backup.restoreAction': 'Continue to restore',
+  'backup.confirmTitle': 'Replace current local data?',
+  'backup.confirmWarning':
+    'A safety backup will download first. Then this backup will atomically replace the current user’s local data.',
+  'backup.confirmAction': 'Confirm and replace',
+  'backup.restoring': 'Restoring…',
+  'backup.cancel': 'Cancel',
+  'backup.exportSuccess': 'Backup exported successfully.',
+  'backup.restoreSuccess':
+    'Backup restored successfully. Local views are refreshing.',
+  'backup.errorInvalidFile':
+    'This file is not a valid Daily Work OS backup. No data was changed.',
+  'backup.errorWrongOwner':
+    'This backup belongs to a different user and cannot be restored.',
+  'backup.errorUnsupportedVersion':
+    'This backup version is not supported by this app version.',
+  'backup.errorSafetyBackup':
+    'The safety backup could not be created, so restore was cancelled.',
+  'backup.errorRestore':
+    'Restore failed. Your existing local data was kept unchanged.',
+  'backup.errorExport': 'The backup could not be exported. Try again.',
 } as const
 
 export type MessageKey = keyof typeof englishMessages
@@ -483,6 +531,46 @@ const chineseMessages = {
   'settings.keyboard': '键盘',
   'settings.about': '关于',
   'settings.comingLater': '将在后续阶段开放',
+  'backup.sectionTitle': '备份与恢复',
+  'backup.sectionDescription': '保存一份可移植的完整本地工作历史。',
+  'backup.exportTitle': '导出备份',
+  'backup.exportDescription':
+    '下载当前用户的全部本地数据，包括历史记录和已删除记录。',
+  'backup.exportAction': '导出备份',
+  'backup.exporting': '正在导出…',
+  'backup.lastExport': '最近成功导出',
+  'backup.neverExported': '此设备尚未成功导出备份。',
+  'backup.restoreTitle': '恢复备份',
+  'backup.restoreDescription':
+    '先验证 Daily Work OS JSON 备份，再替换本地数据。',
+  'backup.selectAction': '选择备份文件',
+  'backup.validating': '正在验证…',
+  'backup.summary': '备份内容摘要',
+  'backup.validTitle': '备份验证通过',
+  'backup.validDescription': '请先检查内容摘要；当前数据尚未发生任何变化。',
+  'backup.summaryTasks': '任务',
+  'backup.summaryWaiting': '等待事项',
+  'backup.summaryMemos': '便笺',
+  'backup.summaryRoutines': '例行事项',
+  'backup.summaryRoutineLogs': '打卡记录',
+  'backup.summaryActivities': '活动记录',
+  'backup.summaryDailyLogs': '每日日志',
+  'backup.summaryTombstones': '已删除历史',
+  'backup.restoreAction': '继续恢复',
+  'backup.confirmTitle': '替换当前本地数据？',
+  'backup.confirmWarning':
+    '系统会先下载安全备份，然后以原子方式用所选备份替换当前用户的本地数据。',
+  'backup.confirmAction': '确认并替换',
+  'backup.restoring': '正在恢复…',
+  'backup.cancel': '取消',
+  'backup.exportSuccess': '备份已成功导出。',
+  'backup.restoreSuccess': '备份已成功恢复，本地视图正在刷新。',
+  'backup.errorInvalidFile': '此文件不是有效备份，当前数据未发生变化。',
+  'backup.errorWrongOwner': '此备份属于其他用户，不能恢复。',
+  'backup.errorUnsupportedVersion': '当前应用版本不支持此备份版本。',
+  'backup.errorSafetyBackup': '无法创建安全备份，因此已取消恢复。',
+  'backup.errorRestore': '恢复失败，原有本地数据保持不变。',
+  'backup.errorExport': '无法导出备份，请重试。',
 } satisfies Record<MessageKey, string>
 
 export const messages = {

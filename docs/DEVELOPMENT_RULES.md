@@ -971,6 +971,25 @@ DEVELOPMENT_RULES.md
 
 ---
 
+# Portable Backup Contract
+
+- Treat `docs/BACKUP_FORMAT.md` as a versioned public data contract. Never dump
+  IndexedDB or expose Dexie store/index metadata as the backup format.
+- Backup UI calls `BackupService`; it must not read or write Dexie directly.
+- Export includes tombstones and immutable history but excludes preferences,
+  transient state, diagnostics, credentials, and Morning Review markers.
+- Import validates the whole document, ownership, entities, references, and
+  invariants before opening a write transaction.
+- Restore uses replace semantics only. It must create a successful safety
+  backup before one all-store transaction and must never silently rewrite
+  `userId` or merge fields.
+- Restore invalidations publish only after commit and contain no user content.
+- An unsupported format version is rejected explicitly. Breaking changes
+  require a new format version and importer; do not change Version 1 semantics.
+
+
+---
+
 # Final Rule
 
 

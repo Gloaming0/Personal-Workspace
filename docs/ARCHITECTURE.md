@@ -1424,3 +1424,40 @@ tombstones, Activity payloads, and immutable DailyLog snapshots. Upgrade
 failure, blocked upgrade recovery, and versionchange closure are tested. Phase
 2.1D changes no persisted field or index, so the current schema remains Version
 7 and no new Dexie version is declared.
+
+# Phase 2.2 Backup, Export, and Restore
+
+Portable backup uses a dedicated storage-neutral boundary:
+
+```text
+Settings Data UI
+      ↓
+BackupService ──→ Backup Format v1 validator
+      ↓
+BackupRepository port
+      ↓
+DexieBackupRepository
+      ↓
+one current-user read / one seven-store replace transaction
+```
+
+`BackupRepository.readAll(userId)` is the only local read path that intentionally
+includes tombstones. It returns Domain-shaped collections and never leaks Dexie
+store names into the portable contract. `BackupService` validates those values,
+adds format metadata, serializes UTF-8 JSON, and never mutates an Entity.
+
+Import parsing, ownership, entity, reference, snapshot, payload, and cross-row
+invariant validation run before any write. Restore first sends a newly exported
+current-state backup to the safety-download sink. Only after that succeeds does
+`replaceAll` open one Dexie transaction across Task, Waiting, Memo, Routine,
+RoutineLog, Activity, and DailyLog. It removes and replaces only the requested
+user's rows, validates the transaction readback, and commits all stores or none.
+
+After commit the adapter publishes one content-free invalidation per affected
+store. Today and other live queries refresh through the existing Phase 2.1D
+coordinator, including other tabs. Failed restores publish nothing. Backup
+downloads, recent-export device metadata, and selected files remain outside the
+Domain and are never included in another backup.
+
+The long-term wire contract is maintained independently in
+`docs/BACKUP_FORMAT.md`. Phase 2.2 does not change IndexedDB schema Version 7.

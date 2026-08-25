@@ -1045,3 +1045,22 @@ The system should preserve:
 - Responsibilities
 - Memories
 - Context
+
+---
+
+# Phase 2.2 Portable Backup Storage Boundary
+
+Backup/restore introduces no new table, index, field, or Dexie migration. The
+local schema remains Version 7.
+
+The portable format maps the `confirmations` store to the Domain name
+`data.waiting`, `routine_logs` to `data.routineLogs`, and `daily_logs` to
+`data.dailyLogs`. These mappings keep the external contract independent from
+physical store naming. Export includes all current-user rows, including
+`deletedAt != null`; ordinary Repository queries continue to hide tombstones.
+
+Replace restore executes current-user deletion, insertion, and transaction
+readback validation across all seven stores in one IndexedDB transaction. It
+does not clear the whole database and does not touch another user's rows.
+Portable format changes are governed by `docs/BACKUP_FORMAT.md`, not by Dexie
+schema numbering.

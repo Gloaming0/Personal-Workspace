@@ -35,7 +35,7 @@ describe('Daily Work OS application shell', () => {
         name: 'Today',
       }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Phase 1.9')).toBeInTheDocument()
+    expect(screen.getByText('Phase 2.2')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'End day' })).toBeInTheDocument()
     expect(
       screen.getByRole('region', { name: 'Today focus' }),
@@ -69,7 +69,9 @@ describe('Daily Work OS application shell', () => {
     expect(screen.getByRole('combobox', { name: 'Density' })).toBeEnabled()
     expect(screen.getByRole('combobox', { name: 'Sidebar' })).toBeEnabled()
     expect(screen.getByText('Account')).toBeInTheDocument()
-    expect(screen.getAllByText('Available in a later phase')).toHaveLength(4)
+    expect(screen.getByText('Backup & Restore')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Export backup' })).toBeEnabled()
+    expect(screen.getAllByText('Available in a later phase')).toHaveLength(3)
   })
 
   it('applies and persists preferences through the shared model', async () => {

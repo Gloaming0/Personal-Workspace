@@ -1250,3 +1250,26 @@ Daily Work OS should not feel like software users need to operate.
 
 
 It should feel like a personal workspace that is always ready.
+
+---
+
+# Settings Data — Backup & Restore
+
+Settings contains a real Data section with two primary actions:
+
+- Export Backup downloads `daily-work-os-backup-YYYY-MM-DD.json` and shows the
+  last successful export time stored on this device.
+- Restore Backup opens a JSON file chooser. Selection only validates; it never
+  writes immediately.
+
+A valid import shows counts for Task, Waiting, Memo, Routine, RoutineLog,
+Activity, DailyLog, and tombstones. The first restore action reveals a clear
+replacement warning. A second, explicit confirmation starts restore. The copy
+must explain that a safety backup downloads first and current local data will be
+replaced.
+
+Invalid, unsupported, or wrong-owner files show localized, non-technical error
+copy and leave data unchanged. Busy controls expose Exporting, Validating, and
+Restoring states and prevent duplicate actions. Success uses a polite live
+status. All controls keep visible focus, touch-target sizing, six-theme tokens,
+and single-column Mobile layout without horizontal overflow.

@@ -565,3 +565,21 @@ The product succeeds if users can:
 Daily Work OS is not a place where users manage tasks.
 
 It is a personal workspace that quietly helps users manage their working life.
+
+---
+
+# Phase 2.2 Local Backup and Restore
+
+Users can export a portable JSON backup from Settings → Data without a cloud
+account. The backup represents the complete local history for the current user,
+including effective entities, soft-delete tombstones, Activity events, and
+immutable DailyLog snapshots.
+
+Restore uses an intentionally simple Replace Current Local Data workflow. A
+file is parsed and validated first, its summary is shown, and replacement
+requires a separate explicit confirmation. The app downloads a safety backup
+of current data before an atomic restore. A failure leaves the original data
+unchanged.
+
+Phase 2.2 does not add CSV as a primary backup, merge restore, ownership
+migration, Supabase, Realtime, Sync Queue, or any new work-management feature.
