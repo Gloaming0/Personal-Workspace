@@ -37,17 +37,17 @@ describe('Task vertical slice domain rules', () => {
       focusDate: null,
       version: 1,
     })
-    await expect(repository.getById(task.id)).resolves.toEqual(task)
+    await expect(repository.getById(userId, task.id)).resolves.toEqual(task)
   })
 
   it('completes and reopens a Task with correct completion metadata', async () => {
     const task = await create('Prepare review')
-    const completed = await service.complete(task.id)
+    const completed = await service.complete(userId, task.id)
 
     expect(completed.status).toBe('done')
     expect(completed.completedAt).toBe(completed.updatedAt)
 
-    const reopened = await service.reopen(task.id)
+    const reopened = await service.reopen(userId, task.id)
     expect(reopened.status).toBe('todo')
     expect(reopened.completedAt).toBeNull()
   })
@@ -56,44 +56,50 @@ describe('Task vertical slice domain rules', () => {
     const tasks = await Promise.all(
       ['One', 'Two', 'Three', 'Four'].map((title) => create(title)),
     )
-    await service.setFocus(tasks[0]!.id, today)
-    await service.setFocus(tasks[1]!.id, today)
-    await service.setFocus(tasks[2]!.id, today)
+    await service.setFocus(userId, tasks[0]!.id, today)
+    await service.setFocus(userId, tasks[1]!.id, today)
+    await service.setFocus(userId, tasks[2]!.id, today)
 
-    await expect(service.setFocus(tasks[3]!.id, today)).rejects.toBeInstanceOf(
-      FocusLimitError,
-    )
-    await expect(repository.find({ focusDate: today })).resolves.toHaveLength(3)
+    await expect(
+      service.setFocus(userId, tasks[3]!.id, today),
+    ).rejects.toBeInstanceOf(FocusLimitError)
+    await expect(
+      repository.find(userId, { focusDate: today }),
+    ).resolves.toHaveLength(3)
   })
 
   it('automatically removes a focused Task when completed', async () => {
     const task = await create('Focused work')
-    await service.setFocus(task.id, today)
-    const completed = await service.complete(task.id)
+    await service.setFocus(userId, task.id, today)
+    const completed = await service.complete(userId, task.id)
 
     expect(completed).toMatchObject({
       status: 'done',
       focusDate: null,
       focusOrder: null,
     })
-    await expect(repository.find({ focusDate: today })).resolves.toHaveLength(0)
+    await expect(
+      repository.find(userId, { focusDate: today }),
+    ).resolves.toHaveLength(0)
   })
 
   it('rejects Focus for done Tasks and supports explicit removal', async () => {
     const task = await create('Focus rules')
-    await service.setFocus(task.id, today)
-    const removed = await service.removeFocus(task.id)
+    await service.setFocus(userId, task.id, today)
+    const removed = await service.removeFocus(userId, task.id)
     expect(removed.focusDate).toBeNull()
 
-    await service.complete(task.id)
-    await expect(service.setFocus(task.id, today)).rejects.toMatchObject({
+    await service.complete(userId, task.id)
+    await expect(
+      service.setFocus(userId, task.id, today),
+    ).rejects.toMatchObject({
       code: 'focus_ineligible',
     } satisfies Partial<TaskRuleError>)
   })
 
   it('normalizes Focus away from later and archived states', async () => {
     const task = await create('State normalization')
-    const focused = await service.setFocus(task.id, today)
+    const focused = await service.setFocus(userId, task.id, today)
 
     expect(
       transitionTask(focused, 'later', '2026-08-24T11:00:00.000Z'),

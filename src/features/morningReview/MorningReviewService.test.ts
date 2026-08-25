@@ -76,19 +76,19 @@ describe('Morning Review', () => {
     await service.apply(input, 'later', 'later')
     await service.apply(input, 'done', 'done')
     await service.apply(input, 'delete', 'delete')
-    await expect(repository.getById('move')).resolves.toMatchObject({
+    await expect(repository.getById(userId, 'move')).resolves.toMatchObject({
       plannedDate: today,
       status: 'todo',
     })
-    await expect(repository.getById('later')).resolves.toMatchObject({
+    await expect(repository.getById(userId, 'later')).resolves.toMatchObject({
       status: 'later',
       focusDate: null,
     })
-    await expect(repository.getById('done')).resolves.toMatchObject({
+    await expect(repository.getById(userId, 'done')).resolves.toMatchObject({
       status: 'done',
       completedAt: now,
     })
-    await expect(repository.getById('delete')).resolves.toBeNull()
+    await expect(repository.getById(userId, 'delete')).resolves.toBeNull()
     await expect(service.load(input)).resolves.toBeNull()
   })
 
@@ -105,15 +105,15 @@ describe('Morning Review', () => {
     )
     const input = { userId, date: today, timezone: 'UTC' }
     await service.moveAll(input)
-    expect(await repository.find({ plannedOn: today })).toHaveLength(2)
-    expect(await repository.find({})).toHaveLength(2)
+    expect(await repository.find(userId, { plannedOn: today })).toHaveLength(2)
+    expect(await repository.find(userId, {})).toHaveLength(2)
     await expect(service.load(input)).resolves.toBeNull()
 
     const nextDay = { ...input, date: '2026-08-26' }
-    const beforeSkip = await repository.find({})
+    const beforeSkip = await repository.find(userId, {})
     expect(await service.load(nextDay)).not.toBeNull()
     await service.skip(nextDay)
-    expect(await repository.find({})).toEqual(beforeSkip)
+    expect(await repository.find(userId, {})).toEqual(beforeSkip)
     await expect(service.load(nextDay)).resolves.toBeNull()
   })
 

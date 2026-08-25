@@ -1,6 +1,6 @@
 import type { Memo } from '@/domain/entities'
 import { instantToLocalDate } from '@/domain/time'
-import type { EntityId } from '@/domain/shared'
+import type { EntityId, UserId } from '@/domain/shared'
 import type {
   MemoQuery,
   MemoRepository,
@@ -8,9 +8,16 @@ import type {
 } from '@/repositories/contracts'
 import {
   MemoPersistenceError,
+  InvalidPersistedEntityError,
+  RepositoryOwnershipError,
   RepositoryVersionConflictError,
 } from '@/repositories/errors'
 import type { DailyWorkDatabase } from '@/database/DailyWorkDatabase'
+import {
+  assertRepositoryOwner,
+  assertUserId,
+  validateMemo,
+} from '@/repositories/validation'
 
 const cloneMemo = (memo: Memo) => structuredClone(memo)
 
@@ -28,10 +35,13 @@ function matches(memo: Memo, query: MemoQuery): boolean {
 export class DexieMemoRepository implements MemoRepository {
   constructor(private readonly database: DailyWorkDatabase) {}
 
-  async getById(id: EntityId): Promise<Memo | null> {
+  async getById(userId: UserId, id: EntityId): Promise<Memo | null> {
     try {
+      assertUserId(userId)
       const memo = await this.database.memos.get(id)
-      return memo && memo.deletedAt === null ? cloneMemo(memo) : null
+      if (!memo || memo.userId !== userId) return null
+      const validated = validateMemo(memo)
+      return validated.deletedAt === null ? cloneMemo(validated) : null
     } catch (error) {
       throw new MemoPersistenceError(`Memo ${id} could not be read.`, {
         cause: error,
@@ -39,9 +49,12 @@ export class DexieMemoRepository implements MemoRepository {
     }
   }
 
-  async find(query: MemoQuery): Promise<Memo[]> {
+  async find(userId: UserId, query: MemoQuery): Promise<Memo[]> {
     try {
+      assertUserId(userId)
       const memos = (await this.database.memos.toArray())
+        .filter((memo) => memo.userId === userId)
+        .map(validateMemo)
         .filter((memo) => matches(memo, query))
         .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
       return memos.slice(0, query.limit ?? memos.length).map(cloneMemo)
@@ -52,10 +65,17 @@ export class DexieMemoRepository implements MemoRepository {
     }
   }
 
-  async save(memo: Memo, options: RepositoryWriteOptions = {}): Promise<void> {
+  async save(
+    userId: UserId,
+    memo: Memo,
+    options: RepositoryWriteOptions = {},
+  ): Promise<void> {
     try {
+      validateMemo(memo)
+      assertRepositoryOwner(userId, memo)
       await this.database.transaction('rw', this.database.memos, async () => {
         const current = await this.database.memos.get(memo.id)
+        if (current) assertRepositoryOwner(userId, current)
         const conflict = current
           ? (options.expectedVersion !== undefined &&
               current.version !== options.expectedVersion) ||
@@ -65,7 +85,12 @@ export class DexieMemoRepository implements MemoRepository {
         await this.database.memos.put(cloneMemo(memo))
       })
     } catch (error) {
-      if (error instanceof RepositoryVersionConflictError) throw error
+      if (
+        error instanceof RepositoryVersionConflictError ||
+        error instanceof RepositoryOwnershipError ||
+        error instanceof InvalidPersistedEntityError
+      )
+        throw error
       throw new MemoPersistenceError(`Memo ${memo.id} could not be saved.`, {
         cause: error,
       })

@@ -24,20 +24,20 @@ describe('MemoService', () => {
     })
 
     await expect(
-      service.edit(created.id, { content: 'Edited memo' }),
+      service.edit('user-1', created.id, { content: 'Edited memo' }),
     ).resolves.toMatchObject({ content: 'Edited memo', version: 2 })
-    await expect(service.pin(created.id)).resolves.toMatchObject({
+    await expect(service.pin('user-1', created.id)).resolves.toMatchObject({
       pinned: true,
       version: 3,
     })
-    await expect(service.unpin(created.id)).resolves.toMatchObject({
+    await expect(service.unpin('user-1', created.id)).resolves.toMatchObject({
       pinned: false,
       version: 4,
     })
-    const deleted = await service.delete(created.id)
+    const deleted = await service.delete('user-1', created.id)
     expect(deleted).toMatchObject({ version: 5 })
     expect(deleted.deletedAt).not.toBeNull()
-    await expect(repository.getById(created.id)).resolves.toBeNull()
-    await expect(repository.find({})).resolves.toEqual([])
+    await expect(repository.getById('user-1', created.id)).resolves.toBeNull()
+    await expect(repository.find('user-1', {})).resolves.toEqual([])
   })
 })

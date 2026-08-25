@@ -16,12 +16,10 @@ export class MorningReviewQuery {
 
   async execute(input: MorningReviewInput): Promise<MorningReviewData> {
     const previousDate = format(addDays(parseISO(input.date), -1), 'yyyy-MM-dd')
-    const tasks = (
-      await this.tasks.find({
-        plannedOn: previousDate,
-        statuses: ['todo', 'doing'],
-      })
-    ).filter((task) => task.userId === input.userId)
+    const tasks = await this.tasks.find(input.userId, {
+      plannedOn: previousDate,
+      statuses: ['todo', 'doing'],
+    })
     return { ...input, previousDate, tasks }
   }
 }

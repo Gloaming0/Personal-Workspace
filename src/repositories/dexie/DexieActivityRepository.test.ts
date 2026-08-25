@@ -23,7 +23,10 @@ import {
   taskStoreSchema,
 } from '@/database/DailyWorkDatabase'
 import { ActivityService } from '@/features/activity/ActivityService'
-import { ActivityAppendConflictError } from '@/repositories/errors'
+import {
+  ActivityAppendConflictError,
+  RepositoryOwnershipError,
+} from '@/repositories/errors'
 import { DexieActivityRepository } from './DexieActivityRepository'
 
 class Version4Database extends Dexie {
@@ -94,16 +97,55 @@ describe('DexieActivityRepository', () => {
       })
       if (index === 0) firstId = activity.id
     }
-    const recent = await repository.find({ limit: 10 })
+    const recent = await repository.find('local-user', { limit: 10 })
     expect(recent).toHaveLength(10)
     expect(recent[0]?.payload).toMatchObject({ title: 'Task 11' })
     expect(recent.at(-1)?.payload).toMatchObject({ title: 'Task 2' })
 
     const first = (await database.activities.get(firstId))!
-    await expect(repository.append(first)).rejects.toBeInstanceOf(
+    await expect(repository.append('local-user', first)).rejects.toBeInstanceOf(
       ActivityAppendConflictError,
     )
     await expect(database.activities.count()).resolves.toBe(12)
+  })
+
+  it('isolates users, rejects ownership mismatches, and hides tombstones', async () => {
+    databaseName = `activity-ownership-${++sequence}`
+    const database = await openDatabase()
+    const repository = new DexieActivityRepository(database)
+    const userOne = await new ActivityService(repository, {
+      createId: () => 'activity-user-one',
+      now: () => '2026-08-24T10:00:00.000Z',
+    }).record({
+      userId: 'user-1',
+      eventType: 'task_created',
+      entityType: 'task',
+      entityId: 'task-user-one',
+      title: 'User one',
+    })
+    await new ActivityService(repository, {
+      createId: () => 'activity-user-two',
+      now: () => '2026-08-24T11:00:00.000Z',
+    }).record({
+      userId: 'user-2',
+      eventType: 'task_created',
+      entityType: 'task',
+      entityId: 'task-user-two',
+      title: 'User two',
+    })
+
+    await expect(repository.find('user-1', {})).resolves.toMatchObject([
+      { id: 'activity-user-one' },
+    ])
+    await expect(
+      repository.append('user-2', { ...userOne, id: 'ownership-mismatch' }),
+    ).rejects.toBeInstanceOf(RepositoryOwnershipError)
+
+    await database.activities.put({
+      ...userOne,
+      deletedAt: '2026-08-24T12:00:00.000Z',
+    })
+    await expect(repository.find('user-1', {})).resolves.toEqual([])
   })
 
   it('upgrades v4 to v5 without losing Task, Waiting, Memo, or Routine', async () => {

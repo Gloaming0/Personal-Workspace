@@ -9,11 +9,96 @@ import { TaskService } from '@/features/tasks/TaskService'
 import { MemoService } from '@/features/memos/MemoService'
 import { RoutineService } from '@/features/routines/RoutineService'
 import { ActivityService } from '@/features/activity/ActivityService'
+import { WaitingService } from '@/features/waiting/WaitingService'
 import { DefaultTodayDashboardQuery } from './TodayDashboardQuery'
 import { DefaultTodayDashboardViewModelAssembler } from './TodayDashboardViewModelAssembler'
 import { MockTodayProjectNameResolver } from './MockTodayProjectNameResolver'
 
 describe('TodayDashboardQuery aggregation', () => {
+  it('isolates every aggregate source by the requested user', async () => {
+    const tasks = new InMemoryTaskRepository()
+    const waiting = new InMemoryWaitingRepository()
+    const memos = new InMemoryMemoRepository()
+    const routines = new InMemoryRoutineRepository()
+    const routineLogs = new InMemoryRoutineLogRepository()
+    const activities = new InMemoryActivityRepository()
+    let id = 0
+    const now = () => '2026-08-24T09:00:00.000Z'
+    const taskService = new TaskService(tasks, {
+      createId: () => `task-isolation-${++id}`,
+      now,
+    })
+    const waitingService = new WaitingService(waiting, {
+      createId: () => `waiting-isolation-${++id}`,
+      now,
+    })
+    const memoService = new MemoService(memos, {
+      createId: () => `memo-isolation-${++id}`,
+      now,
+    })
+    const routineService = new RoutineService(routines, routineLogs, {
+      createId: () => `routine-isolation-${++id}`,
+      now,
+    })
+    const activityService = new ActivityService(activities, {
+      createId: () => `activity-isolation-${++id}`,
+      now,
+    })
+    for (const userId of ['user-1', 'user-2']) {
+      await taskService.create({
+        userId,
+        title: `${userId} task`,
+        plannedDate: '2026-08-24',
+      })
+      await waitingService.create({ userId, title: `${userId} waiting` })
+      await memoService.create({
+        userId,
+        content: `${userId} memo`,
+        pinned: true,
+      })
+      await routineService.create({
+        userId,
+        title: `${userId} routine`,
+        schedule: { frequency: 'daily' },
+        timezone: 'UTC',
+      })
+      await activityService.record({
+        userId,
+        eventType: 'task_created',
+        entityType: 'task',
+        entityId: `activity-task-${userId}`,
+        title: `${userId} activity`,
+      })
+    }
+
+    const query = new DefaultTodayDashboardQuery({
+      tasks,
+      waiting,
+      memos,
+      routines,
+      routineLogs,
+      activities,
+      projectNames: new MockTodayProjectNameResolver(),
+      assembler: new DefaultTodayDashboardViewModelAssembler(),
+    })
+    const result = await query.execute({
+      userId: 'user-1',
+      date: '2026-08-24',
+      timezone: 'UTC',
+      language: 'en',
+    })
+
+    expect(result.tasks.map((item) => item.title)).toEqual(['user-1 task'])
+    expect(result.waiting.map((item) => item.title)).toEqual(['user-1 waiting'])
+    expect(result.quickMemo?.content).toBe('user-1 memo')
+    expect(result.checkIns.map((item) => item.title)).toEqual([
+      'user-1 routine',
+    ])
+    expect(result.recentActivity.map((item) => item.text)).toEqual([
+      'Created “user-1 activity”',
+    ])
+  })
+
   it('projects repository data without a supporting Mock dependency', async () => {
     const repository = new InMemoryTaskRepository()
     let id = 0
@@ -27,13 +112,13 @@ describe('TodayDashboardQuery aggregation', () => {
       plannedDate: '2026-08-24',
       priority: 'P1',
     })
-    await service.setFocus(first.id, '2026-08-24')
+    await service.setFocus('user-1', first.id, '2026-08-24')
     const completed = await service.create({
       userId: 'user-1',
       title: 'Completed task',
       plannedDate: '2026-08-24',
     })
-    await service.complete(completed.id)
+    await service.complete('user-1', completed.id)
     await service.create({
       userId: 'user-1',
       title: 'Tomorrow task',
@@ -51,6 +136,7 @@ describe('TodayDashboardQuery aggregation', () => {
       assembler: new DefaultTodayDashboardViewModelAssembler(),
     })
     const result = await query.execute({
+      userId: 'user-1',
       date: '2026-08-24',
       timezone: 'Asia/Shanghai',
       language: 'zh-CN',
@@ -125,8 +211,8 @@ describe('TodayDashboardQuery aggregation', () => {
       schedule: { frequency: 'daily' },
       timezone: 'Asia/Shanghai',
     })
-    await routineService.pause(paused.id)
-    await routineService.complete(daily.id, '2026-08-24')
+    await routineService.pause('user-1', paused.id)
+    await routineService.complete('user-1', daily.id, '2026-08-24')
 
     const query = new DefaultTodayDashboardQuery({
       tasks: new InMemoryTaskRepository(),
@@ -141,6 +227,7 @@ describe('TodayDashboardQuery aggregation', () => {
       assembler: new DefaultTodayDashboardViewModelAssembler(),
     })
     const result = await query.execute({
+      userId: 'user-1',
       date: '2026-08-24',
       timezone: 'Asia/Shanghai',
       language: 'en',
@@ -162,12 +249,13 @@ describe('TodayDashboardQuery aggregation', () => {
       totalCheckInCount: 2,
     })
 
-    await memoService.unpin(pinned.id)
+    await memoService.unpin('user-1', pinned.id)
     const newest = await memoService.create({
       userId: 'user-1',
       content: 'Newest today memo',
     })
     const fallbackResult = await query.execute({
+      userId: 'user-1',
       date: '2026-08-24',
       timezone: 'Asia/Shanghai',
       language: 'en',
@@ -199,11 +287,13 @@ describe('TodayDashboardQuery aggregation', () => {
     })
 
     const english = await query.execute({
+      userId: 'user-1',
       date: '2026-08-24',
       timezone: 'Asia/Shanghai',
       language: 'en',
     })
     const chinese = await query.execute({
+      userId: 'user-1',
       date: '2026-08-24',
       timezone: 'Asia/Shanghai',
       language: 'zh-CN',
@@ -211,7 +301,7 @@ describe('TodayDashboardQuery aggregation', () => {
 
     expect(english.recentActivity[0]?.text).toBe('Completed “用户原始 Title”')
     expect(chinese.recentActivity[0]?.text).toBe('完成「用户原始 Title」')
-    await expect(activities.find({})).resolves.toMatchObject([
+    await expect(activities.find('user-1', {})).resolves.toMatchObject([
       {
         payload: { title: '用户原始 Title', entityId: 'task-bilingual' },
       },

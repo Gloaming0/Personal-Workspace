@@ -74,7 +74,7 @@ describe('End Day service', () => {
       title: '完成中文任务',
       plannedDate: date,
     })
-    await context.taskService.complete(completed.id)
+    await context.taskService.complete(userId, completed.id)
     const tomorrow = await context.taskService.create({
       userId,
       title: 'Tomorrow task',
@@ -99,8 +99,9 @@ describe('End Day service', () => {
       { userId, title: 'Client approval', person: 'Alex', followUpDate: date },
       { id: 'waiting-1', now },
     )
-    await context.waiting.save(waiting)
+    await context.waiting.save(userId, waiting)
     await context.memos.save(
+      userId,
       createMemo({ userId, content: '保留原始便笺' }, { id: 'memo-1', now }),
     )
     const routine = createRoutine(
@@ -112,11 +113,43 @@ describe('End Day service', () => {
       },
       { id: 'routine-1', now },
     )
-    await context.routines.save(routine)
+    await context.routines.save(userId, routine)
     await context.routineLogs.save(
+      userId,
       createRoutineLog(
         { userId, routineId: routine.id, date },
         { id: 'routine-log-1', now },
+      ),
+    )
+    await context.taskService.create({
+      userId: 'user-2',
+      title: 'Other user task',
+      plannedDate: date,
+    })
+    await context.waiting.save(
+      'user-2',
+      createWaiting(
+        { userId: 'user-2', title: 'Other user waiting' },
+        { id: 'waiting-user-2', now },
+      ),
+    )
+    await context.memos.save(
+      'user-2',
+      createMemo(
+        { userId: 'user-2', content: 'Other user memo' },
+        { id: 'memo-user-2', now },
+      ),
+    )
+    await context.routines.save(
+      'user-2',
+      createRoutine(
+        {
+          userId: 'user-2',
+          title: 'Other user routine',
+          schedule: { frequency: 'daily' },
+          timezone: 'UTC',
+        },
+        { id: 'routine-user-2', now },
       ),
     )
 
@@ -148,11 +181,12 @@ describe('End Day service', () => {
     expect(
       log.snapshot.openTasks.some((task) => task.entityId === deleted.id),
     ).toBe(false)
-    await expect(context.tasks.getById(deleted.id)).resolves.toBeNull()
+    await expect(context.tasks.getById(userId, deleted.id)).resolves.toBeNull()
     expect(log.snapshot.routines[0]).toMatchObject({
       completed: true,
       completedAt: now,
     })
+    expect(JSON.stringify(log.snapshot)).not.toContain('Other user')
 
     const changedWaiting = {
       ...waiting,
@@ -161,9 +195,10 @@ describe('End Day service', () => {
       updatedAt: now,
       version: 2,
     }
-    await context.waiting.save(changedWaiting, { expectedVersion: 1 })
-    const completedEntity = (await context.tasks.getById(completed.id))!
+    await context.waiting.save(userId, changedWaiting, { expectedVersion: 1 })
+    const completedEntity = (await context.tasks.getById(userId, completed.id))!
     await context.tasks.save(
+      userId,
       {
         ...completedEntity,
         title: 'Renamed after finalization',
@@ -176,7 +211,7 @@ describe('End Day service', () => {
     expect(stored?.snapshot.waiting[0]?.title).toBe('Client approval')
     expect(stored?.snapshot.completedTasks[0]?.title).toBe('完成中文任务')
     expect(stored?.snapshot.memos[0]?.content).toBe('保留原始便笺')
-    expect((await context.activities.find({}))[0]).toMatchObject({
+    expect((await context.activities.find(userId, {}))[0]).toMatchObject({
       eventType: 'daily_log_finalized',
     })
 
@@ -194,7 +229,7 @@ describe('End Day service', () => {
   it('does not create a Daily Log when a Task action fails', async () => {
     class FailingTaskRepository extends InMemoryTaskRepository {
       override async save(...args: Parameters<InMemoryTaskRepository['save']>) {
-        if (args[0].version > 1) throw new Error('write failed')
+        if (args[1].version > 1) throw new Error('write failed')
         return super.save(...args)
       }
     }

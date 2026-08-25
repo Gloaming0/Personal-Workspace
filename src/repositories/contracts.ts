@@ -34,9 +34,13 @@ export interface TaskQuery {
 }
 
 export interface TaskRepository {
-  getById(id: EntityId): Promise<Task | null>
-  find(query: TaskQuery): Promise<Task[]>
-  save(task: Task, options?: RepositoryWriteOptions): Promise<void>
+  getById(userId: UserId, id: EntityId): Promise<Task | null>
+  find(userId: UserId, query: TaskQuery): Promise<Task[]>
+  save(
+    userId: UserId,
+    task: Task,
+    options?: RepositoryWriteOptions,
+  ): Promise<void>
 }
 
 export interface WaitingQuery {
@@ -46,24 +50,40 @@ export interface WaitingQuery {
 }
 
 export interface WaitingRepository {
-  getById(id: EntityId): Promise<Waiting | null>
-  find(query: WaitingQuery): Promise<Waiting[]>
-  save(waiting: Waiting, options?: RepositoryWriteOptions): Promise<void>
+  getById(userId: UserId, id: EntityId): Promise<Waiting | null>
+  find(userId: UserId, query: WaitingQuery): Promise<Waiting[]>
+  save(
+    userId: UserId,
+    waiting: Waiting,
+    options?: RepositoryWriteOptions,
+  ): Promise<void>
 }
 
 export interface RoutineRepository {
-  getById(id: EntityId): Promise<Routine | null>
-  findByStatus(statuses: readonly RoutineStatus[]): Promise<Routine[]>
-  save(routine: Routine, options?: RepositoryWriteOptions): Promise<void>
+  getById(userId: UserId, id: EntityId): Promise<Routine | null>
+  findByStatus(
+    userId: UserId,
+    statuses: readonly RoutineStatus[],
+  ): Promise<Routine[]>
+  save(
+    userId: UserId,
+    routine: Routine,
+    options?: RepositoryWriteOptions,
+  ): Promise<void>
 }
 
 export interface RoutineLogRepository {
-  findForDate(date: LocalDate): Promise<RoutineLog[]>
+  findForDate(userId: UserId, date: LocalDate): Promise<RoutineLog[]>
   findByRoutineAndDate(
+    userId: UserId,
     routineId: EntityId,
     date: LocalDate,
   ): Promise<RoutineLog | null>
-  save(log: RoutineLog, options?: RepositoryWriteOptions): Promise<void>
+  save(
+    userId: UserId,
+    log: RoutineLog,
+    options?: RepositoryWriteOptions,
+  ): Promise<void>
 }
 
 export interface MemoQuery {
@@ -75,21 +95,32 @@ export interface MemoQuery {
 }
 
 export interface MemoRepository {
-  getById(id: EntityId): Promise<Memo | null>
-  find(query: MemoQuery): Promise<Memo[]>
-  save(memo: Memo, options?: RepositoryWriteOptions): Promise<void>
+  getById(userId: UserId, id: EntityId): Promise<Memo | null>
+  find(userId: UserId, query: MemoQuery): Promise<Memo[]>
+  save(
+    userId: UserId,
+    memo: Memo,
+    options?: RepositoryWriteOptions,
+  ): Promise<void>
 }
 
 export interface ProjectRepository {
-  getById(id: EntityId): Promise<Project | null>
-  getByIds(ids: readonly EntityId[]): Promise<Project[]>
-  findByStatus(statuses: readonly ProjectStatus[]): Promise<Project[]>
-  save(project: Project, options?: RepositoryWriteOptions): Promise<void>
+  getById(userId: UserId, id: EntityId): Promise<Project | null>
+  getByIds(userId: UserId, ids: readonly EntityId[]): Promise<Project[]>
+  findByStatus(
+    userId: UserId,
+    statuses: readonly ProjectStatus[],
+  ): Promise<Project[]>
+  save(
+    userId: UserId,
+    project: Project,
+    options?: RepositoryWriteOptions,
+  ): Promise<void>
 }
 
 export interface DailyLogRepository {
   findByDate(userId: UserId, date: LocalDate): Promise<DailyLog | null>
-  finalize(log: DailyLog): Promise<void>
+  finalize(userId: UserId, log: DailyLog): Promise<void>
 }
 
 export interface ActivityQuery {
@@ -100,6 +131,6 @@ export interface ActivityQuery {
 }
 
 export interface ActivityRepository {
-  find(query: ActivityQuery): Promise<Activity[]>
-  append(activity: Activity): Promise<void>
+  find(userId: UserId, query: ActivityQuery): Promise<Activity[]>
+  append(userId: UserId, activity: Activity): Promise<void>
 }

@@ -1,5 +1,5 @@
 import type { Task } from '@/domain/entities'
-import type { EntityId } from '@/domain/shared'
+import type { EntityId, UserId } from '@/domain/shared'
 import type {
   RepositoryWriteOptions,
   TaskQuery,
@@ -7,9 +7,16 @@ import type {
 } from '@/repositories/contracts'
 import {
   RepositoryVersionConflictError,
+  RepositoryOwnershipError,
+  InvalidPersistedEntityError,
   TaskPersistenceError,
 } from '@/repositories/errors'
 import type { DailyWorkDatabase } from '@/database/DailyWorkDatabase'
+import {
+  assertRepositoryOwner,
+  assertUserId,
+  validateTask,
+} from '@/repositories/validation'
 
 function cloneTask(task: Task): Task {
   return structuredClone(task)
@@ -33,10 +40,13 @@ function matchesQuery(task: Task, query: TaskQuery): boolean {
 export class DexieTaskRepository implements TaskRepository {
   constructor(private readonly database: DailyWorkDatabase) {}
 
-  async getById(id: EntityId): Promise<Task | null> {
+  async getById(userId: UserId, id: EntityId): Promise<Task | null> {
     try {
+      assertUserId(userId)
       const task = await this.database.tasks.get(id)
-      return task && task.deletedAt === null ? cloneTask(task) : null
+      if (!task || task.userId !== userId) return null
+      const validated = validateTask(task)
+      return validated.deletedAt === null ? cloneTask(validated) : null
     } catch (error) {
       throw new TaskPersistenceError(`Task ${id} could not be read.`, {
         cause: error,
@@ -44,10 +54,13 @@ export class DexieTaskRepository implements TaskRepository {
     }
   }
 
-  async find(query: TaskQuery): Promise<Task[]> {
+  async find(userId: UserId, query: TaskQuery): Promise<Task[]> {
     try {
+      assertUserId(userId)
       const tasks = await this.database.tasks.toArray()
       return tasks
+        .filter((task) => task.userId === userId)
+        .map(validateTask)
         .filter((task) => matchesQuery(task, query))
         .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
         .map(cloneTask)
@@ -58,10 +71,17 @@ export class DexieTaskRepository implements TaskRepository {
     }
   }
 
-  async save(task: Task, options: RepositoryWriteOptions = {}): Promise<void> {
+  async save(
+    userId: UserId,
+    task: Task,
+    options: RepositoryWriteOptions = {},
+  ): Promise<void> {
     try {
+      validateTask(task)
+      assertRepositoryOwner(userId, task)
       await this.database.transaction('rw', this.database.tasks, async () => {
         const current = await this.database.tasks.get(task.id)
+        if (current) assertRepositoryOwner(userId, current)
         const versionConflict = current
           ? (options.expectedVersion !== undefined &&
               current.version !== options.expectedVersion) ||
@@ -74,7 +94,12 @@ export class DexieTaskRepository implements TaskRepository {
         await this.database.tasks.put(cloneTask(task))
       })
     } catch (error) {
-      if (error instanceof RepositoryVersionConflictError) throw error
+      if (
+        error instanceof RepositoryVersionConflictError ||
+        error instanceof RepositoryOwnershipError ||
+        error instanceof InvalidPersistedEntityError
+      )
+        throw error
       throw new TaskPersistenceError(`Task ${task.id} could not be saved.`, {
         cause: error,
       })

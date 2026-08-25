@@ -7,6 +7,26 @@ export class RepositoryVersionConflictError extends Error {
   }
 }
 
+export class RepositoryOwnershipError extends Error {
+  constructor(
+    public readonly requestedUserId: string,
+    public readonly entityUserId: string,
+  ) {
+    super('The entity does not belong to the requested user.')
+    this.name = 'RepositoryOwnershipError'
+  }
+}
+
+export class InvalidPersistedEntityError extends Error {
+  constructor(
+    public readonly entityType: string,
+    public readonly field: string,
+  ) {
+    super(`Persisted ${entityType} has an invalid ${field}.`)
+    this.name = 'InvalidPersistedEntityError'
+  }
+}
+
 export class WaitingPersistenceError extends Error {
   constructor(message: string, options: { cause?: unknown } = {}) {
     super(message, options)

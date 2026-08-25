@@ -30,18 +30,20 @@ export class EndDayQuery {
   }): Promise<EndDayOverview> {
     const [planned, completed, waiting, memos, routines, routineLogs] =
       await Promise.all([
-        this.dependencies.tasks.find({
+        this.dependencies.tasks.find(input.userId, {
           plannedOn: input.date,
           statuses: ['todo', 'doing', 'done'],
         }),
-        this.dependencies.tasks.find({ statuses: ['done'] }),
-        this.dependencies.waiting.find({ statuses: ['waiting', 'confirmed'] }),
-        this.dependencies.memos.find({
+        this.dependencies.tasks.find(input.userId, { statuses: ['done'] }),
+        this.dependencies.waiting.find(input.userId, {
+          statuses: ['waiting', 'confirmed'],
+        }),
+        this.dependencies.memos.find(input.userId, {
           updatedOn: input.date,
           timezone: input.timezone,
         }),
-        this.dependencies.routines.findByStatus(['active']),
-        this.dependencies.routineLogs.findForDate(input.date),
+        this.dependencies.routines.findByStatus(input.userId, ['active']),
+        this.dependencies.routineLogs.findForDate(input.userId, input.date),
       ])
     const completedOnDate = completed.filter(
       (task) =>
@@ -50,17 +52,13 @@ export class EndDayQuery {
     )
     const userTasks = [
       ...new Map(
-        [...planned, ...completedOnDate]
-          .filter((task) => task.userId === input.userId)
-          .map((task) => [task.id, task]),
+        [...planned, ...completedOnDate].map((task) => [task.id, task]),
       ).values(),
     ]
-    const userWaiting = waiting.filter((item) => item.userId === input.userId)
-    const userMemos = memos.filter((memo) => memo.userId === input.userId)
-    const userRoutines = routines.filter(
-      (routine) =>
-        routine.userId === input.userId &&
-        isRoutineScheduledOn(routine.schedule, input.date),
+    const userWaiting = waiting
+    const userMemos = memos
+    const userRoutines = routines.filter((routine) =>
+      isRoutineScheduledOn(routine.schedule, input.date),
     )
     const projectIds = [
       ...new Set(
@@ -78,7 +76,7 @@ export class EndDayQuery {
       waiting: userWaiting,
       memos: userMemos,
       routines: userRoutines,
-      routineLogs: routineLogs.filter((log) => log.userId === input.userId),
+      routineLogs,
       projectNames: await this.dependencies.projectNames.resolve(projectIds),
     }
   }

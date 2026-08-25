@@ -61,11 +61,19 @@ export class EndDayService {
     for (const task of overview.openTasks) {
       const action = input.taskActions[task.id] as UnfinishedTaskAction
       if (action === 'delete') {
-        await this.taskService.delete(task.id)
+        await this.taskService.delete(input.userId, task.id)
       } else if (action === 'tomorrow') {
-        openTasks.push(await this.taskService.moveToTomorrow(task.id, tomorrow))
+        openTasks.push(
+          await this.taskService.moveToTomorrow(
+            input.userId,
+            task.id,
+            tomorrow,
+          ),
+        )
       } else if (action === 'later') {
-        openTasks.push(await this.taskService.moveToLater(task.id))
+        openTasks.push(
+          await this.taskService.moveToLater(input.userId, task.id),
+        )
       } else {
         openTasks.push(task)
       }
@@ -123,7 +131,7 @@ export class EndDayService {
       },
       { id: this.context.createId(), now: this.context.now() },
     )
-    await this.logs.finalize(log)
+    await this.logs.finalize(input.userId, log)
     try {
       await this.activities?.record({
         userId: log.userId,

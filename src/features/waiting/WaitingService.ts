@@ -1,5 +1,5 @@
 import type { Waiting } from '@/domain/entities'
-import type { EntityId, Instant, LocalDate } from '@/domain/shared'
+import type { EntityId, Instant, LocalDate, UserId } from '@/domain/shared'
 import {
   closeWaiting,
   confirmWaiting,
@@ -43,13 +43,18 @@ export class WaitingService {
       id: this.createId(),
       now: this.now(),
     })
-    await this.waiting.save(entity)
+    await this.waiting.save(input.userId, entity)
     await this.record(entity, 'waiting_created')
     return entity
   }
 
-  async edit(id: EntityId, input: EditWaitingInput): Promise<Waiting> {
+  async edit(
+    userId: UserId,
+    id: EntityId,
+    input: EditWaitingInput,
+  ): Promise<Waiting> {
     return this.change(
+      userId,
       id,
       (entity) => editWaiting(entity, input, this.now()),
       'followUpDate' in input ? 'waiting_followup_changed' : undefined,
@@ -57,24 +62,27 @@ export class WaitingService {
     )
   }
 
-  async confirm(id: EntityId): Promise<Waiting> {
+  async confirm(userId: UserId, id: EntityId): Promise<Waiting> {
     return this.change(
+      userId,
       id,
       (entity) => confirmWaiting(entity, this.now()),
       'waiting_confirmed',
     )
   }
 
-  async close(id: EntityId): Promise<Waiting> {
+  async close(userId: UserId, id: EntityId): Promise<Waiting> {
     return this.change(
+      userId,
       id,
       (entity) => closeWaiting(entity, this.now()),
       'waiting_closed',
     )
   }
 
-  async reopen(id: EntityId): Promise<Waiting> {
+  async reopen(userId: UserId, id: EntityId): Promise<Waiting> {
     return this.change(
+      userId,
       id,
       (entity) => reopenWaiting(entity, this.now()),
       'waiting_reopened',
@@ -82,10 +90,12 @@ export class WaitingService {
   }
 
   async setFollowUpDate(
+    userId: UserId,
     id: EntityId,
     followUpDate: LocalDate | null,
   ): Promise<Waiting> {
     return this.change(
+      userId,
       id,
       (entity) => setWaitingFollowUpDate(entity, followUpDate, this.now()),
       'waiting_followup_changed',
@@ -94,6 +104,7 @@ export class WaitingService {
   }
 
   private async change(
+    userId: UserId,
     id: EntityId,
     update: (waiting: Waiting) => Waiting,
     eventType?:
@@ -103,17 +114,19 @@ export class WaitingService {
       | 'waiting_followup_changed',
     shouldRecord: (previous: Waiting, next: Waiting) => boolean = () => true,
   ): Promise<Waiting> {
-    const entity = await this.requireWaiting(id)
+    const entity = await this.requireWaiting(userId, id)
     const updated = update(entity)
-    await this.waiting.save(updated, { expectedVersion: entity.version })
+    await this.waiting.save(userId, updated, {
+      expectedVersion: entity.version,
+    })
     if (eventType && shouldRecord(entity, updated)) {
       await this.record(updated, eventType)
     }
     return updated
   }
 
-  private async requireWaiting(id: EntityId): Promise<Waiting> {
-    const waiting = await this.waiting.getById(id)
+  private async requireWaiting(userId: UserId, id: EntityId): Promise<Waiting> {
+    const waiting = await this.waiting.getById(userId, id)
     if (!waiting) throw new WaitingNotFoundError(id)
     return waiting
   }

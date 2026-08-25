@@ -19,7 +19,10 @@ import {
   taskStoreSchema,
 } from '@/database/DailyWorkDatabase'
 import { finalizeDailyLog } from '@/domain/dailyLog'
-import { DailyLogAlreadyFinalizedError } from '@/repositories/errors'
+import {
+  DailyLogAlreadyFinalizedError,
+  RepositoryOwnershipError,
+} from '@/repositories/errors'
 import { DexieDailyLogRepository } from './DexieDailyLogRepository'
 
 class Version5Database extends Dexie {
@@ -82,12 +85,18 @@ describe('Dexie Daily Log persistence', () => {
       },
       { id: 'log-1', now: '2026-08-25T16:00:00.000Z' },
     )
-    await repository.finalize(log)
+    await repository.finalize('user-1', log)
+    await expect(
+      repository.findByDate('user-2', '2026-08-25'),
+    ).resolves.toBeNull()
+    await expect(
+      repository.finalize('user-2', { ...log, id: 'log-wrong-owner' }),
+    ).rejects.toBeInstanceOf(RepositoryOwnershipError)
     await expect(
       repository.findByDate('user-1', '2026-08-25'),
     ).resolves.toEqual(log)
     await expect(
-      repository.finalize({ ...log, id: 'log-2' }),
+      repository.finalize('user-1', { ...log, id: 'log-2' }),
     ).rejects.toBeInstanceOf(DailyLogAlreadyFinalizedError)
   })
 })

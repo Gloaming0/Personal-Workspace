@@ -49,12 +49,13 @@ describe('RoutineService', () => {
       timezone: 'Asia/Shanghai',
     })
 
-    const completed = await service.complete(routine.id, '2026-08-24')
-    await expect(service.complete(routine.id, '2026-08-24')).resolves.toEqual(
-      completed,
-    )
+    const completed = await service.complete('user-1', routine.id, '2026-08-24')
+    await expect(
+      service.complete('user-1', routine.id, '2026-08-24'),
+    ).resolves.toEqual(completed)
     await expect(
       logs.save(
+        'user-1',
         createRoutineLog(
           { userId: 'user-1', routineId: routine.id, date: '2026-08-24' },
           { id: 'duplicate', now: '2026-08-24T11:00:00.000Z' },
@@ -62,11 +63,15 @@ describe('RoutineService', () => {
       ),
     ).rejects.toBeInstanceOf(RoutineLogUniquenessError)
 
-    await service.undo(routine.id, '2026-08-24')
+    await service.undo('user-1', routine.id, '2026-08-24')
     await expect(
-      logs.findByRoutineAndDate(routine.id, '2026-08-24'),
+      logs.findByRoutineAndDate('user-1', routine.id, '2026-08-24'),
     ).resolves.toBeNull()
-    const completedAgain = await service.complete(routine.id, '2026-08-24')
+    const completedAgain = await service.complete(
+      'user-1',
+      routine.id,
+      '2026-08-24',
+    )
     expect(completedAgain.id).not.toBe(completed.id)
   })
 
@@ -83,11 +88,17 @@ describe('RoutineService', () => {
       schedule: { frequency: 'daily' },
       timezone: 'UTC',
     })
-    await service.pause(routine.id)
-    await expect(routines.findByStatus(['active'])).resolves.toEqual([])
-    await service.resume(routine.id)
-    await expect(routines.findByStatus(['active'])).resolves.toHaveLength(1)
-    await service.archive(routine.id)
-    await expect(routines.findByStatus(['active'])).resolves.toEqual([])
+    await service.pause('user-1', routine.id)
+    await expect(routines.findByStatus('user-1', ['active'])).resolves.toEqual(
+      [],
+    )
+    await service.resume('user-1', routine.id)
+    await expect(
+      routines.findByStatus('user-1', ['active']),
+    ).resolves.toHaveLength(1)
+    await service.archive('user-1', routine.id)
+    await expect(routines.findByStatus('user-1', ['active'])).resolves.toEqual(
+      [],
+    )
   })
 })

@@ -63,14 +63,18 @@ describe('DexieWaitingRepository', () => {
       sourceTaskId: 'task-origin',
       followUpDate: '2026-08-24',
     })
-    await firstService.edit(created.id, { notes: 'Review response' })
-    const confirmed = await firstService.confirm(created.id)
+    await firstService.edit('local-user', created.id, {
+      notes: 'Review response',
+    })
+    const confirmed = await firstService.confirm('local-user', created.id)
     expect(confirmed).toMatchObject({ status: 'confirmed', version: 3 })
     firstDatabase.close()
 
     const secondDatabase = await openDatabase()
     const secondRepository = new DexieWaitingRepository(secondDatabase)
-    await expect(secondRepository.getById(created.id)).resolves.toMatchObject({
+    await expect(
+      secondRepository.getById('local-user', created.id),
+    ).resolves.toMatchObject({
       title: 'Persistent approval',
       notes: 'Review response',
       sourceTaskId: 'task-origin',
@@ -80,7 +84,7 @@ describe('DexieWaitingRepository', () => {
     const secondService = new WaitingService(secondRepository, {
       now: () => '2026-08-24T11:00:00.000Z',
     })
-    const closed = await secondService.close(created.id)
+    const closed = await secondService.close('local-user', created.id)
     expect(closed).toMatchObject({ status: 'closed', version: 4 })
     secondDatabase.close()
 
@@ -89,7 +93,7 @@ describe('DexieWaitingRepository', () => {
     const thirdService = new WaitingService(thirdRepository, {
       now: () => '2026-08-24T12:00:00.000Z',
     })
-    const reopened = await thirdService.reopen(created.id)
+    const reopened = await thirdService.reopen('local-user', created.id)
     expect(reopened).toMatchObject({
       status: 'waiting',
       confirmedAt: null,
@@ -100,7 +104,10 @@ describe('DexieWaitingRepository', () => {
 
     const fourthDatabase = await openDatabase()
     await expect(
-      new DexieWaitingRepository(fourthDatabase).getById(created.id),
+      new DexieWaitingRepository(fourthDatabase).getById(
+        'local-user',
+        created.id,
+      ),
     ).resolves.toMatchObject({ status: 'waiting', version: 5 })
   })
 
@@ -118,16 +125,23 @@ describe('DexieWaitingRepository', () => {
     })
 
     await expect(
-      repository.save({ ...waiting, version: 3 }, { expectedVersion: 1 }),
+      repository.save(
+        'local-user',
+        { ...waiting, version: 3 },
+        { expectedVersion: 1 },
+      ),
     ).rejects.toBeInstanceOf(RepositoryVersionConflictError)
 
     const deletedAt = '2026-08-24T13:00:00.000Z'
     await repository.save(
+      'local-user',
       { ...waiting, deletedAt, updatedAt: deletedAt, version: 2 },
       { expectedVersion: 1 },
     )
-    await expect(repository.getById(waiting.id)).resolves.toBeNull()
-    await expect(repository.find({})).resolves.toEqual([])
+    await expect(
+      repository.getById('local-user', waiting.id),
+    ).resolves.toBeNull()
+    await expect(repository.find('local-user', {})).resolves.toEqual([])
     await expect(database.confirmations.get(waiting.id)).resolves.toMatchObject(
       { deletedAt, version: 2 },
     )
@@ -182,7 +196,7 @@ describe('DexieWaitingRepository', () => {
       title: 'Already confirmed',
       followUpDate: '2026-08-20',
     })
-    await service.confirm(confirmed.id)
+    await service.confirm('local-user', confirmed.id)
 
     const query = new DefaultTodayDashboardQuery({
       tasks: new DexieTaskRepository(database),
@@ -197,6 +211,7 @@ describe('DexieWaitingRepository', () => {
       assembler: new DefaultTodayDashboardViewModelAssembler(),
     })
     const result = await query.execute({
+      userId: 'local-user',
       date: '2026-08-24',
       timezone: 'Asia/Shanghai',
       language: 'en',

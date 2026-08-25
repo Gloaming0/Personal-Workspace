@@ -10,7 +10,7 @@ import {
   type CreateTaskInput,
 } from '@/domain/task'
 import type { Task } from '@/domain/entities'
-import type { EntityId, Instant, LocalDate } from '@/domain/shared'
+import type { EntityId, Instant, LocalDate, UserId } from '@/domain/shared'
 import type { TaskRepository } from '@/repositories/contracts'
 import { ActivityService } from '@/features/activity/ActivityService'
 
@@ -48,32 +48,32 @@ export class TaskService {
 
   async create(input: CreateTaskInput): Promise<Task> {
     const task = createTask(input, { id: this.createId(), now: this.now() })
-    await this.tasks.save(task)
+    await this.tasks.save(input.userId, task)
     await this.record(task, 'task_created')
     return task
   }
 
-  async complete(id: EntityId): Promise<Task> {
-    const task = await this.change(id, (entity) =>
+  async complete(userId: UserId, id: EntityId): Promise<Task> {
+    const task = await this.change(userId, id, (entity) =>
       completeTask(entity, this.now()),
     )
     await this.record(task, 'task_completed')
     return task
   }
 
-  async reopen(id: EntityId): Promise<Task> {
-    const task = await this.change(id, (entity) =>
+  async reopen(userId: UserId, id: EntityId): Promise<Task> {
+    const task = await this.change(userId, id, (entity) =>
       reopenTask(entity, this.now()),
     )
     await this.record(task, 'task_reopened')
     return task
   }
 
-  async setFocus(id: EntityId, date: LocalDate): Promise<Task> {
-    const task = await this.requireTask(id)
+  async setFocus(userId: UserId, id: EntityId, date: LocalDate): Promise<Task> {
+    const task = await this.requireTask(userId, id)
     if (task.focusDate === date && task.focusOrder !== null) return task
 
-    const focusedTasks = await this.tasks.find({
+    const focusedTasks = await this.tasks.find(userId, {
       focusDate: date,
       statuses: ['todo', 'doing'],
     })
@@ -88,51 +88,56 @@ export class TaskService {
     if (!order) throw new FocusLimitError()
 
     const focused = setTaskFocus(task, date, order, this.now())
-    await this.tasks.save(focused, { expectedVersion: task.version })
+    await this.tasks.save(userId, focused, { expectedVersion: task.version })
     await this.record(focused, 'task_focus_set')
     return focused
   }
 
-  async removeFocus(id: EntityId): Promise<Task> {
-    const task = await this.requireTask(id)
+  async removeFocus(userId: UserId, id: EntityId): Promise<Task> {
+    const task = await this.requireTask(userId, id)
     const updated = removeTaskFocus(task, this.now())
     if (updated === task) return task
-    await this.tasks.save(updated, { expectedVersion: task.version })
+    await this.tasks.save(userId, updated, { expectedVersion: task.version })
     await this.record(updated, 'task_focus_removed')
     return updated
   }
 
-  moveToTomorrow(id: EntityId, date: LocalDate): Promise<Task> {
-    return this.moveToDate(id, date)
+  moveToTomorrow(userId: UserId, id: EntityId, date: LocalDate): Promise<Task> {
+    return this.moveToDate(userId, id, date)
   }
 
-  moveToDate(id: EntityId, date: LocalDate): Promise<Task> {
-    return this.change(id, (entity) =>
+  moveToDate(userId: UserId, id: EntityId, date: LocalDate): Promise<Task> {
+    return this.change(userId, id, (entity) =>
       moveTaskToTomorrow(entity, date, this.now()),
     )
   }
 
-  moveToLater(id: EntityId): Promise<Task> {
-    return this.change(id, (entity) => moveTaskToLater(entity, this.now()))
+  moveToLater(userId: UserId, id: EntityId): Promise<Task> {
+    return this.change(userId, id, (entity) =>
+      moveTaskToLater(entity, this.now()),
+    )
   }
 
-  delete(id: EntityId): Promise<Task> {
-    return this.change(id, (entity) => softDeleteTask(entity, this.now()))
+  delete(userId: UserId, id: EntityId): Promise<Task> {
+    return this.change(userId, id, (entity) =>
+      softDeleteTask(entity, this.now()),
+    )
   }
 
   private async change(
+    userId: UserId,
     id: EntityId,
     update: (task: Task) => Task,
   ): Promise<Task> {
-    const task = await this.requireTask(id)
+    const task = await this.requireTask(userId, id)
     const updated = update(task)
     if (updated === task) return task
-    await this.tasks.save(updated, { expectedVersion: task.version })
+    await this.tasks.save(userId, updated, { expectedVersion: task.version })
     return updated
   }
 
-  private async requireTask(id: EntityId): Promise<Task> {
-    const task = await this.tasks.getById(id)
+  private async requireTask(userId: UserId, id: EntityId): Promise<Task> {
+    const task = await this.tasks.getById(userId, id)
     if (!task) throw new TaskNotFoundError(id)
     return task
   }

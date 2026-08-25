@@ -6,7 +6,7 @@ import {
   type CreateRoutineInput,
 } from '@/domain/routine'
 import { createRoutineLog, softDeleteRoutineLog } from '@/domain/routineLog'
-import type { EntityId, Instant, LocalDate } from '@/domain/shared'
+import type { EntityId, Instant, LocalDate, UserId } from '@/domain/shared'
 import type {
   RoutineLogRepository,
   RoutineRepository,
@@ -52,62 +52,73 @@ export class RoutineService {
       id: this.context.createId(),
       now: this.context.now(),
     })
-    await this.routines.save(routine)
+    await this.routines.save(input.userId, routine)
     return routine
   }
 
-  pause(id: EntityId): Promise<Routine> {
-    return this.transition(id, 'paused')
+  pause(userId: UserId, id: EntityId): Promise<Routine> {
+    return this.transition(userId, id, 'paused')
   }
 
-  resume(id: EntityId): Promise<Routine> {
-    return this.transition(id, 'active')
+  resume(userId: UserId, id: EntityId): Promise<Routine> {
+    return this.transition(userId, id, 'active')
   }
 
-  archive(id: EntityId): Promise<Routine> {
-    return this.transition(id, 'archived')
+  archive(userId: UserId, id: EntityId): Promise<Routine> {
+    return this.transition(userId, id, 'archived')
   }
 
-  async complete(id: EntityId, date: LocalDate): Promise<RoutineLog> {
-    const routine = await this.requireRoutine(id)
+  async complete(
+    userId: UserId,
+    id: EntityId,
+    date: LocalDate,
+  ): Promise<RoutineLog> {
+    const routine = await this.requireRoutine(userId, id)
     if (routine.status !== 'active')
       throw new RoutineCompletionError('inactive')
     if (!isRoutineScheduledOn(routine.schedule, date)) {
       throw new RoutineCompletionError('not_scheduled')
     }
-    const existing = await this.logs.findByRoutineAndDate(id, date)
+    const existing = await this.logs.findByRoutineAndDate(userId, id, date)
     if (existing) return existing
     const log = createRoutineLog(
       { userId: routine.userId, routineId: id, date },
       { id: this.context.createId(), now: this.context.now() },
     )
-    await this.logs.save(log)
+    await this.logs.save(userId, log)
     await this.record(routine, 'routine_completed')
     return log
   }
 
-  async undo(id: EntityId, date: LocalDate): Promise<RoutineLog> {
-    const routine = await this.requireRoutine(id)
-    const log = await this.logs.findByRoutineAndDate(id, date)
+  async undo(
+    userId: UserId,
+    id: EntityId,
+    date: LocalDate,
+  ): Promise<RoutineLog> {
+    const routine = await this.requireRoutine(userId, id)
+    const log = await this.logs.findByRoutineAndDate(userId, id, date)
     if (!log) throw new RoutineCompletionError('not_completed')
     const deleted = softDeleteRoutineLog(log, this.context.now())
-    await this.logs.save(deleted, { expectedVersion: log.version })
+    await this.logs.save(userId, deleted, { expectedVersion: log.version })
     await this.record(routine, 'routine_completion_undone')
     return deleted
   }
 
   private async transition(
+    userId: UserId,
     id: EntityId,
     status: 'active' | 'paused' | 'archived',
   ): Promise<Routine> {
-    const current = await this.requireRoutine(id)
+    const current = await this.requireRoutine(userId, id)
     const next = transitionRoutine(current, status, this.context.now())
-    await this.routines.save(next, { expectedVersion: current.version })
+    await this.routines.save(userId, next, {
+      expectedVersion: current.version,
+    })
     return next
   }
 
-  private async requireRoutine(id: EntityId): Promise<Routine> {
-    const routine = await this.routines.getById(id)
+  private async requireRoutine(userId: UserId, id: EntityId): Promise<Routine> {
+    const routine = await this.routines.getById(userId, id)
     if (!routine) throw new RoutineNotFoundError(id)
     return routine
   }

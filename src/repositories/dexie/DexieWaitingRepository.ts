@@ -1,5 +1,5 @@
 import type { Waiting } from '@/domain/entities'
-import type { EntityId } from '@/domain/shared'
+import type { EntityId, UserId } from '@/domain/shared'
 import type {
   RepositoryWriteOptions,
   WaitingQuery,
@@ -7,9 +7,16 @@ import type {
 } from '@/repositories/contracts'
 import {
   RepositoryVersionConflictError,
+  RepositoryOwnershipError,
+  InvalidPersistedEntityError,
   WaitingPersistenceError,
 } from '@/repositories/errors'
 import type { DailyWorkDatabase } from '@/database/DailyWorkDatabase'
+import {
+  assertRepositoryOwner,
+  assertUserId,
+  validateWaiting,
+} from '@/repositories/validation'
 
 function cloneWaiting(waiting: Waiting): Waiting {
   return structuredClone(waiting)
@@ -29,12 +36,13 @@ function matchesQuery(waiting: Waiting, query: WaitingQuery): boolean {
 export class DexieWaitingRepository implements WaitingRepository {
   constructor(private readonly database: DailyWorkDatabase) {}
 
-  async getById(id: EntityId): Promise<Waiting | null> {
+  async getById(userId: UserId, id: EntityId): Promise<Waiting | null> {
     try {
+      assertUserId(userId)
       const waiting = await this.database.confirmations.get(id)
-      return waiting && waiting.deletedAt === null
-        ? cloneWaiting(waiting)
-        : null
+      if (!waiting || waiting.userId !== userId) return null
+      const validated = validateWaiting(waiting)
+      return validated.deletedAt === null ? cloneWaiting(validated) : null
     } catch (error) {
       throw new WaitingPersistenceError(`Waiting ${id} could not be read.`, {
         cause: error,
@@ -42,10 +50,13 @@ export class DexieWaitingRepository implements WaitingRepository {
     }
   }
 
-  async find(query: WaitingQuery): Promise<Waiting[]> {
+  async find(userId: UserId, query: WaitingQuery): Promise<Waiting[]> {
     try {
+      assertUserId(userId)
       const waiting = await this.database.confirmations.toArray()
       return waiting
+        .filter((entity) => entity.userId === userId)
+        .map(validateWaiting)
         .filter((entity) => matchesQuery(entity, query))
         .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
         .map(cloneWaiting)
@@ -57,15 +68,19 @@ export class DexieWaitingRepository implements WaitingRepository {
   }
 
   async save(
+    userId: UserId,
     waiting: Waiting,
     options: RepositoryWriteOptions = {},
   ): Promise<void> {
     try {
+      validateWaiting(waiting)
+      assertRepositoryOwner(userId, waiting)
       await this.database.transaction(
         'rw',
         this.database.confirmations,
         async () => {
           const current = await this.database.confirmations.get(waiting.id)
+          if (current) assertRepositoryOwner(userId, current)
           const versionConflict = current
             ? (options.expectedVersion !== undefined &&
                 current.version !== options.expectedVersion) ||
@@ -79,7 +94,12 @@ export class DexieWaitingRepository implements WaitingRepository {
         },
       )
     } catch (error) {
-      if (error instanceof RepositoryVersionConflictError) throw error
+      if (
+        error instanceof RepositoryVersionConflictError ||
+        error instanceof RepositoryOwnershipError ||
+        error instanceof InvalidPersistedEntityError
+      )
+        throw error
       throw new WaitingPersistenceError(
         `Waiting ${waiting.id} could not be saved.`,
         { cause: error },

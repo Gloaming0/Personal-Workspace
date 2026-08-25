@@ -32,16 +32,16 @@ export class MorningReviewService {
   ): Promise<MorningReviewData | null> {
     switch (action) {
       case 'today':
-        await this.tasks.moveToDate(taskId, input.date)
+        await this.tasks.moveToDate(input.userId, taskId, input.date)
         break
       case 'later':
-        await this.tasks.moveToLater(taskId)
+        await this.tasks.moveToLater(input.userId, taskId)
         break
       case 'done':
-        await this.tasks.complete(taskId)
+        await this.tasks.complete(input.userId, taskId)
         break
       case 'delete':
-        await this.tasks.delete(taskId)
+        await this.tasks.delete(input.userId, taskId)
         break
     }
     const remaining = await this.query.execute(input)
@@ -53,7 +53,7 @@ export class MorningReviewService {
   async moveAll(input: MorningReviewInput): Promise<void> {
     const review = await this.query.execute(input)
     for (const task of review.tasks) {
-      await this.tasks.moveToDate(task.id, input.date)
+      await this.tasks.moveToDate(input.userId, task.id, input.date)
     }
     await this.seen.markSeen(input.userId, input.date)
   }

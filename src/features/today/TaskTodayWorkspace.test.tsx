@@ -120,7 +120,7 @@ describe('Task Today UI boundary', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('等待 API approval')).toBeInTheDocument()
     await expect(
-      waitingRepository.getById('waiting-user-input'),
+      waitingRepository.getById('local-user', 'waiting-user-input'),
     ).resolves.toMatchObject({ sourceTaskId: 'task-origin-123' })
   })
 

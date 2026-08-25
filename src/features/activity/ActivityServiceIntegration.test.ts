@@ -38,10 +38,10 @@ describe('Activity-producing Service operations', () => {
       plannedDate: '2026-08-24',
       projectId: 'project-1',
     })
-    await tasks.setFocus(task.id, '2026-08-24')
-    await tasks.removeFocus(task.id)
-    await tasks.complete(task.id)
-    await tasks.reopen(task.id)
+    await tasks.setFocus('user-1', task.id, '2026-08-24')
+    await tasks.removeFocus('user-1', task.id)
+    await tasks.complete('user-1', task.id)
+    await tasks.reopen('user-1', task.id)
 
     const waitingRepository = new InMemoryWaitingRepository()
     const waiting = new WaitingService(
@@ -56,10 +56,10 @@ describe('Activity-producing Service operations', () => {
       userId: 'user-1',
       title: '等待 Approval',
     })
-    await waiting.setFollowUpDate(waitingEntity.id, '2026-08-25')
-    await waiting.confirm(waitingEntity.id)
-    await waiting.close(waitingEntity.id)
-    await waiting.reopen(waitingEntity.id)
+    await waiting.setFollowUpDate('user-1', waitingEntity.id, '2026-08-25')
+    await waiting.confirm('user-1', waitingEntity.id)
+    await waiting.close('user-1', waitingEntity.id)
+    await waiting.reopen('user-1', waitingEntity.id)
 
     const memoRepository = new InMemoryMemoRepository()
     const memos = new MemoService(
@@ -74,9 +74,9 @@ describe('Activity-producing Service operations', () => {
       userId: 'user-1',
       content: '原始 Memo text',
     })
-    await memos.edit(memo.id, { content: '编辑后的 Memo text' })
-    await memos.pin(memo.id)
-    await memos.unpin(memo.id)
+    await memos.edit('user-1', memo.id, { content: '编辑后的 Memo text' })
+    await memos.pin('user-1', memo.id)
+    await memos.unpin('user-1', memo.id)
 
     const routineRepository = new InMemoryRoutineRepository()
     const routineLogs = new InMemoryRoutineLogRepository()
@@ -96,10 +96,10 @@ describe('Activity-producing Service operations', () => {
       schedule: { frequency: 'daily' },
       timezone: 'Asia/Shanghai',
     })
-    await routines.complete(routine.id, '2026-08-24')
-    await routines.undo(routine.id, '2026-08-24')
+    await routines.complete('user-1', routine.id, '2026-08-24')
+    await routines.undo('user-1', routine.id, '2026-08-24')
 
-    const recorded = await activities.find({ limit: 20 })
+    const recorded = await activities.find('user-1', { limit: 20 })
     expect(recorded.map((activity) => activity.eventType).reverse()).toEqual([
       'task_created',
       'task_focus_set',
@@ -152,7 +152,7 @@ describe('Activity-producing Service operations', () => {
       entityId: 'task-1',
       title: 'Raw title',
     })
-    await expect(repository.append(activity)).rejects.toBeInstanceOf(
+    await expect(repository.append('user-1', activity)).rejects.toBeInstanceOf(
       ActivityAppendConflictError,
     )
 
@@ -166,6 +166,8 @@ describe('Activity-producing Service operations', () => {
       entityId: 'task-1',
       title: 'Raw title',
     })
-    expect((await repository.find({ limit: 1 }))[0]?.id).toBe('newer-activity')
+    expect((await repository.find('user-1', { limit: 1 }))[0]?.id).toBe(
+      'newer-activity',
+    )
   })
 })

@@ -35,7 +35,7 @@ describe('Waiting vertical slice domain rules', () => {
       version: 1,
     })
 
-    const edited = await service.edit(created.id, {
+    const edited = await service.edit('user-1', created.id, {
       title: 'API approval updated',
       notes: 'Bring the final spec',
       person: 'Alex',
@@ -54,7 +54,7 @@ describe('Waiting vertical slice domain rules', () => {
       userId: 'user-1',
       title: 'Lifecycle',
     })
-    const confirmed = await service.confirm(created.id)
+    const confirmed = await service.confirm('user-1', created.id)
     expect(confirmed).toMatchObject({
       status: 'confirmed',
       confirmedAt: confirmed.updatedAt,
@@ -62,7 +62,7 @@ describe('Waiting vertical slice domain rules', () => {
       version: 2,
     })
 
-    const closed = await service.close(created.id)
+    const closed = await service.close('user-1', created.id)
     expect(closed).toMatchObject({
       status: 'closed',
       confirmedAt: confirmed.confirmedAt,
@@ -70,7 +70,7 @@ describe('Waiting vertical slice domain rules', () => {
       version: 3,
     })
 
-    const reopened = await service.reopen(created.id)
+    const reopened = await service.reopen('user-1', created.id)
     expect(reopened).toMatchObject({
       status: 'waiting',
       confirmedAt: null,
@@ -84,12 +84,16 @@ describe('Waiting vertical slice domain rules', () => {
       userId: 'user-1',
       title: 'Follow-up',
     })
-    const due = await service.setFollowUpDate(created.id, '2026-08-24')
+    const due = await service.setFollowUpDate(
+      'user-1',
+      created.id,
+      '2026-08-24',
+    )
     expect(due).toMatchObject({ followUpDate: '2026-08-24', version: 2 })
     expect(deriveNeedsFollowUp(due, '2026-08-24')).toBe(true)
     expect(deriveNeedsFollowUp(due, '2026-08-23')).toBe(false)
 
-    const confirmed = await service.confirm(created.id)
+    const confirmed = await service.confirm('user-1', created.id)
     expect(deriveNeedsFollowUp(confirmed, '2026-08-25')).toBe(false)
   })
 })

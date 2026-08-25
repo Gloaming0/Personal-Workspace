@@ -14,7 +14,11 @@ import { InMemoryMemoRepository } from '@/repositories/inMemory/InMemoryMemoRepo
 import { InMemoryRoutineRepository } from '@/repositories/inMemory/InMemoryRoutineRepository'
 import { InMemoryRoutineLogRepository } from '@/repositories/inMemory/InMemoryRoutineLogRepository'
 import { InMemoryActivityRepository } from '@/repositories/inMemory/InMemoryActivityRepository'
-import { RepositoryVersionConflictError } from '@/repositories/errors'
+import {
+  InvalidPersistedEntityError,
+  RepositoryVersionConflictError,
+} from '@/repositories/errors'
+import { createTask } from '@/domain/task'
 import { DexieTaskRepository } from './DexieTaskRepository'
 
 let databaseSequence = 0
@@ -55,18 +59,24 @@ describe('DexieTaskRepository', () => {
     )
     expect(created.version).toBe(1)
 
-    const focused = await firstService.setFocus(created.id, '2026-08-24')
+    const focused = await firstService.setFocus(
+      'local-user',
+      created.id,
+      '2026-08-24',
+    )
     expect(focused).toMatchObject({ focusDate: '2026-08-24', version: 2 })
     firstConnection.database.close()
 
     const secondConnection = await openRepository()
     await expect(
-      secondConnection.repository.find({ focusDate: '2026-08-24' }),
+      secondConnection.repository.find('local-user', {
+        focusDate: '2026-08-24',
+      }),
     ).resolves.toHaveLength(1)
     const secondService = new TaskService(secondConnection.repository, {
       now: () => '2026-08-24T11:00:00.000Z',
     })
-    const completed = await secondService.complete(created.id)
+    const completed = await secondService.complete('local-user', created.id)
     expect(completed).toMatchObject({
       status: 'done',
       completedAt: '2026-08-24T11:00:00.000Z',
@@ -77,7 +87,7 @@ describe('DexieTaskRepository', () => {
 
     const thirdConnection = await openRepository()
     await expect(
-      thirdConnection.repository.getById(created.id),
+      thirdConnection.repository.getById('local-user', created.id),
     ).resolves.toMatchObject({
       status: 'done',
       completedAt: '2026-08-24T11:00:00.000Z',
@@ -86,7 +96,7 @@ describe('DexieTaskRepository', () => {
     const thirdService = new TaskService(thirdConnection.repository, {
       now: () => '2026-08-24T12:00:00.000Z',
     })
-    const reopened = await thirdService.reopen(created.id)
+    const reopened = await thirdService.reopen('local-user', created.id)
     expect(reopened).toMatchObject({
       status: 'todo',
       completedAt: null,
@@ -96,7 +106,7 @@ describe('DexieTaskRepository', () => {
 
     const fourthConnection = await openRepository()
     await expect(
-      fourthConnection.repository.getById(created.id),
+      fourthConnection.repository.getById('local-user', created.id),
     ).resolves.toMatchObject({
       status: 'todo',
       completedAt: null,
@@ -121,6 +131,7 @@ describe('DexieTaskRepository', () => {
 
     await expect(
       repository.save(
+        'local-user',
         { ...task, title: 'Skipped version', version: 3 },
         { expectedVersion: 1 },
       ),
@@ -128,17 +139,39 @@ describe('DexieTaskRepository', () => {
 
     const deletedAt = '2026-08-24T13:00:00.000Z'
     await repository.save(
+      'local-user',
       { ...task, deletedAt, updatedAt: deletedAt, version: 2 },
       { expectedVersion: 1 },
     )
 
-    await expect(repository.getById(task.id)).resolves.toBeNull()
-    await expect(repository.find({ plannedOn: '2026-08-24' })).resolves.toEqual(
-      [],
-    )
+    await expect(repository.getById('local-user', task.id)).resolves.toBeNull()
+    await expect(
+      repository.find('local-user', { plannedOn: '2026-08-24' }),
+    ).resolves.toEqual([])
     await expect(database.tasks.get(task.id)).resolves.toMatchObject({
       deletedAt,
       version: 2,
+    })
+  })
+
+  it('rejects invalid persisted data at the read boundary', async () => {
+    databaseName = `task-invalid-data-${++databaseSequence}`
+    const { database, repository } = await openRepository()
+    const invalid = {
+      ...createTask(
+        {
+          userId: 'local-user',
+          title: 'Corrupt record',
+          plannedDate: '2026-08-24',
+        },
+        { id: 'task-corrupt', now: '2026-08-24T09:00:00.000Z' },
+      ),
+      version: 0,
+    }
+    await database.tasks.add(invalid)
+
+    await expect(repository.find('local-user', {})).rejects.toMatchObject({
+      cause: expect.any(InvalidPersistedEntityError),
     })
   })
 
@@ -156,13 +189,13 @@ describe('DexieTaskRepository', () => {
       plannedDate: '2026-08-24',
       priority: 'P1',
     })
-    await service.setFocus(focused.id, '2026-08-24')
+    await service.setFocus('local-user', focused.id, '2026-08-24')
     const completed = await service.create({
       userId: 'local-user',
       title: 'Dexie completed',
       plannedDate: '2026-08-24',
     })
-    await service.complete(completed.id)
+    await service.complete('local-user', completed.id)
     firstConnection.database.close()
 
     const secondConnection = await openRepository()
@@ -177,6 +210,7 @@ describe('DexieTaskRepository', () => {
       assembler: new DefaultTodayDashboardViewModelAssembler(),
     })
     const result = await query.execute({
+      userId: 'local-user',
       date: '2026-08-24',
       timezone: 'Asia/Shanghai',
       language: 'en',

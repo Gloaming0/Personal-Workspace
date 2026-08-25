@@ -15,14 +15,16 @@ describe('InMemoryTaskRepository', () => {
 
   it('filters Task queries and isolates stored entities from callers', async () => {
     const repository = new InMemoryTaskRepository([task])
-    const result = await repository.find({ plannedOn: '2026-08-24' })
+    const result = await repository.find('user-1', {
+      plannedOn: '2026-08-24',
+    })
     result[0]!.title = 'Caller mutation'
 
-    await expect(repository.getById(task.id)).resolves.toMatchObject({
+    await expect(repository.getById('user-1', task.id)).resolves.toMatchObject({
       title: 'Repository task',
     })
     await expect(
-      repository.find({ plannedOn: '2026-08-25' }),
+      repository.find('user-1', { plannedOn: '2026-08-25' }),
     ).resolves.toHaveLength(0)
   })
 
@@ -31,6 +33,7 @@ describe('InMemoryTaskRepository', () => {
 
     await expect(
       repository.save(
+        'user-1',
         { ...task, title: 'Stale write', version: 2 },
         { expectedVersion: 0 },
       ),

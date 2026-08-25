@@ -859,6 +859,27 @@ DEVELOPMENT_RULES.md
 
 ---
 
+# Repository Contract
+
+- Every read and write method must take the calling `userId` explicitly.
+- A Repository must never depend on the database containing only one user.
+- `getById` must not reveal another user's entity, including through an error
+  that exposes its content.
+- Writes must reject `entity.userId !== callingUserId` and must not overwrite
+  an existing id owned by another user.
+- Creates start at Version 1. Updates are exactly the stored version plus one.
+  A stale `expectedVersion` is rejected.
+- Effective business reads exclude `deletedAt != null` unless a separate,
+  explicitly named tombstone/sync API is introduced.
+- Persisted records are runtime-validated before entering the Domain layer.
+- Every new Adapter must run the shared Repository contract suite. In-memory
+  test adapters and production adapters must have identical semantics.
+- Activity remains append-only: no normal update/delete port is allowed, and
+  business queries hide tombstones.
+
+
+---
+
 # Final Rule
 
 

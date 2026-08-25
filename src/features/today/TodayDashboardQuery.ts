@@ -22,23 +22,25 @@ export class DefaultTodayDashboardQuery implements TodayDashboardQueryContract {
       routineLogs,
       activities,
     ] = await Promise.all([
-      this.dependencies.tasks.find({
+      this.dependencies.tasks.find(input.userId, {
         plannedOn: input.date,
         statuses: ['todo', 'doing', 'done'],
       }),
-      this.dependencies.tasks.find({
+      this.dependencies.tasks.find(input.userId, {
         focusDate: input.date,
         statuses: ['todo', 'doing'],
       }),
-      this.dependencies.waiting.find({ statuses: ['waiting', 'confirmed'] }),
-      this.dependencies.memos.find({ pinned: true }),
-      this.dependencies.memos.find({
+      this.dependencies.waiting.find(input.userId, {
+        statuses: ['waiting', 'confirmed'],
+      }),
+      this.dependencies.memos.find(input.userId, { pinned: true }),
+      this.dependencies.memos.find(input.userId, {
         updatedOn: input.date,
         timezone: input.timezone,
       }),
-      this.dependencies.routines.findByStatus(['active']),
-      this.dependencies.routineLogs.findForDate(input.date),
-      this.dependencies.activities.find({ limit: 10 }),
+      this.dependencies.routines.findByStatus(input.userId, ['active']),
+      this.dependencies.routineLogs.findForDate(input.userId, input.date),
+      this.dependencies.activities.find(input.userId, { limit: 10 }),
     ])
     const memos = [
       ...new Map(

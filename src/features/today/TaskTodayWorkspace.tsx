@@ -137,7 +137,12 @@ export function TodayWorkspaceProvider({
 
   const refresh = useCallback(async () => {
     await taskRuntime.ready
-    const data = await query.execute({ date, timezone, language })
+    const data = await query.execute({
+      userId: localUserId,
+      date,
+      timezone,
+      language,
+    })
     setViewModel(data)
     setLoading(false)
   }, [date, language, query, taskRuntime, timezone])
@@ -145,7 +150,9 @@ export function TodayWorkspaceProvider({
   useEffect(() => {
     let active = true
     void taskRuntime.ready
-      .then(() => query.execute({ date, timezone, language }))
+      .then(() =>
+        query.execute({ userId: localUserId, date, timezone, language }),
+      )
       .then((data) => {
         if (!active) return
         setViewModel(data)
@@ -288,14 +295,14 @@ export function TodayWorkspaceProvider({
     onToggleTask: (taskId, completed) =>
       runCommand(() =>
         completed
-          ? taskRuntime.service.reopen(taskId)
-          : taskRuntime.service.complete(taskId),
+          ? taskRuntime.service.reopen(localUserId, taskId)
+          : taskRuntime.service.complete(localUserId, taskId),
       ),
     onToggleFocus: (taskId, focused) =>
       runCommand(() =>
         focused
-          ? taskRuntime.service.removeFocus(taskId)
-          : taskRuntime.service.setFocus(taskId, date),
+          ? taskRuntime.service.removeFocus(localUserId, taskId)
+          : taskRuntime.service.setFocus(localUserId, taskId, date),
       ),
     onCreateWaiting: (values) =>
       runWaitingCommand(() =>
@@ -303,17 +310,17 @@ export function TodayWorkspaceProvider({
       ),
     onEditWaiting: (waitingId, values) =>
       runWaitingCommand(() =>
-        taskRuntime.waitingService.edit(waitingId, values),
+        taskRuntime.waitingService.edit(localUserId, waitingId, values),
       ),
     onTransitionWaiting: (waitingId, action) =>
       runWaitingCommand(() => {
         switch (action) {
           case 'confirm':
-            return taskRuntime.waitingService.confirm(waitingId)
+            return taskRuntime.waitingService.confirm(localUserId, waitingId)
           case 'close':
-            return taskRuntime.waitingService.close(waitingId)
+            return taskRuntime.waitingService.close(localUserId, waitingId)
           case 'reopen':
-            return taskRuntime.waitingService.reopen(waitingId)
+            return taskRuntime.waitingService.reopen(localUserId, waitingId)
         }
       }),
     onCreateMemo: (values) =>
@@ -321,14 +328,16 @@ export function TodayWorkspaceProvider({
         taskRuntime.memoService.create({ userId: localUserId, ...values }),
       ),
     onEditMemo: (memoId, values) =>
-      runMemoCommand(() => taskRuntime.memoService.edit(memoId, values)),
+      runMemoCommand(() =>
+        taskRuntime.memoService.edit(localUserId, memoId, values),
+      ),
     onDeleteMemo: (memoId) =>
-      runMemoCommand(() => taskRuntime.memoService.delete(memoId)),
+      runMemoCommand(() => taskRuntime.memoService.delete(localUserId, memoId)),
     onToggleMemoPin: (memoId, pinned) =>
       runMemoCommand(() =>
         pinned
-          ? taskRuntime.memoService.unpin(memoId)
-          : taskRuntime.memoService.pin(memoId),
+          ? taskRuntime.memoService.unpin(localUserId, memoId)
+          : taskRuntime.memoService.pin(localUserId, memoId),
       ),
     onCreateRoutine: (values) =>
       runRoutineCommand(() =>
@@ -341,13 +350,17 @@ export function TodayWorkspaceProvider({
     onToggleRoutine: (routineId, completed) =>
       runRoutineCommand(() =>
         completed
-          ? taskRuntime.routineService.undo(routineId, date)
-          : taskRuntime.routineService.complete(routineId, date),
+          ? taskRuntime.routineService.undo(localUserId, routineId, date)
+          : taskRuntime.routineService.complete(localUserId, routineId, date),
       ),
     onPauseRoutine: (routineId) =>
-      runRoutineCommand(() => taskRuntime.routineService.pause(routineId)),
+      runRoutineCommand(() =>
+        taskRuntime.routineService.pause(localUserId, routineId),
+      ),
     onArchiveRoutine: (routineId) =>
-      runRoutineCommand(() => taskRuntime.routineService.archive(routineId)),
+      runRoutineCommand(() =>
+        taskRuntime.routineService.archive(localUserId, routineId),
+      ),
     ...(taskRuntime.endDayService
       ? {
           onLoadEndDay: async () => {

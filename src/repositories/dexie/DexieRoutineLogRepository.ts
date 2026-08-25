@@ -1,26 +1,36 @@
 import type { RoutineLog } from '@/domain/entities'
-import type { EntityId, LocalDate } from '@/domain/shared'
+import type { EntityId, LocalDate, UserId } from '@/domain/shared'
 import type {
   RepositoryWriteOptions,
   RoutineLogRepository,
 } from '@/repositories/contracts'
 import {
+  InvalidPersistedEntityError,
+  RepositoryOwnershipError,
   RepositoryVersionConflictError,
   RoutineLogUniquenessError,
   RoutinePersistenceError,
 } from '@/repositories/errors'
 import type { DailyWorkDatabase } from '@/database/DailyWorkDatabase'
+import {
+  assertRepositoryOwner,
+  assertUserId,
+  validateRoutineLog,
+} from '@/repositories/validation'
 
 const cloneLog = (log: RoutineLog) => structuredClone(log)
 
 export class DexieRoutineLogRepository implements RoutineLogRepository {
   constructor(private readonly database: DailyWorkDatabase) {}
 
-  async findForDate(date: LocalDate): Promise<RoutineLog[]> {
+  async findForDate(userId: UserId, date: LocalDate): Promise<RoutineLog[]> {
     try {
+      assertUserId(userId)
       return (
         await this.database.routine_logs.where('date').equals(date).toArray()
       )
+        .filter((log) => log.userId === userId)
+        .map(validateRoutineLog)
         .filter((log) => log.deletedAt === null)
         .map(cloneLog)
     } catch (error) {
@@ -31,15 +41,20 @@ export class DexieRoutineLogRepository implements RoutineLogRepository {
   }
 
   async findByRoutineAndDate(
+    userId: UserId,
     routineId: EntityId,
     date: LocalDate,
   ): Promise<RoutineLog | null> {
     try {
+      assertUserId(userId)
       const logs = await this.database.routine_logs
         .where('[routineId+date]')
         .equals([routineId, date])
         .toArray()
-      const log = logs.find((record) => record.deletedAt === null)
+      const log = logs
+        .filter((record) => record.userId === userId)
+        .map(validateRoutineLog)
+        .find((record) => record.deletedAt === null)
       return log ? cloneLog(log) : null
     } catch (error) {
       throw new RoutinePersistenceError('Routine log could not be read.', {
@@ -49,15 +64,19 @@ export class DexieRoutineLogRepository implements RoutineLogRepository {
   }
 
   async save(
+    userId: UserId,
     log: RoutineLog,
     options: RepositoryWriteOptions = {},
   ): Promise<void> {
     try {
+      validateRoutineLog(log)
+      assertRepositoryOwner(userId, log)
       await this.database.transaction(
         'rw',
         this.database.routine_logs,
         async () => {
           const current = await this.database.routine_logs.get(log.id)
+          if (current) assertRepositoryOwner(userId, current)
           const conflict = current
             ? (options.expectedVersion !== undefined &&
                 current.version !== options.expectedVersion) ||
@@ -86,7 +105,9 @@ export class DexieRoutineLogRepository implements RoutineLogRepository {
     } catch (error) {
       if (
         error instanceof RepositoryVersionConflictError ||
-        error instanceof RoutineLogUniquenessError
+        error instanceof RoutineLogUniquenessError ||
+        error instanceof RepositoryOwnershipError ||
+        error instanceof InvalidPersistedEntityError
       ) {
         throw error
       }

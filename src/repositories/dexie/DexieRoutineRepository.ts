@@ -1,26 +1,34 @@
 import type { Routine } from '@/domain/entities'
-import type { EntityId } from '@/domain/shared'
+import type { EntityId, UserId } from '@/domain/shared'
 import type {
   RepositoryWriteOptions,
   RoutineRepository,
 } from '@/repositories/contracts'
 import {
+  InvalidPersistedEntityError,
+  RepositoryOwnershipError,
   RepositoryVersionConflictError,
   RoutinePersistenceError,
 } from '@/repositories/errors'
 import type { DailyWorkDatabase } from '@/database/DailyWorkDatabase'
+import {
+  assertRepositoryOwner,
+  assertUserId,
+  validateRoutine,
+} from '@/repositories/validation'
 
 const cloneRoutine = (routine: Routine) => structuredClone(routine)
 
 export class DexieRoutineRepository implements RoutineRepository {
   constructor(private readonly database: DailyWorkDatabase) {}
 
-  async getById(id: EntityId): Promise<Routine | null> {
+  async getById(userId: UserId, id: EntityId): Promise<Routine | null> {
     try {
+      assertUserId(userId)
       const routine = await this.database.routines.get(id)
-      return routine && routine.deletedAt === null
-        ? cloneRoutine(routine)
-        : null
+      if (!routine || routine.userId !== userId) return null
+      const validated = validateRoutine(routine)
+      return validated.deletedAt === null ? cloneRoutine(validated) : null
     } catch (error) {
       throw new RoutinePersistenceError(`Routine ${id} could not be read.`, {
         cause: error,
@@ -29,10 +37,14 @@ export class DexieRoutineRepository implements RoutineRepository {
   }
 
   async findByStatus(
+    userId: UserId,
     statuses: readonly Routine['status'][],
   ): Promise<Routine[]> {
     try {
+      assertUserId(userId)
       return (await this.database.routines.toArray())
+        .filter((routine) => routine.userId === userId)
+        .map(validateRoutine)
         .filter(
           (routine) =>
             routine.deletedAt === null && statuses.includes(routine.status),
@@ -51,15 +63,19 @@ export class DexieRoutineRepository implements RoutineRepository {
   }
 
   async save(
+    userId: UserId,
     routine: Routine,
     options: RepositoryWriteOptions = {},
   ): Promise<void> {
     try {
+      validateRoutine(routine)
+      assertRepositoryOwner(userId, routine)
       await this.database.transaction(
         'rw',
         this.database.routines,
         async () => {
           const current = await this.database.routines.get(routine.id)
+          if (current) assertRepositoryOwner(userId, current)
           const conflict = current
             ? (options.expectedVersion !== undefined &&
                 current.version !== options.expectedVersion) ||
@@ -72,7 +88,12 @@ export class DexieRoutineRepository implements RoutineRepository {
         },
       )
     } catch (error) {
-      if (error instanceof RepositoryVersionConflictError) throw error
+      if (
+        error instanceof RepositoryVersionConflictError ||
+        error instanceof RepositoryOwnershipError ||
+        error instanceof InvalidPersistedEntityError
+      )
+        throw error
       throw new RoutinePersistenceError(
         `Routine ${routine.id} could not be saved.`,
         { cause: error },

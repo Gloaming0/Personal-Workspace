@@ -731,6 +731,11 @@ Activity `id` is rejected. Events start and remain at Version 1 with
 `deletedAt = null`; `createdAt`, `updatedAt`, and `occurredAt` are fixed at the
 append instant.
 
+All Activity reads are explicitly scoped by `userId` and exclude
+`deletedAt != null`. The tombstone field is retained for future synchronization
+compatibility only; local business APIs still provide no Activity update or
+delete command.
+
 Phase 1.7 records these minimum event types:
 
 - Task: `task_created`, `task_completed`, `task_reopened`, `task_focus_set`,
@@ -748,6 +753,27 @@ Assembler combines `eventType`, raw payload, and current UI i18n messages.
 
 The Version 4 → Version 5 migration is additive. Existing Task, Waiting, Memo,
 Routine, and RoutineLog rows require no transform and remain unchanged.
+
+## Phase 2.1A Repository Storage Contract
+
+Schema version remains 6; ownership hardening requires no IndexedDB migration.
+Every Repository read includes an explicit calling `userId`. `getById` returns
+null for another owner's id, list/query operations return only the requested
+owner's effective rows, and every write rejects an entity whose `userId` does
+not match the caller.
+
+At the storage boundary, every persisted entity must have:
+
+- a non-empty legal identifier and non-empty `userId`;
+- integer `version >= 1`;
+- UTC ISO 8601 `createdAt`, `updatedAt`, and nullable entity timestamps;
+- strict, calendar-valid `YYYY-MM-DD` values for every `LocalDate`;
+- a valid Domain enum and entity-specific structure.
+
+Creates must persist Version 1. Updates must persist exactly the current
+version plus one, and a supplied `expectedVersion` must match the stored
+version. These rules are identical in In-memory and Dexie adapters. Business
+reads exclude soft-deleted entities by default; tombstones remain stored.
 
 
 

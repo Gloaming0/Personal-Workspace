@@ -24,7 +24,7 @@ export class ActivityService {
       id: this.context.createId(),
       now: this.context.now(),
     })
-    await this.activities.append(activity)
+    await this.activities.append(input.userId, activity)
     return activity
   }
 }

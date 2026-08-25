@@ -900,6 +900,21 @@ only. They do not format UI strings, derive Today sections, validate component
 state, or expose Dexie/Supabase types. Optimistic concurrency uses entity
 `version` and optional `expectedVersion` write options.
 
+Every Repository read and write is explicitly scoped by `userId`. A caller
+must supply the current user for `getById`, query/list, save, append, and
+finalize operations. Reads return only entities owned by that user; a write is
+rejected when the supplied owner differs from `entity.userId`. Ownership is a
+Repository contract and never relies on the local database containing only one
+user.
+
+Persisted entities pass lightweight runtime validation when they cross the
+Repository boundary. The baseline validates identifiers, ownership, version,
+UTC ISO timestamps, strict `LocalDate`, enums, and entity-specific nullable
+timestamps. Invalid stored records fail the query instead of silently entering
+the Domain layer. In-memory and Dexie adapters share the same create-at-v1,
+strict-version-increment, optimistic-concurrency, soft-delete, and ownership
+contract.
+
 No database adapter is part of Phase 1.2B.
 
 ## Today Query Boundary
@@ -918,7 +933,7 @@ TodayDashboardViewModel
 Widgets
 ```
 
-`TodayDashboardQuery` accepts a local date and timezone. It gathers Tasks,
+`TodayDashboardQuery` accepts an explicit user, local date, and timezone. It gathers Tasks,
 Waiting items, Routines and Logs, Memos, Projects, and Activity through
 repository ports. The assembler performs all Today-specific selection,
 ordering, project resolution, follow-up derivation, and View Model mapping.
@@ -1256,3 +1271,30 @@ After finalization the Service records `daily_log_finalized` through
 so an Activity write failure does not misreport the completed finalization.
 Supabase, realtime, sync queues, Morning Review, and log replacement remain
 outside Phase 1.8.
+
+# Phase 2.1A Ownership and Repository Contract Hardening
+
+All local Repository ports are user-scoped. Services and feature queries carry
+the calling `userId` from the use-case input through to every Repository call;
+Today, End Day, and Morning Review never query globally and filter afterward.
+Writes validate both the entity and `entity.userId === callingUserId` before
+persisting. An existing row with the same id but another owner cannot be read or
+overwritten.
+
+`src/repositories/validation.ts` is the lightweight storage-boundary validator.
+It deliberately avoids a framework dependency and rejects malformed persisted
+identifiers, versions, UTC timestamps, local dates, enums, schedules, and
+entity-specific timestamp fields. Services continue to generate UUIDs for new
+production entities; the validator also accepts non-empty stable legacy/test
+identifiers so existing Phase 1 fixtures remain readable.
+
+The shared Repository contract suite runs the same ownership, version,
+optimistic concurrency, soft-delete, and visibility cases against In-memory and
+Dexie Task, Waiting, Memo, Routine, and RoutineLog adapters. DailyLog retains
+its immutable finalize-only contract. Activity remains append-only, exposes no
+ordinary update/delete method, and excludes `deletedAt != null` from business
+queries; the tombstone field is retained only for future synchronization
+compatibility.
+
+This hardening does not introduce a Unit of Work, cross-store transactions,
+multi-tab observation, cloud persistence, or synchronization.

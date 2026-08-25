@@ -6,7 +6,7 @@ import type {
   Task,
   Waiting,
 } from '@/domain/entities'
-import type { EntityId, LocalDate } from '@/domain/shared'
+import type { EntityId, LocalDate, UserId } from '@/domain/shared'
 import type {
   ActivityRepository,
   TaskRepository,
@@ -19,6 +19,7 @@ import type { TodayDashboardViewModel } from './viewModel'
 import type { Language } from '@/features/settings/language/types'
 
 export interface TodayDashboardQueryInput {
+  userId: UserId
   date: LocalDate
   timezone: string
   language: Language
@@ -46,6 +47,7 @@ export interface TodayDashboardQueryDependencies {
 }
 
 export interface TodayDashboardAggregate {
+  userId: UserId
   date: LocalDate
   timezone: string
   language: Language

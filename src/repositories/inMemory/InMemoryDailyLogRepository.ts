@@ -2,6 +2,11 @@ import type { DailyLog } from '@/domain/entities'
 import type { LocalDate, UserId } from '@/domain/shared'
 import type { DailyLogRepository } from '@/repositories/contracts'
 import { DailyLogAlreadyFinalizedError } from '@/repositories/errors'
+import {
+  assertRepositoryOwner,
+  assertUserId,
+  validateDailyLog,
+} from '@/repositories/validation'
 
 export class InMemoryDailyLogRepository implements DailyLogRepository {
   private readonly logs = new Map<string, DailyLog>()
@@ -11,11 +16,14 @@ export class InMemoryDailyLogRepository implements DailyLogRepository {
   }
 
   async findByDate(userId: UserId, date: LocalDate) {
+    assertUserId(userId)
     const log = this.logs.get(this.key(userId, date))
-    return log ? structuredClone(log) : null
+    return log ? structuredClone(validateDailyLog(log)) : null
   }
 
-  async finalize(log: DailyLog) {
+  async finalize(userId: UserId, log: DailyLog) {
+    validateDailyLog(log)
+    assertRepositoryOwner(userId, log)
     const key = this.key(log.userId, log.date)
     if (this.logs.has(key)) {
       throw new DailyLogAlreadyFinalizedError(log.userId, log.date)

@@ -7,7 +7,7 @@ import {
   type EditMemoInput,
 } from '@/domain/memo'
 import type { Memo } from '@/domain/entities'
-import type { EntityId, Instant } from '@/domain/shared'
+import type { EntityId, Instant, UserId } from '@/domain/shared'
 import type { MemoRepository } from '@/repositories/contracts'
 import { ActivityService } from '@/features/activity/ActivityService'
 
@@ -40,48 +40,60 @@ export class MemoService {
       id: this.context.createId(),
       now: this.context.now(),
     })
-    await this.repository.save(memo)
+    await this.repository.save(input.userId, memo)
     await this.record(memo, 'memo_created')
     return memo
   }
 
-  async edit(id: EntityId, input: EditMemoInput): Promise<Memo> {
+  async edit(
+    userId: UserId,
+    id: EntityId,
+    input: EditMemoInput,
+  ): Promise<Memo> {
     return this.update(
+      userId,
       id,
       (memo) => editMemo(memo, input, this.context.now()),
       'memo_updated',
     )
   }
 
-  async pin(id: EntityId): Promise<Memo> {
+  async pin(userId: UserId, id: EntityId): Promise<Memo> {
     return this.update(
+      userId,
       id,
       (memo) => setMemoPinned(memo, true, this.context.now()),
       'memo_pinned',
     )
   }
 
-  async unpin(id: EntityId): Promise<Memo> {
+  async unpin(userId: UserId, id: EntityId): Promise<Memo> {
     return this.update(
+      userId,
       id,
       (memo) => setMemoPinned(memo, false, this.context.now()),
       'memo_unpinned',
     )
   }
 
-  async delete(id: EntityId): Promise<Memo> {
-    return this.update(id, (memo) => softDeleteMemo(memo, this.context.now()))
+  async delete(userId: UserId, id: EntityId): Promise<Memo> {
+    return this.update(userId, id, (memo) =>
+      softDeleteMemo(memo, this.context.now()),
+    )
   }
 
   private async update(
+    userId: UserId,
     id: EntityId,
     command: (memo: Memo) => Memo,
     eventType?: 'memo_updated' | 'memo_pinned' | 'memo_unpinned',
   ): Promise<Memo> {
-    const current = await this.repository.getById(id)
+    const current = await this.repository.getById(userId, id)
     if (!current) throw new MemoNotFoundError(id)
     const next = command(current)
-    await this.repository.save(next, { expectedVersion: current.version })
+    await this.repository.save(userId, next, {
+      expectedVersion: current.version,
+    })
     if (eventType) await this.record(next, eventType)
     return next
   }
