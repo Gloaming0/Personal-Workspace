@@ -755,12 +755,122 @@ button {
   opacity: 0.55;
 }
 
+.morning-review-backdrop {
+  position: fixed;
+  z-index: 55;
+  inset: 0;
+  display: grid;
+  padding: var(--space-6);
+  background: color-mix(in srgb, var(--bg-primary) 58%, transparent);
+  place-items: center;
+}
+
+.morning-review-flow {
+  display: grid;
+  width: min(44rem, 100%);
+  max-height: min(44rem, calc(100dvh - var(--space-12)));
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.morning-review-flow > header,
+.morning-review-flow > footer {
+  padding: var(--space-5) var(--space-6);
+}
+
+.morning-review-flow > header {
+  border-bottom: 1px solid var(--border);
+}
+
+.morning-review-flow h2 {
+  margin: var(--space-2) 0;
+  font-size: var(--font-size-xl);
+}
+
+.morning-review-flow header p:last-child,
+.morning-review-flow > p[role='alert'] {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.morning-review-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0 var(--space-6);
+  list-style: none;
+}
+
+.morning-review-list li {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.morning-review-list li > div,
+.morning-review-flow > footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.morning-review-list button,
+.morning-review-flow footer button {
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  font-weight: 650;
+}
+
+.morning-review-flow > p[role='alert'] {
+  padding: 0 var(--space-6);
+  color: var(--danger);
+}
+
+.morning-review-flow > footer {
+  justify-content: space-between;
+  border-top: 1px solid var(--border);
+}
+
+.morning-review-flow footer button:last-child {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.morning-review-flow button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
 @media (max-width: 767px) {
   .end-day-backdrop {
     padding: 0;
   }
 
   .end-day-flow {
+    width: 100%;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .morning-review-backdrop {
+    padding: 0;
+  }
+
+  .morning-review-flow {
     width: 100%;
     height: 100dvh;
     max-height: none;

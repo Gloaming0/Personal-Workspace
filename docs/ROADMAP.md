@@ -167,7 +167,7 @@ Available themes:
 
 Status:
 
-In progress — Today full real-data milestone completed through Phase 1.7
+Complete — local-first MVP accepted through Phase 1.9
 
 Priority: Highest
 
@@ -219,11 +219,13 @@ Current implementation status:
 
 - Task, Waiting, Memo, Routine, and Activity use real local Domain/Repository
   data.
-- IndexedDB migrations are implemented through schema Version 5.
+- IndexedDB migrations are implemented through schema Version 6.
 - Recent Activity is append-only and localized from raw event payloads at the
   View Model boundary.
-- DailyLog, End Day, cloud sync, and the remaining standalone module pages are
-  not part of the completed Phase 1.7 milestone.
+- End Day persists immutable DailyLog snapshots, and Morning Review handles the
+  previous local date's effective unfinished Tasks without duplication.
+- Supabase, Realtime, Sync Queue, and the remaining standalone module pages are
+  not part of Phase 1.
 
 
 ---
@@ -999,6 +1001,20 @@ a complex history dashboard.
 
 Phase 1.8 does not include Morning Review, Supabase, Realtime, Sync Queue, or an
 explicit reopen/replace workflow.
+
+## Phase 1.9 — Complete
+
+Phase 1 MVP acceptance verified the complete local Dexie workflow in a real
+browser: Task/Focus/state changes, Waiting follow-up, pinned Memo, Routine
+Check-in, localized Activity, End Day, immutable DailyLog, refresh persistence,
+six themes, bilingual UI, responsive viewports, and keyboard focus behavior.
+
+Morning Review now presents only yesterday's effective `todo`/`doing` Tasks,
+supports Move to Today/Later/Done/Delete, Move All, and non-mutating Skip, and
+uses a lightweight device-local seen-date marker instead of a new Domain
+Entity. Date selection follows the active IANA timezone. Desktop/Tablet use a
+centered Dialog and Mobile uses a full-screen Sheet. Phase 1 closes without
+Supabase, Realtime, Sync Queue, or cloud synchronization.
 
 
 Always prioritize:

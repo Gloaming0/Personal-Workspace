@@ -27,6 +27,9 @@ import { DexieDailyLogRepository } from '@/repositories/dexie/DexieDailyLogRepos
 import { EndDayQuery } from '@/features/endDay/EndDayQuery'
 import { EndDayService } from '@/features/endDay/EndDayService'
 import { MockTodayProjectNameResolver } from '@/features/today/MockTodayProjectNameResolver'
+import { MorningReviewQuery } from '@/features/morningReview/MorningReviewQuery'
+import { MorningReviewService } from '@/features/morningReview/MorningReviewService'
+import { LocalMorningReviewSeenStore } from '@/features/morningReview/LocalMorningReviewSeenStore'
 
 export const localUserId = 'local-user'
 
@@ -44,6 +47,7 @@ export interface TaskRuntime {
   activityService: ActivityService
   dailyLogRepository?: DailyLogRepository
   endDayService?: EndDayService
+  morningReviewService?: MorningReviewService
   ready: Promise<void>
 }
 
@@ -67,6 +71,11 @@ export function createTaskRuntime(
     projectNames: new MockTodayProjectNameResolver(),
   })
   const taskService = new TaskService(repository, {}, activityService)
+  const morningReviewService = new MorningReviewService(
+    new MorningReviewQuery(repository),
+    taskService,
+    new LocalMorningReviewSeenStore(),
+  )
   return {
     repository,
     service: taskService,
@@ -91,6 +100,7 @@ export function createTaskRuntime(
       dailyLogRepository,
       activityService,
     ),
+    morningReviewService,
     ready: initializeLocalDatabase(database).catch((error: unknown) => {
       throw new TaskPersistenceError('Task storage could not be initialized.', {
         cause: error,

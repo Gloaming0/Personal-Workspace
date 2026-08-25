@@ -116,6 +116,11 @@ export function WaitingWidget({
             <input
               type="date"
               value={toInputValue(createValues.followUpDate)}
+              onInput={(event) =>
+                updateCreate({
+                  followUpDate: event.currentTarget.value || null,
+                })
+              }
               onChange={(event) =>
                 updateCreate({ followUpDate: event.target.value || null })
               }
@@ -184,6 +189,11 @@ export function WaitingWidget({
                     <input
                       type="date"
                       value={toInputValue(editValues.followUpDate)}
+                      onInput={(event) =>
+                        updateEdit({
+                          followUpDate: event.currentTarget.value || null,
+                        })
+                      }
                       onChange={(event) =>
                         updateEdit({ followUpDate: event.target.value || null })
                       }

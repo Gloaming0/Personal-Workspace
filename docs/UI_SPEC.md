@@ -817,6 +817,21 @@ Done
 Delete
 Skip
 
+Phase 1.9 interaction contract:
+
+- The review appears only when effective `todo`/`doing` Tasks remain on the
+  previous local date and today's device-local seen marker is absent.
+- Desktop and Tablet use a lightweight centered Dialog. Mobile uses the same
+  content order in a full-height Sheet.
+- Each row offers Move to Today, Later, Done, and Delete. The footer offers
+  Skip and Move All to Today.
+- Escape is equivalent to Skip, focus is trapped within the modal, all actions
+  use native buttons with token-based touch targets, and an inline error leaves
+  Skip available so Today is never permanently blocked.
+- User-authored Task titles remain raw text across language changes. All system
+  labels support English and Chinese and inherit all six Design Token themes.
+- With no carry-over Tasks, no Morning Review surface is rendered.
+
 
 ---
 

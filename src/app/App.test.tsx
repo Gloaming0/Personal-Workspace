@@ -35,7 +35,7 @@ describe('Daily Work OS application shell', () => {
         name: 'Today',
       }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Phase 1.8')).toBeInTheDocument()
+    expect(screen.getByText('Phase 1.9')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'End day' })).toBeInTheDocument()
     expect(
       screen.getByRole('region', { name: 'Today focus' }),

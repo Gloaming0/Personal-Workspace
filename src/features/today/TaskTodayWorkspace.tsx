@@ -1,5 +1,4 @@
 /* eslint-disable react-refresh/only-export-components */
-import { format } from 'date-fns'
 import {
   createContext,
   useCallback,
@@ -27,6 +26,12 @@ import {
   type TaskRuntime,
 } from '@/features/tasks/taskRuntime'
 import { useTranslations } from '@/features/settings/language/useTranslations'
+import { MorningReviewFlow } from '@/features/morningReview/MorningReviewFlow'
+import type {
+  MorningReviewAction,
+  MorningReviewData,
+} from '@/features/morningReview/contracts'
+import { resolveMorningReviewDate } from '@/features/morningReview/MorningReviewQuery'
 
 type TodayWorkspaceValue = Required<
   Pick<
@@ -57,7 +62,15 @@ type TodayWorkspaceValue = Required<
     | 'routineActionError'
     | 'onLoadEndDay'
     | 'onFinalizeEndDay'
-  >
+  > & {
+    morningReview: MorningReviewData | null
+    onApplyMorningReview: (
+      taskId: string,
+      action: MorningReviewAction,
+    ) => Promise<void>
+    onMoveAllMorningReview: () => Promise<void>
+    onSkipMorningReview: () => Promise<void>
+  }
 
 const TodayWorkspaceContext = createContext<TodayWorkspaceValue | null>(null)
 
@@ -91,8 +104,8 @@ export function TodayWorkspaceProvider({
   const { language, t } = useTranslations()
   const localDatabaseError = t('today.localDatabaseError')
   const [taskRuntime] = useState(() => runtime ?? getTaskRuntime())
-  const date = format(new Date(), 'yyyy-MM-dd')
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const date = resolveMorningReviewDate(new Date().toISOString(), timezone)
   const [viewModel, setViewModel] = useState(() => createPendingViewModel(date))
   const [loading, setLoading] = useState(true)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -101,6 +114,9 @@ export function TodayWorkspaceProvider({
   )
   const [memoActionError, setMemoActionError] = useState<string | null>(null)
   const [routineActionError, setRoutineActionError] = useState<string | null>(
+    null,
+  )
+  const [morningReview, setMorningReview] = useState<MorningReviewData | null>(
     null,
   )
 
@@ -144,6 +160,27 @@ export function TodayWorkspaceProvider({
       active = false
     }
   }, [date, language, localDatabaseError, query, taskRuntime, timezone])
+
+  useEffect(() => {
+    let active = true
+    if (!taskRuntime.morningReviewService) return
+    void taskRuntime.ready
+      .then(() =>
+        taskRuntime.morningReviewService!.load({
+          userId: localUserId,
+          date,
+          timezone,
+        }),
+      )
+      .then((review) => active && setMorningReview(review))
+      .catch(() => {
+        // Morning Review is intentionally non-blocking. Today remains usable
+        // if the optional review cannot be prepared.
+      })
+    return () => {
+      active = false
+    }
+  }, [date, taskRuntime, timezone])
 
   const runCommand = async (command: () => Promise<unknown>) => {
     setActionError(null)
@@ -210,6 +247,36 @@ export function TodayWorkspaceProvider({
     waitingActionError,
     memoActionError,
     routineActionError,
+    morningReview,
+    onApplyMorningReview: async (taskId, action) => {
+      if (!taskRuntime.morningReviewService) return
+      const next = await taskRuntime.morningReviewService.apply(
+        { userId: localUserId, date, timezone },
+        taskId,
+        action,
+      )
+      setMorningReview(next)
+      await refresh()
+    },
+    onMoveAllMorningReview: async () => {
+      if (!taskRuntime.morningReviewService) return
+      await taskRuntime.morningReviewService.moveAll({
+        userId: localUserId,
+        date,
+        timezone,
+      })
+      setMorningReview(null)
+      await refresh()
+    },
+    onSkipMorningReview: async () => {
+      if (!taskRuntime.morningReviewService) return
+      await taskRuntime.morningReviewService.skip({
+        userId: localUserId,
+        date,
+        timezone,
+      })
+      setMorningReview(null)
+    },
     onCreateTask: (title) =>
       runCommand(() =>
         taskRuntime.service.create({
@@ -330,7 +397,20 @@ export function useOptionalTodayWorkspace(): TodayWorkspaceValue | null {
 }
 
 function TodayWorkspaceDashboard() {
-  return <TodayDashboard {...useTodayWorkspace()} />
+  const workspace = useTodayWorkspace()
+  return (
+    <>
+      <TodayDashboard {...workspace} />
+      {workspace.morningReview && (
+        <MorningReviewFlow
+          data={workspace.morningReview}
+          onApply={workspace.onApplyMorningReview}
+          onMoveAll={workspace.onMoveAllMorningReview}
+          onSkip={workspace.onSkipMorningReview}
+        />
+      )}
+    </>
+  )
 }
 
 interface TaskTodayWorkspaceProps {

@@ -133,6 +133,15 @@ User decides:
 
 "What matters today?"
 
+On the first Today visit of a new local date, Morning Review offers only the
+previous local date's effective `todo` and `doing` Tasks. Each can move to
+Today, move to Later, be completed, or be soft-deleted; Move All carries every
+remaining item to Today without cloning it. Skip changes no Task and records a
+lightweight device-local seen date so the review does not repeatedly interrupt
+the same day. The next local date is eligible again. Morning Review never
+includes done, later, archived, or deleted Tasks and remains non-blocking if it
+cannot load.
+
 ---
 
 ## During Work

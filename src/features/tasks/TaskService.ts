@@ -103,6 +103,10 @@ export class TaskService {
   }
 
   moveToTomorrow(id: EntityId, date: LocalDate): Promise<Task> {
+    return this.moveToDate(id, date)
+  }
+
+  moveToDate(id: EntityId, date: LocalDate): Promise<Task> {
     return this.change(id, (entity) =>
       moveTaskToTomorrow(entity, date, this.now()),
     )
