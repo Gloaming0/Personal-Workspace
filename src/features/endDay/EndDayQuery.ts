@@ -7,7 +7,7 @@ import type {
   WaitingRepository,
 } from '@/repositories/contracts'
 import type { TodayProjectNameResolver } from '@/features/today/contracts'
-import type { LocalDate, UserId } from '@/domain/shared'
+import type { Instant, LocalDate, UserId } from '@/domain/shared'
 import type { EndDayOverview } from './contracts'
 import { instantToLocalDate } from '@/domain/time'
 import type { UnitOfWorkTransaction } from '@/unitOfWork/contracts'
@@ -31,6 +31,7 @@ export class EndDayQuery {
       timezone: string
     },
     transaction?: UnitOfWorkTransaction,
+    instant: Instant = new Date().toISOString(),
   ): Promise<EndDayOverview> {
     const taskRepository =
       transaction?.repository('tasks') ?? this.dependencies.tasks
@@ -42,7 +43,7 @@ export class EndDayQuery {
       transaction?.repository('routines') ?? this.dependencies.routines
     const routineLogRepository =
       transaction?.repository('routineLogs') ?? this.dependencies.routineLogs
-    const [planned, completed, waiting, memos, routines, routineLogs] =
+    const [planned, completed, waiting, memos, activeRoutines] =
       await Promise.all([
         taskRepository.find(input.userId, {
           plannedOn: input.date,
@@ -57,7 +58,6 @@ export class EndDayQuery {
           timezone: input.timezone,
         }),
         routineRepository.findByStatus(input.userId, ['active']),
-        routineLogRepository.findForDate(input.userId, input.date),
       ])
     const completedOnDate = completed.filter(
       (task) =>
@@ -71,9 +71,24 @@ export class EndDayQuery {
     ]
     const userWaiting = waiting
     const userMemos = memos
-    const userRoutines = routines.filter((routine) =>
-      isRoutineScheduledOn(routine.schedule, input.date),
-    )
+    const userRoutines = activeRoutines.filter((routine) => {
+      const routineDate = instantToLocalDate(instant, routine.timezone)
+      return isRoutineScheduledOn(routine.schedule, routineDate)
+    })
+    const routineDates = [
+      ...new Set(
+        userRoutines.map((routine) =>
+          instantToLocalDate(instant, routine.timezone),
+        ),
+      ),
+    ]
+    const routineLogs = (
+      await Promise.all(
+        routineDates.map((date) =>
+          routineLogRepository.findForDate(input.userId, date),
+        ),
+      )
+    ).flat()
     const projectIds = [
       ...new Set(
         [...userTasks, ...userWaiting, ...userMemos].flatMap((entity) =>

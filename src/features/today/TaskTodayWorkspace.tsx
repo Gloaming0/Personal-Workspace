@@ -6,6 +6,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react'
 import { TodayDashboard, type TodayDashboardProps } from './TodayDashboard'
@@ -32,6 +33,7 @@ import type {
   MorningReviewData,
 } from '@/features/morningReview/contracts'
 import { resolveMorningReviewDate } from '@/features/morningReview/MorningReviewQuery'
+import type { DatabaseRuntimeSnapshot } from '@/database/runtimeState'
 
 type TodayWorkspaceValue = Required<
   Pick<
@@ -62,6 +64,8 @@ type TodayWorkspaceValue = Required<
     | 'routineActionError'
     | 'onLoadEndDay'
     | 'onFinalizeEndDay'
+    | 'databaseState'
+    | 'onRetryDatabase'
   > & {
     morningReview: MorningReviewData | null
     onApplyMorningReview: (
@@ -105,7 +109,17 @@ export function TodayWorkspaceProvider({
   const localDatabaseError = t('today.localDatabaseError')
   const [taskRuntime] = useState(() => runtime ?? getTaskRuntime())
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-  const date = resolveMorningReviewDate(new Date().toISOString(), timezone)
+  const [instant] = useState(() => new Date().toISOString())
+  const date = resolveMorningReviewDate(instant, timezone)
+  const fallbackDatabaseState: DatabaseRuntimeSnapshot = {
+    status: 'ready',
+    errorCategory: null,
+    canRetry: false,
+  }
+  const databaseState = useSyncExternalStore(
+    taskRuntime.databaseRuntime?.subscribe ?? (() => () => undefined),
+    taskRuntime.databaseRuntime?.getSnapshot ?? (() => fallbackDatabaseState),
+  )
   const [viewModel, setViewModel] = useState(() => createPendingViewModel(date))
   const [loading, setLoading] = useState(true)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -135,38 +149,69 @@ export function TodayWorkspaceProvider({
     [taskRuntime],
   )
 
+  const ensureDatabaseReady = useCallback(async () => {
+    const status = taskRuntime.databaseRuntime?.getSnapshot().status
+    if (!status || status === 'opening') await taskRuntime.ready
+    else if (status !== 'ready' && status !== 'read-only') {
+      throw new Error('Local database is unavailable.')
+    }
+  }, [taskRuntime])
+
   const refresh = useCallback(async () => {
-    await taskRuntime.ready
+    await ensureDatabaseReady()
     const data = await query.execute({
       userId: localUserId,
       date,
       timezone,
       language,
+      instant,
     })
     setViewModel(data)
     setLoading(false)
-  }, [date, language, query, taskRuntime, timezone])
+  }, [date, ensureDatabaseReady, instant, language, query, timezone])
 
   useEffect(() => {
     let active = true
     void taskRuntime.ready
       .then(() =>
-        query.execute({ userId: localUserId, date, timezone, language }),
+        query.execute({
+          userId: localUserId,
+          date,
+          timezone,
+          language,
+          instant,
+        }),
       )
       .then((data) => {
         if (!active) return
         setViewModel(data)
         setLoading(false)
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!active) return
+        const runtimeState = taskRuntime.databaseRuntime?.getSnapshot().status
+        if (
+          !runtimeState ||
+          runtimeState === 'ready' ||
+          runtimeState === 'opening'
+        ) {
+          taskRuntime.databaseRuntime?.failure(error)
+        }
         setActionError(localDatabaseError)
         setLoading(false)
       })
     return () => {
       active = false
     }
-  }, [date, language, localDatabaseError, query, taskRuntime, timezone])
+  }, [
+    date,
+    instant,
+    language,
+    localDatabaseError,
+    query,
+    taskRuntime,
+    timezone,
+  ])
 
   useEffect(() => {
     let active = true
@@ -254,6 +299,18 @@ export function TodayWorkspaceProvider({
     waitingActionError,
     memoActionError,
     routineActionError,
+    databaseState,
+    onRetryDatabase: async () => {
+      if (!taskRuntime.retryDatabase) return
+      setLoading(true)
+      setActionError(null)
+      try {
+        await taskRuntime.retryDatabase()
+        await refresh()
+      } catch {
+        setLoading(false)
+      }
+    },
     morningReview,
     onApplyMorningReview: async (taskId, action) => {
       if (!taskRuntime.morningReviewService) return
@@ -347,11 +404,15 @@ export function TodayWorkspaceProvider({
           ...values,
         }),
       ),
-    onToggleRoutine: (routineId, completed) =>
+    onToggleRoutine: (routineId, completed, routineDate) =>
       runRoutineCommand(() =>
         completed
-          ? taskRuntime.routineService.undo(localUserId, routineId, date)
-          : taskRuntime.routineService.complete(localUserId, routineId, date),
+          ? taskRuntime.routineService.undo(localUserId, routineId, routineDate)
+          : taskRuntime.routineService.complete(
+              localUserId,
+              routineId,
+              routineDate,
+            ),
       ),
     onPauseRoutine: (routineId) =>
       runRoutineCommand(() =>
@@ -364,7 +425,7 @@ export function TodayWorkspaceProvider({
     ...(taskRuntime.endDayService
       ? {
           onLoadEndDay: async () => {
-            await taskRuntime.ready
+            await ensureDatabaseReady()
             return taskRuntime.endDayService!.preview({
               userId: localUserId,
               date,
@@ -379,7 +440,7 @@ export function TodayWorkspaceProvider({
               'tomorrow' | 'later' | 'keep' | 'delete'
             >,
           ) => {
-            await taskRuntime.ready
+            await ensureDatabaseReady()
             await taskRuntime.endDayService!.finalize({
               commandId,
               userId: localUserId,

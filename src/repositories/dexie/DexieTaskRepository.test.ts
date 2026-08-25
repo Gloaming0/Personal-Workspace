@@ -14,10 +14,7 @@ import { InMemoryMemoRepository } from '@/repositories/inMemory/InMemoryMemoRepo
 import { InMemoryRoutineRepository } from '@/repositories/inMemory/InMemoryRoutineRepository'
 import { InMemoryRoutineLogRepository } from '@/repositories/inMemory/InMemoryRoutineLogRepository'
 import { InMemoryActivityRepository } from '@/repositories/inMemory/InMemoryActivityRepository'
-import {
-  InvalidPersistedEntityError,
-  RepositoryVersionConflictError,
-} from '@/repositories/errors'
+import { RepositoryVersionConflictError } from '@/repositories/errors'
 import { createTask } from '@/domain/task'
 import { DexieUnitOfWork } from '@/unitOfWork/dexie/DexieUnitOfWork'
 import { DexieTaskRepository } from './DexieTaskRepository'
@@ -167,9 +164,18 @@ describe('DexieTaskRepository', () => {
     })
   })
 
-  it('rejects invalid persisted data at the read boundary', async () => {
+  it('isolates invalid persisted data and records a content-free diagnostic', async () => {
     databaseName = `task-invalid-data-${++databaseSequence}`
     const { database, repository } = await openRepository()
+    const valid = createTask(
+      {
+        userId: 'local-user',
+        title: 'Healthy record',
+        plannedDate: '2026-08-24',
+      },
+      { id: 'task-healthy', now: '2026-08-24T08:00:00.000Z' },
+    )
+    await repository.save('local-user', valid)
     const invalid = {
       ...createTask(
         {
@@ -183,9 +189,14 @@ describe('DexieTaskRepository', () => {
     }
     await database.tasks.add(invalid)
 
-    await expect(repository.find('local-user', {})).rejects.toMatchObject({
-      cause: expect.any(InvalidPersistedEntityError),
-    })
+    await expect(repository.find('local-user', {})).resolves.toEqual([valid])
+    expect(database.runtime.diagnostics()).toEqual([
+      expect.objectContaining({
+        databaseVersion: 7,
+        storeName: 'tasks',
+        errorCategory: 'corrupt-record',
+      }),
+    ])
   })
 
   it('keeps Today aggregation unchanged when Tasks come from Dexie', async () => {

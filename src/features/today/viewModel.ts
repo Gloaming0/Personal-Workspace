@@ -37,6 +37,7 @@ export interface TodayWaitingItemViewModel {
 export interface TodayCheckInItemViewModel {
   routineId: string
   routineLogId: string | null
+  date: LocalDate
   title: string
   completed: boolean
 }

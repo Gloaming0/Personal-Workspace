@@ -5,6 +5,7 @@ import type {
 } from './contracts'
 import type { TodayDashboardViewModel } from './viewModel'
 import { isRoutineScheduledOn } from '@/domain/routine'
+import { instantToLocalDate } from '@/domain/time'
 
 export class DefaultTodayDashboardQuery implements TodayDashboardQueryContract {
   constructor(private readonly dependencies: TodayDashboardQueryDependencies) {}
@@ -12,6 +13,7 @@ export class DefaultTodayDashboardQuery implements TodayDashboardQueryContract {
   async execute(
     input: TodayDashboardQueryInput,
   ): Promise<TodayDashboardViewModel> {
+    const instant = input.instant ?? new Date().toISOString()
     const [
       plannedTasks,
       focusTasks,
@@ -19,7 +21,6 @@ export class DefaultTodayDashboardQuery implements TodayDashboardQueryContract {
       pinnedMemos,
       todayMemos,
       activeRoutines,
-      routineLogs,
       activities,
     ] = await Promise.all([
       this.dependencies.tasks.find(input.userId, {
@@ -39,7 +40,6 @@ export class DefaultTodayDashboardQuery implements TodayDashboardQueryContract {
         timezone: input.timezone,
       }),
       this.dependencies.routines.findByStatus(input.userId, ['active']),
-      this.dependencies.routineLogs.findForDate(input.userId, input.date),
       this.dependencies.activities.find(input.userId, { limit: 10 }),
     ])
     const memos = [
@@ -47,9 +47,24 @@ export class DefaultTodayDashboardQuery implements TodayDashboardQueryContract {
         [...pinnedMemos, ...todayMemos].map((memo) => [memo.id, memo]),
       ).values(),
     ]
-    const routines = activeRoutines.filter((routine) =>
-      isRoutineScheduledOn(routine.schedule, input.date),
-    )
+    const routines = activeRoutines.filter((routine) => {
+      const routineDate = instantToLocalDate(instant, routine.timezone)
+      return isRoutineScheduledOn(routine.schedule, routineDate)
+    })
+    const routineDates = [
+      ...new Set(
+        routines.map((routine) =>
+          instantToLocalDate(instant, routine.timezone),
+        ),
+      ),
+    ]
+    const routineLogs = (
+      await Promise.all(
+        routineDates.map((date) =>
+          this.dependencies.routineLogs.findForDate(input.userId, date),
+        ),
+      )
+    ).flat()
     const projectIds = [
       ...new Set(
         [...waiting, ...memos].flatMap((entity) =>
@@ -62,6 +77,7 @@ export class DefaultTodayDashboardQuery implements TodayDashboardQueryContract {
 
     return this.dependencies.assembler.assemble({
       ...input,
+      instant,
       plannedTasks,
       focusTasks,
       waiting,

@@ -1,5 +1,6 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { useState } from 'react'
 import { TodayDashboard } from './TodayDashboard'
 import { TodayUtilityWidgets } from './TodayUtilityWidgets'
 import { emptyTodayDashboardMock, todayDashboardMock } from './mockData'
@@ -82,5 +83,38 @@ describe('Today Dashboard presentation', () => {
     expect(screen.getByRole('heading', { name: '今日' })).toBeInTheDocument()
     expect(screen.getByText('完成活动方案')).toBeInTheDocument()
     expect(screen.getByText('检查玩家留存数据')).toBeInTheDocument()
+  })
+
+  it('distinguishes unavailable storage from Empty State and recovers on Retry', async () => {
+    function RecoveryHarness() {
+      const [ready, setReady] = useState(false)
+      return (
+        <TodayDashboard
+          data={todayDashboardMock}
+          databaseState={{
+            status: ready ? 'ready' : 'unavailable',
+            errorCategory: ready ? null : 'open-failure',
+            canRetry: !ready,
+          }}
+          onRetryDatabase={async () => setReady(true)}
+        />
+      )
+    }
+
+    render(<RecoveryHarness />)
+    expect(
+      screen.getByRole('heading', {
+        name: 'Your local workspace is unavailable.',
+      }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('The desk is clear.')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('region', { name: 'Today tasks' }),
+    ).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry local storage' }))
+    expect(
+      await screen.findByRole('region', { name: 'Today tasks' }),
+    ).toBeInTheDocument()
   })
 })

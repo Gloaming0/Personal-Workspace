@@ -29,6 +29,7 @@ export interface TaskQuery {
   plannedOn?: LocalDate
   plannedOnOrBefore?: LocalDate
   completedOn?: LocalDate
+  completedTimezone?: string
   focusDate?: LocalDate
   projectId?: EntityId
 }

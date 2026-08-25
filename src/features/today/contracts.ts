@@ -6,7 +6,7 @@ import type {
   Task,
   Waiting,
 } from '@/domain/entities'
-import type { EntityId, LocalDate, UserId } from '@/domain/shared'
+import type { EntityId, Instant, LocalDate, UserId } from '@/domain/shared'
 import type {
   ActivityRepository,
   TaskRepository,
@@ -23,6 +23,7 @@ export interface TodayDashboardQueryInput {
   date: LocalDate
   timezone: string
   language: Language
+  instant?: Instant
 }
 
 export interface TodayDashboardQuery {
@@ -51,6 +52,7 @@ export interface TodayDashboardAggregate {
   date: LocalDate
   timezone: string
   language: Language
+  instant: Instant
   plannedTasks: Task[]
   focusTasks: Task[]
   waiting: Waiting[]

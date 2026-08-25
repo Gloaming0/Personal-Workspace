@@ -1,4 +1,4 @@
-import { differenceInCalendarDays, parseISO } from 'date-fns'
+import { differenceInLocalDateDays, instantToLocalDate } from '@/domain/time'
 import type {
   Activity,
   ActivityEventType,
@@ -112,9 +112,9 @@ function toWaitingViewModel(
     followUpDate: waiting.followUpDate,
     daysWaiting: Math.max(
       0,
-      differenceInCalendarDays(
-        parseISO(`${aggregate.date}T00:00:00`),
-        parseISO(waiting.sentAt),
+      differenceInLocalDateDays(
+        aggregate.date,
+        instantToLocalDate(waiting.sentAt, aggregate.timezone),
       ),
     ),
     needsFollowUp: deriveNeedsFollowUp(waiting, aggregate.date),
@@ -150,14 +150,16 @@ export class DefaultTodayDashboardViewModelAssembler implements TodayDashboardVi
         return right.updatedAt.localeCompare(left.updatedAt)
       })
       .at(0)
-    const logsByRoutine = new Map(
-      aggregate.routineLogs.map((log) => [log.routineId, log]),
+    const logsByRoutineAndDate = new Map(
+      aggregate.routineLogs.map((log) => [`${log.routineId}:${log.date}`, log]),
     )
     const checkIns = aggregate.routines.map((routine) => {
-      const log = logsByRoutine.get(routine.id)
+      const date = instantToLocalDate(aggregate.instant, routine.timezone)
+      const log = logsByRoutineAndDate.get(`${routine.id}:${date}`)
       return {
         routineId: routine.id,
         routineLogId: log?.id ?? null,
+        date,
         title: routine.title,
         completed: Boolean(log),
       }

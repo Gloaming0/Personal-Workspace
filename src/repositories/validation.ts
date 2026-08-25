@@ -8,6 +8,7 @@ import type {
   Waiting,
 } from '@/domain/entities'
 import type { SyncEntity, UserId } from '@/domain/shared'
+import { isIanaTimezone, isLocalDate, isUtcInstant } from '@/domain/time'
 import { InvalidPersistedEntityError, RepositoryOwnershipError } from './errors'
 
 const taskStatuses = ['todo', 'doing', 'done', 'later', 'archived'] as const
@@ -82,18 +83,7 @@ function assertInstant(
   nullable = false,
 ): void {
   if (nullable && value === null) return
-  const canonical =
-    typeof value === 'string' && value.endsWith('Z') && !value.includes('.')
-      ? value.replace('Z', '.000Z')
-      : value
-  if (
-    typeof value !== 'string' ||
-    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value) ||
-    Number.isNaN(Date.parse(value)) ||
-    new Date(value).toISOString() !== canonical
-  ) {
-    invalid(entityType, field)
-  }
+  if (!isUtcInstant(value)) invalid(entityType, field)
 }
 
 function assertLocalDate(
@@ -103,18 +93,15 @@ function assertLocalDate(
   nullable = false,
 ): void {
   if (nullable && value === null) return
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    invalid(entityType, field)
-  }
-  const [year, month, day] = value.split('-').map(Number)
-  const date = new Date(Date.UTC(year!, month! - 1, day))
-  if (
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month! - 1 ||
-    date.getUTCDate() !== day
-  ) {
-    invalid(entityType, field)
-  }
+  if (!isLocalDate(value)) invalid(entityType, field)
+}
+
+export function assertTimezone(
+  value: unknown,
+  entityType: string,
+  field: string,
+): asserts value is string {
+  if (!isIanaTimezone(value)) invalid(entityType, field)
 }
 
 function assertNullableId(
@@ -203,12 +190,7 @@ export function validateRoutine(value: unknown): Routine {
   const routine = assertSyncEntity(value, 'Routine') as Routine
   assertString(routine.title, 'Routine', 'title', false)
   assertEnum(routine.status, routineStatuses, 'Routine', 'status')
-  assertString(routine.timezone, 'Routine', 'timezone', false)
-  try {
-    new Intl.DateTimeFormat('en-US', { timeZone: routine.timezone }).format()
-  } catch {
-    invalid('Routine', 'timezone')
-  }
+  assertTimezone(routine.timezone, 'Routine', 'timezone')
   if (!Number.isFinite(routine.sortOrder)) invalid('Routine', 'sortOrder')
   if (!isRecord(routine.schedule)) invalid('Routine', 'schedule')
   const frequency = routine.schedule.frequency
@@ -219,6 +201,8 @@ export function validateRoutine(value: unknown): Routine {
     const days = routine.schedule.daysOfWeek
     if (
       !Array.isArray(days) ||
+      days.length === 0 ||
+      new Set(days).size !== days.length ||
       days.some((day) => !Number.isInteger(day) || day < 0 || day > 6)
     ) {
       invalid('Routine', 'schedule.daysOfWeek')
@@ -251,6 +235,7 @@ export function validateActivity(value: unknown): Activity {
 export function validateDailyLog(value: unknown): DailyLog {
   const log = assertSyncEntity(value, 'DailyLog') as DailyLog
   assertLocalDate(log.date, 'DailyLog', 'date')
+  assertTimezone(log.finalizeTimezone, 'DailyLog', 'finalizeTimezone')
   assertString(log.summary, 'DailyLog', 'summary')
   assertInstant(log.finalizedAt, 'DailyLog', 'finalizedAt')
   if (!isRecord(log.snapshot)) invalid('DailyLog', 'snapshot')
@@ -269,6 +254,7 @@ export function validateDailyLog(value: unknown): DailyLog {
     ...log.snapshot.completedTasks,
     ...log.snapshot.openTasks,
   ]) {
+    if (!isRecord(task)) invalid('DailyLog', 'snapshot.task')
     assertEntityId(task.entityId, 'DailyLog', 'snapshot.task.entityId')
     assertString(task.title, 'DailyLog', 'snapshot.task.title', false)
     assertEnum(task.status, taskStatuses, 'DailyLog', 'snapshot.task.status')
@@ -290,6 +276,7 @@ export function validateDailyLog(value: unknown): DailyLog {
     assertInstant(task.dueAt, 'DailyLog', 'snapshot.task.dueAt', true)
   }
   for (const waiting of log.snapshot.waiting) {
+    if (!isRecord(waiting)) invalid('DailyLog', 'snapshot.waiting')
     assertEntityId(waiting.entityId, 'DailyLog', 'snapshot.waiting.entityId')
     assertString(waiting.title, 'DailyLog', 'snapshot.waiting.title', false)
     assertEnum(
@@ -317,10 +304,12 @@ export function validateDailyLog(value: unknown): DailyLog {
     )
   }
   for (const memo of log.snapshot.memos) {
+    if (!isRecord(memo)) invalid('DailyLog', 'snapshot.memo')
     assertEntityId(memo.entityId, 'DailyLog', 'snapshot.memo.entityId')
     assertString(memo.content, 'DailyLog', 'snapshot.memo.content')
   }
   for (const routine of log.snapshot.routines) {
+    if (!isRecord(routine)) invalid('DailyLog', 'snapshot.routine')
     assertEntityId(routine.entityId, 'DailyLog', 'snapshot.routine.entityId')
     assertString(routine.title, 'DailyLog', 'snapshot.routine.title', false)
     if (typeof routine.completed !== 'boolean') {

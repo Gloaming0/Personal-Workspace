@@ -1,4 +1,5 @@
-import { addDays, format, set, subMinutes } from 'date-fns'
+import { set, subMinutes } from 'date-fns'
+import { addLocalDateDays, instantToLocalDate } from '@/domain/time'
 import type { Language } from '@/features/settings/language/types'
 import type { TodayDashboardViewModel } from './viewModel'
 
@@ -60,8 +61,9 @@ export function createTodayDashboardMock(
   language: Language,
 ): TodayDashboardViewModel {
   const now = new Date()
-  const today = format(now, 'yyyy-MM-dd')
-  const tomorrow = format(addDays(now, 1), 'yyyy-MM-dd')
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const today = instantToLocalDate(now.toISOString(), timezone)
+  const tomorrow = addLocalDateDays(today, 1)
   const copy = demoCopy[language]
 
   return {
@@ -103,6 +105,7 @@ export function createTodayDashboardMock(
     checkIns: copy.checkIns.map((title, index) => ({
       routineId: `routine-${index + 1}`,
       routineLogId: index < 2 ? `routine-log-${index + 1}` : null,
+      date: today,
       title,
       completed: index < 2,
     })),
@@ -121,7 +124,10 @@ export function createTodayDashboardMock(
 export const todayDashboardMock = createTodayDashboardMock('en')
 
 export const emptyTodayDashboardMock: TodayDashboardViewModel = {
-  date: format(new Date(), 'yyyy-MM-dd'),
+  date: instantToLocalDate(
+    new Date().toISOString(),
+    Intl.DateTimeFormat().resolvedOptions().timeZone,
+  ),
   summary: {
     openTaskCount: 0,
     waitingCount: 0,

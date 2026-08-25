@@ -16,6 +16,7 @@ import {
   assertUserId,
   validateActivity,
 } from '@/repositories/validation'
+import { validatePersistedRows } from './validatePersistedRows'
 
 const cloneActivity = (activity: Activity) => structuredClone(activity)
 
@@ -28,9 +29,14 @@ export class DexieActivityRepository implements ActivityRepository {
   async find(userId: UserId, query: ActivityQuery): Promise<Activity[]> {
     try {
       assertUserId(userId)
-      const activities = (await this.table.toArray())
-        .filter((activity) => activity.userId === userId)
-        .map(validateActivity)
+      const activities = validatePersistedRows(
+        this.database,
+        'activities',
+        (await this.table.toArray()).filter(
+          (activity) => activity.userId === userId,
+        ),
+        validateActivity,
+      )
         .filter(
           (activity) =>
             activity.deletedAt === null &&
@@ -56,6 +62,7 @@ export class DexieActivityRepository implements ActivityRepository {
 
   async append(userId: UserId, activity: Activity): Promise<void> {
     try {
+      this.database.runtime.assertWritable()
       validateActivity(activity)
       assertRepositoryOwner(userId, activity)
       await this.table.add(cloneActivity(activity))

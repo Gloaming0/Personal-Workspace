@@ -18,6 +18,7 @@ import {
   validateWaiting,
 } from '@/repositories/validation'
 import { executeDexieWrite } from './executeDexieWrite'
+import { validatePersistedRows } from './validatePersistedRows'
 
 function cloneWaiting(waiting: Waiting): Waiting {
   return structuredClone(waiting)
@@ -59,9 +60,12 @@ export class DexieWaitingRepository implements WaitingRepository {
     try {
       assertUserId(userId)
       const waiting = await this.table.toArray()
-      return waiting
-        .filter((entity) => entity.userId === userId)
-        .map(validateWaiting)
+      return validatePersistedRows(
+        this.database,
+        'confirmations',
+        waiting.filter((entity) => entity.userId === userId),
+        validateWaiting,
+      )
         .filter((entity) => matchesQuery(entity, query))
         .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
         .map(cloneWaiting)

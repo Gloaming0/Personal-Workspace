@@ -643,6 +643,7 @@ Fields:
 id
 userId
 date
+finalizeTimezone
 summary
 finalizedAt
 snapshot
@@ -670,6 +671,17 @@ and rejects a second effective Daily Log for the date. Snapshot JSON contains
 raw user-authored strings and entity identifiers plus the display context
 captured at finalization; it does not contain `LocalizedText` or references
 that must be joined later. Versions 1–5 remain declared unchanged.
+
+Phase 2.1C adds `database.version(7)` while preserving every Version 1–6
+declaration. Version 7 adds the required `finalizeTimezone` field to DailyLog;
+the store indexes remain unchanged. New logs store the explicit IANA timezone
+used by End Day. Existing v6 rows are migrated to `finalizeTimezone: "UTC"` as
+a deterministic legacy fallback because the original zone cannot be recovered
+from the old record. Task, Waiting, Memo, Routine, RoutineLog, Activity, and
+DailyLog snapshot content are otherwise unchanged.
+
+Repository validation rejects missing or invalid IANA timezones and deeply
+validates every Snapshot item before a DailyLog enters Domain code.
 
 
 
@@ -756,7 +768,9 @@ Routine, and RoutineLog rows require no transform and remain unchanged.
 
 ## Phase 2.1A Repository Storage Contract
 
-Schema version remains 6; ownership hardening requires no IndexedDB migration.
+At Phase 2.1A schema version remained 6; ownership hardening itself required no
+IndexedDB migration. Phase 2.1C subsequently advances the schema to Version 7
+for `DailyLog.finalizeTimezone` only.
 Every Repository read includes an explicit calling `userId`. `getById` returns
 null for another owner's id, list/query operations return only the requested
 owner's effective rows, and every write rejects an entity whose `userId` does

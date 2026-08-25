@@ -3,6 +3,7 @@ import { createMemo } from '@/domain/memo'
 import { createRoutine } from '@/domain/routine'
 import { createRoutineLog } from '@/domain/routineLog'
 import { createWaiting } from '@/domain/waiting'
+import { completeTask, createTask } from '@/domain/task'
 import { ActivityService } from '@/features/activity/ActivityService'
 import { TaskService } from '@/features/tasks/TaskService'
 import { MockTodayProjectNameResolver } from '@/features/today/MockTodayProjectNameResolver'
@@ -185,6 +186,7 @@ describe('End Day service', () => {
     })
 
     expect(log.summary).toBe('今天进展顺利')
+    expect(log.finalizeTimezone).toBe('Asia/Shanghai')
     expect(log.snapshot.completedTasks[0]?.title).toBe('完成中文任务')
     expect(log.snapshot.openTasks).toEqual(
       expect.arrayContaining([
@@ -434,5 +436,37 @@ describe('End Day service', () => {
     expect(retried).toEqual(first)
     await expect(context.activities.find(userId, {})).resolves.toHaveLength(1)
     await expect(context.logs.findByDate(userId, date)).resolves.toEqual(first)
+  })
+
+  it('selects completed Tasks by explicit End Day timezone across midnight', async () => {
+    const context = setup()
+    const created = createTask(
+      {
+        userId,
+        title: 'Cross-midnight completion',
+        plannedDate: '2026-08-23',
+      },
+      { id: 'cross-midnight', now: '2026-08-23T10:00:00.000Z' },
+    )
+    await context.tasks.save(userId, created)
+    const completed = completeTask(created, '2026-08-25T00:30:00.000Z')
+    await context.tasks.save(userId, completed, { expectedVersion: 1 })
+
+    const losAngeles = await context.query.execute(
+      { userId, date: '2026-08-24', timezone: 'America/Los_Angeles' },
+      undefined,
+      '2026-08-25T00:30:00.000Z',
+    )
+    const kiritimati = await context.query.execute(
+      { userId, date: '2026-08-25', timezone: 'Pacific/Kiritimati' },
+      undefined,
+      '2026-08-25T00:30:00.000Z',
+    )
+    expect(losAngeles.completedTasks.map((task) => task.id)).toContain(
+      completed.id,
+    )
+    expect(kiritimati.completedTasks.map((task) => task.id)).toContain(
+      completed.id,
+    )
   })
 })

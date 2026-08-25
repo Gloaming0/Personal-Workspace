@@ -94,6 +94,13 @@ const englishMessages = {
   'today.taskActionError': 'The task could not be updated. Try again.',
   'today.localDatabaseError':
     'Local task storage is unavailable. Reload and try again.',
+  'database.unavailableTitle': 'Your local workspace is unavailable.',
+  'database.unavailableDescription':
+    'Your data has not been shown as empty. Retry when local storage is available.',
+  'database.readOnlyTitle': 'Recovery mode is read-only.',
+  'database.readOnlyDescription':
+    'You can review available data, but changes are paused to protect it.',
+  'database.retry': 'Retry local storage',
   'today.waitingTitle': 'Waiting',
   'today.waitingDescription':
     'Responsibilities currently in someone else’s hands.',
@@ -331,6 +338,13 @@ const chineseMessages = {
   'today.focusLimitError': '今日重点最多只能有三项任务。',
   'today.taskActionError': '任务更新失败，请重试。',
   'today.localDatabaseError': '本地任务存储暂时不可用，请刷新后重试。',
+  'database.unavailableTitle': '本地工作空间暂时不可用。',
+  'database.unavailableDescription':
+    '当前内容不会被当作空数据展示。请在本地存储恢复后重试。',
+  'database.readOnlyTitle': '当前处于只读恢复模式。',
+  'database.readOnlyDescription':
+    '你可以查看可用数据，但为保护数据已暂停修改。',
+  'database.retry': '重试本地存储',
   'today.waitingTitle': '等待事项',
   'today.waitingDescription': '目前需要由其他人继续推进的责任。',
   'today.waitingEmptyTitle': '没有等待事项。',

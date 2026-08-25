@@ -907,6 +907,42 @@ DEVELOPMENT_RULES.md
 
 ---
 
+# Database Recovery Contract
+
+- Query failure and a successful empty collection are different states. Never
+  manufacture an Empty View Model after a storage rejection.
+- Database open, upgrade, blocked, versionchange, quota, transaction abort,
+  and corrupt-record paths must be classified into the shared runtime state.
+- User-facing recovery UI must use localized safe copy and must not expose raw
+  errors, stack traces, database keys, or Entity content.
+- Diagnostics may contain only database version, store name, error category,
+  and UTC timestamp.
+- List queries isolate malformed persisted rows and continue with valid rows;
+  every isolated row emits a content-free `corrupt-record` diagnostic.
+- Read-only recovery mode permits reads and disables all mutation controls.
+- Every recoverable unavailable state must expose Retry.
+
+
+---
+
+# Date Policy
+
+- Persisted `Instant` values are canonical UTC ISO timestamps.
+- `LocalDate` values are strict calendar-valid `YYYY-MM-DD` strings.
+- Calendar addition, subtraction, comparison, weekday, and difference must use
+  the shared pure LocalDate helpers. Do not parse LocalDate in the host timezone.
+- Every `Instant → LocalDate` conversion must pass an explicit IANA timezone.
+- Do not compare calendar dates with `instant.slice(0, 10)`.
+- Routine schedule and RoutineLog dates use the Routine's stored timezone.
+- DailyLog persists the End Day `finalizeTimezone`.
+- Morning Review yesterday uses the user's explicit timezone and LocalDate
+  arithmetic. End Day completion filtering uses its explicit timezone.
+- Date tests must cover UTC-12, UTC+14, DST, midnight boundaries, and differing
+  device/user/Routine timezones.
+
+
+---
+
 # Final Rule
 
 

@@ -1347,3 +1347,44 @@ version is added.
 
 This phase does not add multi-tab observation, cloud sync, Realtime, Sync
 Queue, or a new date policy.
+
+# Phase 2.1C Database Recovery and Date Policy
+
+Each `DailyWorkDatabase` owns an observable `DatabaseRuntimeState` with six
+states: `opening`, `ready`, `blocked`, `unavailable`, `recovery-required`, and
+`read-only`. Database bootstrap, Dexie `blocked`/`versionchange` events, and
+storage errors update this state before the Today UI decides what to render.
+Today never converts a rejected Query into an empty View Model: unavailable
+states render a localized recovery panel and Retry action. Quota exhaustion
+enters read-only recovery mode, where valid data remains visible but mutation
+controls are disabled.
+
+Diagnostics contain only `databaseVersion`, `storeName`, `errorCategory`, and
+UTC `timestamp`. They never include Entity values, user text, stack traces, or
+raw error messages. Repository list boundaries validate rows individually;
+malformed rows are excluded and recorded as `corrupt-record`, while valid rows
+from the same query continue into Domain aggregation. Direct Entity reads and
+writes still reject structurally invalid values.
+
+The Date Policy is defined by `src/domain/time.ts`:
+
+- `Instant` is a canonical UTC ISO timestamp.
+- `LocalDate` is a calendar-valid `YYYY-MM-DD` string. Addition, comparison,
+  weekday, and difference operations use UTC calendar components and never
+  parse a LocalDate in the host timezone.
+- `Instant → LocalDate` always requires an explicit IANA timezone.
+- Routine schedule membership and RoutineLog date use each Routine's stored
+  timezone. Travel or a different device timezone does not silently move the
+  Routine calendar day.
+- Morning Review derives the user's current LocalDate from its explicit
+  timezone and computes yesterday with pure LocalDate arithmetic.
+- End Day filters completion Instants using its explicit finalize timezone.
+
+Dexie Version 7 preserves Versions 1–6 and adds `DailyLog.finalizeTimezone`.
+New logs persist the End Day timezone. The v6 → v7 migration assigns `UTC` to
+legacy rows because their original timezone was never stored; this deterministic
+fallback avoids guessing from the upgrading device. No other store or index is
+changed.
+
+This phase does not add cloud recovery, Supabase, Sync Queue, Realtime,
+multi-tab observation, or cloud revisions.

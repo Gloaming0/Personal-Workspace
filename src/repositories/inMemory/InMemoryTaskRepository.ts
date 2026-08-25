@@ -1,4 +1,5 @@
 import type { Task } from '@/domain/entities'
+import { instantToLocalDate } from '@/domain/time'
 import type { EntityId, UserId } from '@/domain/shared'
 import type {
   RepositoryWriteOptions,
@@ -48,6 +49,9 @@ export class InMemoryTaskRepository
 
   async find(userId: UserId, query: TaskQuery): Promise<Task[]> {
     assertUserId(userId)
+    if (query.completedOn && !query.completedTimezone) {
+      throw new RangeError('completedTimezone is required with completedOn.')
+    }
     return [...this.tasks.values()]
       .filter((task) => task.userId === userId)
       .map(validateTask)
@@ -65,7 +69,11 @@ export class InMemoryTaskRepository
       .filter(
         (task) =>
           !query.completedOn ||
-          task.completedAt?.slice(0, 10) === query.completedOn,
+          (task.completedAt !== null &&
+            instantToLocalDate(
+              task.completedAt,
+              query.completedTimezone ?? 'UTC',
+            ) === query.completedOn),
       )
       .filter((task) => !query.focusDate || task.focusDate === query.focusDate)
       .filter((task) => !query.projectId || task.projectId === query.projectId)

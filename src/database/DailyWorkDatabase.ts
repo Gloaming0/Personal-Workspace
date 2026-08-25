@@ -8,9 +8,10 @@ import type {
   Task,
   Waiting,
 } from '@/domain/entities'
+import { DatabaseRuntimeState } from './runtimeState'
 
 export const dailyWorkDatabaseName = 'daily-work-os'
-export const currentDatabaseVersion = 6
+export const currentDatabaseVersion = 7
 
 export const taskStoreSchema =
   'id, userId, status, priority, plannedDate, dueAt, projectId, focusDate, completedAt, deletedAt, updatedAt, [userId+plannedDate], [userId+focusDate], [userId+status]'
@@ -57,6 +58,8 @@ const version6Stores = {
   daily_logs: dailyLogStoreSchema,
 }
 
+const version7Stores = version6Stores
+
 export class DailyWorkDatabase extends Dexie {
   tasks!: EntityTable<Task, 'id'>
   confirmations!: EntityTable<Waiting, 'id'>
@@ -65,6 +68,7 @@ export class DailyWorkDatabase extends Dexie {
   routine_logs!: EntityTable<RoutineLog, 'id'>
   activities!: EntityTable<Activity, 'id'>
   daily_logs!: EntityTable<DailyLog, 'id'>
+  readonly runtime = new DatabaseRuntimeState(currentDatabaseVersion)
 
   constructor(name = dailyWorkDatabaseName) {
     super(name)
@@ -74,7 +78,23 @@ export class DailyWorkDatabase extends Dexie {
     this.version(3).stores(version3Stores)
     this.version(4).stores(version4Stores)
     this.version(5).stores(version5Stores)
-    this.version(currentDatabaseVersion).stores(version6Stores)
+    this.version(6).stores(version6Stores)
+    this.version(currentDatabaseVersion)
+      .stores(version7Stores)
+      .upgrade(async (transaction) => {
+        await transaction
+          .table<DailyLog>('daily_logs')
+          .toCollection()
+          .modify((log) => {
+            if (!log.finalizeTimezone) log.finalizeTimezone = 'UTC'
+          })
+      })
+
+    this.on('blocked', () => this.runtime.blocked())
+    this.on('versionchange', () => {
+      this.close()
+      this.runtime.versionChanged()
+    })
   }
 }
 
@@ -88,9 +108,12 @@ export class LocalDatabaseInitializationError extends Error {
 export async function initializeLocalDatabase(
   database: DailyWorkDatabase,
 ): Promise<void> {
+  database.runtime.opening()
   try {
     await database.open()
+    database.runtime.ready()
   } catch (error) {
+    database.runtime.failure(error, { phase: 'open' })
     throw new LocalDatabaseInitializationError(error)
   }
 }

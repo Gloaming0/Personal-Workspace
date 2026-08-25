@@ -1176,6 +1176,25 @@ Mobile
 Never create desktop-only important functions.
 
 
+---
+
+# Local Database Recovery State
+
+Today distinguishes storage failure from Empty State at the page level.
+
+- `opening`: retain the existing loading skeletons.
+- `blocked`, `unavailable`, `recovery-required`: replace the data workspace
+  with a localized recovery panel and Retry button; do not render empty Widgets.
+- `read-only`: keep valid Today data visible, show a persistent recovery banner,
+  and hide or disable all mutation and End Day controls.
+- `ready`: render normal Loading/Success/Empty Widget states.
+
+Recovery copy must be calm and non-technical. Never show stack traces, browser
+storage terminology, raw migration errors, database keys, or user content.
+The panel and Retry action must remain keyboard accessible and fit Desktop,
+Tablet, and Mobile widths without horizontal overflow.
+
+
 
 ---
 

@@ -17,6 +17,7 @@ import {
   validateRoutine,
 } from '@/repositories/validation'
 import { executeDexieWrite } from './executeDexieWrite'
+import { validatePersistedRows } from './validatePersistedRows'
 
 const cloneRoutine = (routine: Routine) => structuredClone(routine)
 
@@ -47,9 +48,14 @@ export class DexieRoutineRepository implements RoutineRepository {
   ): Promise<Routine[]> {
     try {
       assertUserId(userId)
-      return (await this.table.toArray())
-        .filter((routine) => routine.userId === userId)
-        .map(validateRoutine)
+      return validatePersistedRows(
+        this.database,
+        'routines',
+        (await this.table.toArray()).filter(
+          (routine) => routine.userId === userId,
+        ),
+        validateRoutine,
+      )
         .filter(
           (routine) =>
             routine.deletedAt === null && statuses.includes(routine.status),

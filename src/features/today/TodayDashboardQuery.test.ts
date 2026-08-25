@@ -16,6 +16,50 @@ import { MockTodayProjectNameResolver } from './MockTodayProjectNameResolver'
 import { InMemoryUnitOfWork } from '@/unitOfWork/inMemory/InMemoryUnitOfWork'
 
 describe('TodayDashboardQuery aggregation', () => {
+  it('uses each Routine timezone instead of the user or device timezone', async () => {
+    const routines = new InMemoryRoutineRepository()
+    const routineLogs = new InMemoryRoutineLogRepository()
+    const service = new RoutineService(
+      routines,
+      routineLogs,
+      new InMemoryUnitOfWork({ routines, routineLogs }),
+      {
+        createId: () => 'kiritimati-routine',
+        now: () => '2026-08-24T10:30:00.000Z',
+      },
+    )
+    await service.create({
+      userId: 'user-1',
+      title: 'Kiritimati Tuesday',
+      schedule: { frequency: 'weekly', daysOfWeek: [2] },
+      timezone: 'Pacific/Kiritimati',
+    })
+    const query = new DefaultTodayDashboardQuery({
+      tasks: new InMemoryTaskRepository(),
+      waiting: new InMemoryWaitingRepository(),
+      memos: new InMemoryMemoRepository(),
+      routines,
+      routineLogs,
+      activities: new InMemoryActivityRepository(),
+      projectNames: new MockTodayProjectNameResolver(),
+      assembler: new DefaultTodayDashboardViewModelAssembler(),
+    })
+
+    const result = await query.execute({
+      userId: 'user-1',
+      date: '2026-08-24',
+      timezone: 'America/Los_Angeles',
+      instant: '2026-08-24T10:30:00.000Z',
+      language: 'en',
+    })
+    expect(result.checkIns).toEqual([
+      expect.objectContaining({
+        title: 'Kiritimati Tuesday',
+        date: '2026-08-25',
+      }),
+    ])
+  })
+
   it('isolates every aggregate source by the requested user', async () => {
     const tasks = new InMemoryTaskRepository()
     const waiting = new InMemoryWaitingRepository()
@@ -262,6 +306,7 @@ describe('TodayDashboardQuery aggregation', () => {
       date: '2026-08-24',
       timezone: 'Asia/Shanghai',
       language: 'en',
+      instant: '2026-08-24T04:00:00.000Z',
     })
 
     expect(result.quickMemo).toMatchObject({

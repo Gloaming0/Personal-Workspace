@@ -4,6 +4,7 @@ import type { EntityId, Instant, LocalDate, UserId } from './shared'
 export interface FinalizeDailyLogInput {
   userId: UserId
   date: LocalDate
+  finalizeTimezone: string
   summary?: string
   snapshot: DailyLogSnapshot
 }
@@ -21,6 +22,7 @@ export function finalizeDailyLog(
     id: context.id,
     userId: input.userId,
     date: input.date,
+    finalizeTimezone: input.finalizeTimezone,
     summary: input.summary?.trim() ?? '',
     finalizedAt: context.now,
     snapshot: structuredClone(input.snapshot),

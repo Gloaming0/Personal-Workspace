@@ -140,6 +140,15 @@ describe('Morning Review', () => {
         'America/Los_Angeles',
       ),
     ).toBe('2026-08-24')
+    expect(
+      resolveMorningReviewDate('2026-01-01T10:30:00.000Z', 'Etc/GMT+12'),
+    ).toBe('2025-12-31')
+    expect(
+      resolveMorningReviewDate(
+        '2026-01-01T10:30:00.000Z',
+        'Pacific/Kiritimati',
+      ),
+    ).toBe('2026-01-02')
 
     const repository = new InMemoryTaskRepository([task('yesterday', 'todo')])
     const service = new MorningReviewService(

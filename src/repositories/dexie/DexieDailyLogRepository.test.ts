@@ -2,6 +2,7 @@ import Dexie, { type EntityTable } from 'dexie'
 import { afterEach, describe, expect, it } from 'vitest'
 import type {
   Activity,
+  DailyLog,
   Memo,
   Routine,
   RoutineLog,
@@ -13,6 +14,7 @@ import {
   activityStoreSchema,
   confirmationStoreSchema,
   DailyWorkDatabase,
+  dailyLogStoreSchema,
   memoStoreSchema,
   routineLogStoreSchema,
   routineStoreSchema,
@@ -41,6 +43,28 @@ class Version5Database extends Dexie {
       routines: routineStoreSchema,
       routine_logs: routineLogStoreSchema,
       activities: activityStoreSchema,
+    })
+  }
+}
+
+class Version6Database extends Dexie {
+  tasks!: EntityTable<Task, 'id'>
+  confirmations!: EntityTable<Waiting, 'id'>
+  memos!: EntityTable<Memo, 'id'>
+  routines!: EntityTable<Routine, 'id'>
+  routine_logs!: EntityTable<RoutineLog, 'id'>
+  activities!: EntityTable<Activity, 'id'>
+  daily_logs!: EntityTable<DailyLog, 'id'>
+  constructor(name: string) {
+    super(name)
+    this.version(6).stores({
+      tasks: taskStoreSchema,
+      confirmations: confirmationStoreSchema,
+      memos: memoStoreSchema,
+      routines: routineStoreSchema,
+      routine_logs: routineLogStoreSchema,
+      activities: activityStoreSchema,
+      daily_logs: dailyLogStoreSchema,
     })
   }
 }
@@ -75,6 +99,7 @@ describe('Dexie Daily Log persistence', () => {
       {
         userId: 'user-1',
         date: '2026-08-25',
+        finalizeTimezone: 'UTC',
         snapshot: {
           completedTasks: [],
           openTasks: [],
@@ -98,5 +123,40 @@ describe('Dexie Daily Log persistence', () => {
     await expect(
       repository.finalize('user-1', { ...log, id: 'log-2' }),
     ).rejects.toBeInstanceOf(DailyLogAlreadyFinalizedError)
+  })
+
+  it('migrates v6 DailyLog records with deterministic finalizeTimezone', async () => {
+    name = `daily-log-v7-${++sequence}`
+    const v6 = new Version6Database(name)
+    connections.push(v6)
+    await v6.open()
+    const legacy = finalizeDailyLog(
+      {
+        userId: 'user-1',
+        date: '2026-08-25',
+        finalizeTimezone: 'UTC',
+        snapshot: {
+          completedTasks: [],
+          openTasks: [],
+          waiting: [],
+          memos: [],
+          routines: [],
+        },
+      },
+      { id: 'legacy-log', now: '2026-08-25T16:00:00.000Z' },
+    )
+    const rawLegacy = { ...legacy } as Partial<DailyLog>
+    delete rawLegacy.finalizeTimezone
+    await v6.daily_logs.add(rawLegacy as DailyLog)
+    v6.close()
+
+    const v7 = new DailyWorkDatabase(name)
+    connections.push(v7)
+    await v7.open()
+    await expect(v7.daily_logs.get('legacy-log')).resolves.toMatchObject({
+      id: 'legacy-log',
+      finalizeTimezone: 'UTC',
+      summary: '',
+    })
   })
 })

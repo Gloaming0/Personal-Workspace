@@ -1,4 +1,5 @@
 import type { Task } from '@/domain/entities'
+import { instantToLocalDate } from '@/domain/time'
 import type { EntityId, UserId } from '@/domain/shared'
 import type {
   RepositoryWriteOptions,
@@ -18,6 +19,7 @@ import {
   validateTask,
 } from '@/repositories/validation'
 import { executeDexieWrite } from './executeDexieWrite'
+import { validatePersistedRows } from './validatePersistedRows'
 
 function cloneTask(task: Task): Task {
   return structuredClone(task)
@@ -32,7 +34,11 @@ function matchesQuery(task: Task, query: TaskQuery): boolean {
       (task.plannedDate !== null &&
         task.plannedDate <= query.plannedOnOrBefore)) &&
     (!query.completedOn ||
-      task.completedAt?.slice(0, 10) === query.completedOn) &&
+      (task.completedAt !== null &&
+        instantToLocalDate(
+          task.completedAt,
+          query.completedTimezone ?? 'UTC',
+        ) === query.completedOn)) &&
     (!query.focusDate || task.focusDate === query.focusDate) &&
     (!query.projectId || task.projectId === query.projectId)
   )
@@ -62,10 +68,16 @@ export class DexieTaskRepository implements TaskRepository {
   async find(userId: UserId, query: TaskQuery): Promise<Task[]> {
     try {
       assertUserId(userId)
+      if (query.completedOn && !query.completedTimezone) {
+        throw new RangeError('completedTimezone is required with completedOn.')
+      }
       const tasks = await this.table.toArray()
-      return tasks
-        .filter((task) => task.userId === userId)
-        .map(validateTask)
+      return validatePersistedRows(
+        this.database,
+        'tasks',
+        tasks.filter((task) => task.userId === userId),
+        validateTask,
+      )
         .filter((task) => matchesQuery(task, query))
         .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
         .map(cloneTask)

@@ -18,6 +18,7 @@ import {
   validateRoutineLog,
 } from '@/repositories/validation'
 import { executeDexieWrite } from './executeDexieWrite'
+import { validatePersistedRows } from './validatePersistedRows'
 
 const cloneLog = (log: RoutineLog) => structuredClone(log)
 
@@ -31,9 +32,14 @@ export class DexieRoutineLogRepository implements RoutineLogRepository {
   async findForDate(userId: UserId, date: LocalDate): Promise<RoutineLog[]> {
     try {
       assertUserId(userId)
-      return (await this.table.where('date').equals(date).toArray())
-        .filter((log) => log.userId === userId)
-        .map(validateRoutineLog)
+      return validatePersistedRows(
+        this.database,
+        'routine_logs',
+        (await this.table.where('date').equals(date).toArray()).filter(
+          (log) => log.userId === userId,
+        ),
+        validateRoutineLog,
+      )
         .filter((log) => log.deletedAt === null)
         .map(cloneLog)
     } catch (error) {
@@ -54,10 +60,12 @@ export class DexieRoutineLogRepository implements RoutineLogRepository {
         .where('[routineId+date]')
         .equals([routineId, date])
         .toArray()
-      const log = logs
-        .filter((record) => record.userId === userId)
-        .map(validateRoutineLog)
-        .find((record) => record.deletedAt === null)
+      const log = validatePersistedRows(
+        this.database,
+        'routine_logs',
+        logs.filter((record) => record.userId === userId),
+        validateRoutineLog,
+      ).find((record) => record.deletedAt === null)
       return log ? cloneLog(log) : null
     } catch (error) {
       throw new RoutinePersistenceError('Routine log could not be read.', {

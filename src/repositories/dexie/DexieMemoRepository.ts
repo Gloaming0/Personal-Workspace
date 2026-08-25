@@ -19,6 +19,7 @@ import {
   validateMemo,
 } from '@/repositories/validation'
 import { executeDexieWrite } from './executeDexieWrite'
+import { validatePersistedRows } from './validatePersistedRows'
 
 const cloneMemo = (memo: Memo) => structuredClone(memo)
 
@@ -57,9 +58,12 @@ export class DexieMemoRepository implements MemoRepository {
   async find(userId: UserId, query: MemoQuery): Promise<Memo[]> {
     try {
       assertUserId(userId)
-      const memos = (await this.table.toArray())
-        .filter((memo) => memo.userId === userId)
-        .map(validateMemo)
+      const memos = validatePersistedRows(
+        this.database,
+        'memos',
+        (await this.table.toArray()).filter((memo) => memo.userId === userId),
+        validateMemo,
+      )
         .filter((memo) => matches(memo, query))
         .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
       return memos.slice(0, query.limit ?? memos.length).map(cloneMemo)

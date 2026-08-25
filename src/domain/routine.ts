@@ -1,6 +1,7 @@
 import type { Routine, RoutineSchedule, RoutineStatus } from './entities'
 import type { EntityId, Instant, LocalDate, UserId } from './shared'
 import { routineTransitions } from './transitions'
+import { localDateDayOfWeek } from './time'
 
 export class RoutineRuleError extends Error {
   constructor(
@@ -74,7 +75,7 @@ export function isRoutineScheduledOn(
   schedule: RoutineSchedule,
   date: LocalDate,
 ): boolean {
-  const dayOfWeek = new Date(`${date}T12:00:00.000Z`).getUTCDay()
+  const dayOfWeek = localDateDayOfWeek(date)
   switch (schedule.frequency) {
     case 'daily':
       return true

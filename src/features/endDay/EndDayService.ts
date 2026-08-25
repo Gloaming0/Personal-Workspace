@@ -1,7 +1,7 @@
-import { addDays, format, parseISO } from 'date-fns'
 import { finalizeDailyLog } from '@/domain/dailyLog'
 import type { DailyLog, DailyLogTaskSnapshot, Task } from '@/domain/entities'
 import type { Instant } from '@/domain/shared'
+import { addLocalDateDays } from '@/domain/time'
 import type { DailyLogRepository } from '@/repositories/contracts'
 import { DailyLogAlreadyFinalizedError } from '@/repositories/errors'
 import type { TaskService } from '@/features/tasks/TaskService'
@@ -40,8 +40,9 @@ export class EndDayService {
   ) {}
 
   async preview(input: Parameters<EndDayQuery['execute']>[0]) {
+    const instant = this.context.now()
     const [overview, finalizedLog] = await Promise.all([
-      this.query.execute(input),
+      this.query.execute(input, undefined, instant),
       this.logs.findByDate(input.userId, input.date),
     ])
     return { ...overview, finalizedLog }
@@ -73,13 +74,14 @@ export class EndDayService {
         if (existing.id === input.commandId) return existing
         throw new DailyLogAlreadyFinalizedError(input.userId, input.date)
       }
-      const overview = await this.query.execute(input, transaction)
+      const finalizedAt = this.context.now()
+      const overview = await this.query.execute(input, transaction, finalizedAt)
       if (overview.openTasks.some((task) => !input.taskActions[task.id])) {
         throw new EndDayIncompleteDecisionsError()
       }
 
       const openTasks: Task[] = []
-      const tomorrow = format(addDays(parseISO(input.date), 1), 'yyyy-MM-dd')
+      const tomorrow = addLocalDateDays(input.date, 1)
       for (const task of overview.openTasks) {
         const action = input.taskActions[task.id] as UnfinishedTaskAction
         if (action === 'delete') {
@@ -127,6 +129,7 @@ export class EndDayService {
         {
           userId: input.userId,
           date: input.date,
+          finalizeTimezone: input.timezone,
           summary: input.summary,
           snapshot: {
             completedTasks: overview.completedTasks.map((task) =>
@@ -156,7 +159,7 @@ export class EndDayService {
             })),
           },
         },
-        { id: input.commandId, now: this.context.now() },
+        { id: input.commandId, now: finalizedAt },
       )
       await logs.finalize(input.userId, log)
       if (this.activities)

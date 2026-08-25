@@ -26,7 +26,11 @@ interface DailyCheckInWidgetProps {
   status?: TodayWidgetStatus
   actionError?: string | null
   onCreate?: (values: RoutineFormValues) => Promise<unknown>
-  onToggle?: (routineId: string, completed: boolean) => Promise<unknown>
+  onToggle?: (
+    routineId: string,
+    completed: boolean,
+    date: string,
+  ) => Promise<unknown>
   onPause?: (routineId: string) => Promise<unknown>
   onArchive?: (routineId: string) => Promise<unknown>
 }
@@ -135,7 +139,9 @@ export function DailyCheckInWidget({
                 aria-label={item.title}
                 type="checkbox"
                 checked={item.completed}
-                onChange={() => onToggle?.(item.routineId, item.completed)}
+                onChange={() =>
+                  onToggle?.(item.routineId, item.completed, item.date)
+                }
                 disabled={!onToggle}
               />
               <span>{item.title}</span>

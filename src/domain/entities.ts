@@ -114,6 +114,7 @@ export interface DailyLogSnapshot {
 
 export interface DailyLog extends SyncEntity {
   date: LocalDate
+  finalizeTimezone: string
   summary: string
   finalizedAt: Instant
   snapshot: DailyLogSnapshot
