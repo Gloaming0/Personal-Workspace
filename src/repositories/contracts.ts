@@ -13,7 +13,12 @@ import type {
   Waiting,
   WaitingStatus,
 } from '@/domain/entities'
-import type { ActivityEntityType, EntityId, LocalDate } from '@/domain/shared'
+import type {
+  ActivityEntityType,
+  EntityId,
+  LocalDate,
+  UserId,
+} from '@/domain/shared'
 
 export interface RepositoryWriteOptions {
   expectedVersion?: number
@@ -83,8 +88,8 @@ export interface ProjectRepository {
 }
 
 export interface DailyLogRepository {
-  findByDate(date: LocalDate): Promise<DailyLog | null>
-  save(log: DailyLog, options?: RepositoryWriteOptions): Promise<void>
+  findByDate(userId: UserId, date: LocalDate): Promise<DailyLog | null>
+  finalize(log: DailyLog): Promise<void>
 }
 
 export interface ActivityQuery {

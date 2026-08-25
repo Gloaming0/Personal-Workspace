@@ -614,6 +614,171 @@ button {
   font-size: var(--font-size-sm);
 }
 
+.today-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.today-header-actions > button,
+.end-day-flow footer > button:not(.secondary-button) {
+  min-height: var(--control-height);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.end-day-backdrop {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  padding: var(--space-6);
+  background: color-mix(in srgb, var(--bg-primary) 58%, transparent);
+  place-items: center;
+}
+
+.end-day-flow {
+  display: grid;
+  width: min(42rem, 100%);
+  max-height: min(46rem, calc(100dvh - var(--space-12)));
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.end-day-flow > header,
+.end-day-flow > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+}
+
+.end-day-flow > header {
+  border-bottom: 1px solid var(--border);
+}
+
+.end-day-flow h2,
+.end-day-flow h3,
+.end-day-flow p {
+  margin: 0;
+}
+
+.end-day-content {
+  display: grid;
+  min-height: 18rem;
+  align-content: start;
+  gap: var(--space-5);
+  padding: var(--space-6);
+}
+
+.end-day-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.end-day-stats div {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+
+.end-day-stats dt,
+.end-day-content label {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 650;
+}
+
+.end-day-stats dd {
+  order: -1;
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: 650;
+}
+
+.end-day-task-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.end-day-task-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.end-day-task-list select,
+.end-day-content textarea {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.end-day-task-list select {
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+}
+
+.end-day-content textarea {
+  min-height: 11rem;
+  padding: var(--space-4);
+  resize: vertical;
+}
+
+.end-day-flow > footer {
+  border-top: 1px solid var(--border);
+}
+
+.end-day-flow button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+@media (max-width: 767px) {
+  .end-day-backdrop {
+    padding: 0;
+  }
+
+  .end-day-flow {
+    width: 100%;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .today-header-actions {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .today-header-actions > button {
+    align-self: flex-start;
+  }
+}
+
 .today-summary {
   display: flex;
   gap: var(--space-6);

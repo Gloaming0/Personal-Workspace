@@ -27,7 +27,7 @@ describe('Daily Work OS application shell', () => {
     })
   })
 
-  it('renders Today as the default workspace with only the Task slice active', () => {
+  it('renders Today as the default workspace with End Day available', () => {
     renderApplication()
 
     expect(
@@ -35,7 +35,8 @@ describe('Daily Work OS application shell', () => {
         name: 'Today',
       }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Phase 1.7')).toBeInTheDocument()
+    expect(screen.getByText('Phase 1.8')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'End day' })).toBeInTheDocument()
     expect(
       screen.getByRole('region', { name: 'Today focus' }),
     ).toBeInTheDocument()

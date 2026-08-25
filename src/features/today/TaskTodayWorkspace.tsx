@@ -55,6 +55,8 @@ type TodayWorkspaceValue = Required<
     | 'waitingActionError'
     | 'memoActionError'
     | 'routineActionError'
+    | 'onLoadEndDay'
+    | 'onFinalizeEndDay'
   >
 
 const TodayWorkspaceContext = createContext<TodayWorkspaceValue | null>(null)
@@ -279,6 +281,35 @@ export function TodayWorkspaceProvider({
       runRoutineCommand(() => taskRuntime.routineService.pause(routineId)),
     onArchiveRoutine: (routineId) =>
       runRoutineCommand(() => taskRuntime.routineService.archive(routineId)),
+    ...(taskRuntime.endDayService
+      ? {
+          onLoadEndDay: async () => {
+            await taskRuntime.ready
+            return taskRuntime.endDayService!.preview({
+              userId: localUserId,
+              date,
+              timezone,
+            })
+          },
+          onFinalizeEndDay: async (
+            summary: string,
+            taskActions: Record<
+              string,
+              'tomorrow' | 'later' | 'keep' | 'delete'
+            >,
+          ) => {
+            await taskRuntime.ready
+            await taskRuntime.endDayService!.finalize({
+              userId: localUserId,
+              date,
+              timezone,
+              summary,
+              taskActions,
+            })
+            await refresh()
+          },
+        }
+      : {}),
   }
 
   return (

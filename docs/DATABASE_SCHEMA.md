@@ -652,9 +652,24 @@ deletedAt
 version
 
 Snapshot contains immutable end-of-day copies of completed tasks, open tasks,
-Waiting items, Memos, and completed Routines, including the labels and context
+Waiting items, Memos, and all scheduled Routine results, including the labels and context
 needed to render history without joining mutable entities. Historical rendering
 must use this snapshot rather than mutable live entities.
+
+Phase 1.8 local implementation adds `database.version(6)` and the
+`daily_logs` store with:
+
+```text
+id, userId, date, finalizedAt, deletedAt,
+[userId+date], [userId+finalizedAt]
+```
+
+`[userId+date]` is checked inside the same Dexie transaction as insertion.
+The adapter exposes `finalize`, not a general-purpose update/save operation,
+and rejects a second effective Daily Log for the date. Snapshot JSON contains
+raw user-authored strings and entity identifiers plus the display context
+captured at finalization; it does not contain `LocalizedText` or references
+that must be joined later. Versions 1–5 remain declared unchanged.
 
 
 

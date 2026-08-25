@@ -100,7 +100,8 @@ export interface DailyLogMemoSnapshot {
 export interface DailyLogRoutineSnapshot {
   entityId: EntityId
   title: string
-  completedAt: Instant
+  completed: boolean
+  completedAt: Instant | null
 }
 
 export interface DailyLogSnapshot {
@@ -108,7 +109,7 @@ export interface DailyLogSnapshot {
   openTasks: DailyLogTaskSnapshot[]
   waiting: DailyLogWaitingSnapshot[]
   memos: DailyLogMemoSnapshot[]
-  completedRoutines: DailyLogRoutineSnapshot[]
+  routines: DailyLogRoutineSnapshot[]
 }
 
 export interface DailyLog extends SyncEntity {

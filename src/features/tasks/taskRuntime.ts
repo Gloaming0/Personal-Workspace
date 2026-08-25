@@ -9,6 +9,7 @@ import type {
   RoutineLogRepository,
   RoutineRepository,
   WaitingRepository,
+  DailyLogRepository,
 } from '@/repositories/contracts'
 import { DexieTaskRepository } from '@/repositories/dexie/DexieTaskRepository'
 import { DexieWaitingRepository } from '@/repositories/dexie/DexieWaitingRepository'
@@ -22,6 +23,10 @@ import { MemoService } from '@/features/memos/MemoService'
 import { RoutineService } from '@/features/routines/RoutineService'
 import { DexieActivityRepository } from '@/repositories/dexie/DexieActivityRepository'
 import { ActivityService } from '@/features/activity/ActivityService'
+import { DexieDailyLogRepository } from '@/repositories/dexie/DexieDailyLogRepository'
+import { EndDayQuery } from '@/features/endDay/EndDayQuery'
+import { EndDayService } from '@/features/endDay/EndDayService'
+import { MockTodayProjectNameResolver } from '@/features/today/MockTodayProjectNameResolver'
 
 export const localUserId = 'local-user'
 
@@ -37,6 +42,8 @@ export interface TaskRuntime {
   routineService: RoutineService
   activityRepository: ActivityRepository
   activityService: ActivityService
+  dailyLogRepository?: DailyLogRepository
+  endDayService?: EndDayService
   ready: Promise<void>
 }
 
@@ -50,9 +57,19 @@ export function createTaskRuntime(
   const routineLogRepository = new DexieRoutineLogRepository(database)
   const activityRepository = new DexieActivityRepository(database)
   const activityService = new ActivityService(activityRepository)
+  const dailyLogRepository = new DexieDailyLogRepository(database)
+  const endDayQuery = new EndDayQuery({
+    tasks: repository,
+    waiting: waitingRepository,
+    memos: memoRepository,
+    routines: routineRepository,
+    routineLogs: routineLogRepository,
+    projectNames: new MockTodayProjectNameResolver(),
+  })
+  const taskService = new TaskService(repository, {}, activityService)
   return {
     repository,
-    service: new TaskService(repository, {}, activityService),
+    service: taskService,
     waitingRepository,
     waitingService: new WaitingService(waitingRepository, {}, activityService),
     memoRepository,
@@ -67,6 +84,13 @@ export function createTaskRuntime(
     ),
     activityRepository,
     activityService,
+    dailyLogRepository,
+    endDayService: new EndDayService(
+      endDayQuery,
+      taskService,
+      dailyLogRepository,
+      activityService,
+    ),
     ready: initializeLocalDatabase(database).catch((error: unknown) => {
       throw new TaskPersistenceError('Task storage could not be initialized.', {
         cause: error,

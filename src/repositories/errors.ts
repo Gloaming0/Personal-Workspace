@@ -55,3 +55,17 @@ export class ActivityPersistenceError extends Error {
     this.name = 'ActivityPersistenceError'
   }
 }
+
+export class DailyLogAlreadyFinalizedError extends Error {
+  constructor(userId: string, date: LocalDate) {
+    super(`A Daily Log for ${userId} on ${date} is already finalized.`)
+    this.name = 'DailyLogAlreadyFinalizedError'
+  }
+}
+
+export class DailyLogPersistenceError extends Error {
+  constructor(message: string, options: { cause?: unknown } = {}) {
+    super(message, options)
+    this.name = 'DailyLogPersistenceError'
+  }
+}

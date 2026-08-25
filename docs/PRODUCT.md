@@ -332,6 +332,12 @@ A Daily Log records:
 End Day finalization stores an immutable snapshot of the day's relevant work.
 Later edits or deletion of live Tasks, Waiting items, or Memos must not rewrite
 the user's historical Daily Log.
+
+End Day is a four-step close-out: review today's work, resolve every unfinished
+Task as Tomorrow/Later/Keep/Delete, add an optional raw-text summary, and
+finalize. Task decisions finish before the Daily Log is written. A user can
+finalize a date only once; reopening or replacing a finalized day requires a
+future explicit flow and is not available in Phase 1.8.
 - Important notes
 - Personal summary
 

@@ -109,3 +109,31 @@ export function removeTaskFocus(task: Task, now: Instant): Task {
   if (task.focusDate === null && task.focusOrder === null) return task
   return changed(task, now, { focusDate: null, focusOrder: null })
 }
+
+export function moveTaskToTomorrow(
+  task: Task,
+  date: LocalDate,
+  now: Instant,
+): Task {
+  if (task.status !== 'todo' && task.status !== 'doing') {
+    throw new TaskRuleError('invalid_transition')
+  }
+  return changed(task, now, {
+    plannedDate: date,
+    focusDate: null,
+    focusOrder: null,
+  })
+}
+
+export function moveTaskToLater(task: Task, now: Instant): Task {
+  return transitionTask(task, 'later', now)
+}
+
+export function softDeleteTask(task: Task, now: Instant): Task {
+  if (task.deletedAt !== null) return task
+  return changed(task, now, {
+    deletedAt: now,
+    focusDate: null,
+    focusOrder: null,
+  })
+}

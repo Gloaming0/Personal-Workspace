@@ -767,6 +767,26 @@ Save:
 
 Create Daily Log.
 
+## Phase 1.8 Interaction Contract
+
+The Today header exposes the End Day entry without changing the App Shell.
+Desktop presents the four steps in a centered workspace dialog. Mobile uses
+the same information order and View Model in a full-height sheet. Step 1 shows
+Completed Tasks, Still Open Tasks, Waiting, Check-in completion, and Notes.
+Step 2 requires an explicit Tomorrow/Later/Keep/Delete value for every open
+Task (Keep is the initial safe selection). Step 3 accepts an optional summary;
+Step 4 is the explicit irreversible confirmation.
+
+The flow has Loading and Error states, translated labels, visible focus styles,
+native keyboard controls, Back/Next navigation, and Escape-to-close. Finalize
+is disabled while saving. On failure the dialog remains open and explains that
+no Daily Log was finalized. Theme styling uses existing semantic Design Tokens
+only; no theme-specific colors are embedded in the feature.
+
+When a Daily Log already exists, the same entry becomes a minimal read-only
+snapshot view showing its counts, summary, and finalization time. It does not
+offer edit, reopen, or replacement controls.
+
 
 
 ---

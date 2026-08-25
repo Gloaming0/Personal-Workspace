@@ -2,8 +2,11 @@ import {
   completeTask,
   createTask,
   removeTaskFocus,
+  moveTaskToLater,
+  moveTaskToTomorrow,
   reopenTask,
   setTaskFocus,
+  softDeleteTask,
   type CreateTaskInput,
 } from '@/domain/task'
 import type { Task } from '@/domain/entities'
@@ -97,6 +100,20 @@ export class TaskService {
     await this.tasks.save(updated, { expectedVersion: task.version })
     await this.record(updated, 'task_focus_removed')
     return updated
+  }
+
+  moveToTomorrow(id: EntityId, date: LocalDate): Promise<Task> {
+    return this.change(id, (entity) =>
+      moveTaskToTomorrow(entity, date, this.now()),
+    )
+  }
+
+  moveToLater(id: EntityId): Promise<Task> {
+    return this.change(id, (entity) => moveTaskToLater(entity, this.now()))
+  }
+
+  delete(id: EntityId): Promise<Task> {
+    return this.change(id, (entity) => softDeleteTask(entity, this.now()))
   }
 
   private async change(

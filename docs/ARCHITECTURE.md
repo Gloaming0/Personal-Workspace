@@ -1214,3 +1214,45 @@ Routine, and RoutineLog data.
 Activity persistence completes the local real-data path for Today. DailyLog,
 End Day, Supabase, realtime, sync queues, and cloud synchronization remain
 outside this phase.
+
+---
+
+# Phase 1.8 End Day and Daily Log
+
+End Day adds a separate close-out query and orchestration boundary without
+changing `TodayDashboardQuery` or Widget data access:
+
+```text
+EndDayFlow
+    ↓ preview / finalize command
+EndDayService ──→ TaskService (Tomorrow / Later / Delete)
+    ↓                         ↓
+EndDayQuery             TaskRepository
+    ↓
+Task / Waiting / Memo / Routine / RoutineLog repository ports
+    ↓ snapshot assembler after successful Task commands
+DailyLogRepository.finalize
+    ↓
+DexieDailyLogRepository (database.version(6))
+```
+
+`EndDayQuery` collects live data only while preparing finalization. The Service
+copies raw titles/content, statuses, people, dates, Project display names, and
+scheduled Routine completion results into `DailyLogSnapshot`. Historical
+consumers read this snapshot directly and never reassemble it from mutable
+entities.
+
+The `DailyLogRepository` port intentionally exposes only `findByDate` and
+`finalize`. Both in-memory and Dexie adapters clone values at the boundary and
+reject a second finalized log for `[userId+date]`; no reopen/update contract is
+present. End Day preflights that uniqueness before Task commands, runs every
+Tomorrow/Later/Delete mutation through `TaskService`, and writes the log only
+after those commands succeed. A failure can leave already successful Task
+commands visible, but it cannot create a partial Daily Log; cross-repository
+rollback is deferred until a future Unit of Work is justified.
+
+After finalization the Service records `daily_log_finalized` through
+`ActivityService`. Activity is secondary to the authoritative immutable log,
+so an Activity write failure does not misreport the completed finalization.
+Supabase, realtime, sync queues, Morning Review, and log replacement remain
+outside Phase 1.8.

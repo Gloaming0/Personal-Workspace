@@ -17,6 +17,8 @@ import {
 import { createTodayDashboardMock } from './mockData'
 import type { TodayDashboardViewModel, TodayWidgetStatus } from './viewModel'
 import { useTranslations } from '@/features/settings/language/useTranslations'
+import { EndDayFlow } from '@/features/endDay/EndDayFlow'
+import type { EndDayOverview } from '@/features/endDay/contracts'
 
 export interface TodayDashboardProps {
   data?: TodayDashboardViewModel
@@ -45,6 +47,11 @@ export interface TodayDashboardProps {
   onToggleRoutine?: (routineId: string, completed: boolean) => Promise<unknown>
   onPauseRoutine?: (routineId: string) => Promise<unknown>
   onArchiveRoutine?: (routineId: string) => Promise<unknown>
+  onLoadEndDay?: () => Promise<EndDayOverview>
+  onFinalizeEndDay?: (
+    summary: string,
+    actions: Record<string, 'tomorrow' | 'later' | 'keep' | 'delete'>,
+  ) => Promise<unknown>
 }
 
 export function TodayDashboard({
@@ -68,9 +75,12 @@ export function TodayDashboard({
   onToggleRoutine,
   onPauseRoutine,
   onArchiveRoutine,
+  onLoadEndDay,
+  onFinalizeEndDay,
 }: TodayDashboardProps) {
   const { language, t } = useTranslations()
   const [taskTitle, setTaskTitle] = useState('')
+  const [endDayOpen, setEndDayOpen] = useState(false)
   const viewModel = data ?? createTodayDashboardMock(language)
   const date = format(
     parseISO(viewModel.date),
@@ -92,23 +102,30 @@ export function TodayDashboard({
           <h1>{t('today.title')}</h1>
           <p>{t('today.greeting')}</p>
         </div>
-        <dl className="today-summary" aria-label={t('today.summary')}>
-          <div>
-            <dt>{t('today.tasksStat')}</dt>
-            <dd>{viewModel.summary.openTaskCount}</dd>
-          </div>
-          <div>
-            <dt>{t('today.waitingStat')}</dt>
-            <dd>{viewModel.summary.waitingCount}</dd>
-          </div>
-          <div>
-            <dt>{t('today.checkInsStat')}</dt>
-            <dd>
-              {viewModel.summary.completedCheckInCount}/
-              {viewModel.summary.totalCheckInCount}
-            </dd>
-          </div>
-        </dl>
+        <div className="today-header-actions">
+          {onLoadEndDay && onFinalizeEndDay && (
+            <button type="button" onClick={() => setEndDayOpen(true)}>
+              {t('endDay.open')}
+            </button>
+          )}
+          <dl className="today-summary" aria-label={t('today.summary')}>
+            <div>
+              <dt>{t('today.tasksStat')}</dt>
+              <dd>{viewModel.summary.openTaskCount}</dd>
+            </div>
+            <div>
+              <dt>{t('today.waitingStat')}</dt>
+              <dd>{viewModel.summary.waitingCount}</dd>
+            </div>
+            <div>
+              <dt>{t('today.checkInsStat')}</dt>
+              <dd>
+                {viewModel.summary.completedCheckInCount}/
+                {viewModel.summary.totalCheckInCount}
+              </dd>
+            </div>
+          </dl>
+        </div>
       </header>
 
       {onCreateTask && (
@@ -173,6 +190,13 @@ export function TodayDashboard({
           />
         </div>
       </div>
+      {endDayOpen && onLoadEndDay && onFinalizeEndDay && (
+        <EndDayFlow
+          onClose={() => setEndDayOpen(false)}
+          onLoad={onLoadEndDay}
+          onFinalize={onFinalizeEndDay}
+        />
+      )}
     </div>
   )
 }

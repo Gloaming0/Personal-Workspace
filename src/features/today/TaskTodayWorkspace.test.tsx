@@ -140,7 +140,7 @@ describe('Task Today UI boundary', () => {
       memoRepository,
       memoService: new MemoService(memoRepository, {
         createId: () => 'memo-user-input',
-        now: () => '2026-08-24T10:00:00.000Z',
+        now: () => '2026-08-25T10:00:00.000Z',
       }),
       routineRepository,
       routineLogRepository,
@@ -149,7 +149,7 @@ describe('Task Today UI boundary', () => {
         routineLogRepository,
         {
           createId: () => 'routine-user-input',
-          now: () => '2026-08-24T10:00:00.000Z',
+          now: () => '2026-08-25T10:00:00.000Z',
         },
       ),
       activityRepository,

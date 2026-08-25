@@ -988,6 +988,18 @@ Avoid:
 
 # Current Development Priority
 
+## Phase 1.8 — Complete
+
+End Day now closes the local daily workflow through a four-step responsive
+flow. Task carry-forward decisions use `TaskService`; Daily Logs are immutable
+snapshots persisted by additive Dexie Version 6; duplicate finalization is
+rejected; and the timeline receives `daily_log_finalized`. A minimal read
+contract (`findByDate`) exists for necessary future viewing without introducing
+a complex history dashboard.
+
+Phase 1.8 does not include Morning Review, Supabase, Realtime, Sync Queue, or an
+explicit reopen/replace workflow.
+
 
 Always prioritize:
 
