@@ -30,9 +30,10 @@ interface DailyCheckInWidgetProps {
     routineId: string,
     completed: boolean,
     date: string,
+    routineVersion: number,
   ) => Promise<unknown>
-  onPause?: (routineId: string) => Promise<unknown>
-  onArchive?: (routineId: string) => Promise<unknown>
+  onPause?: (routineId: string, routineVersion: number) => Promise<unknown>
+  onArchive?: (routineId: string, routineVersion: number) => Promise<unknown>
 }
 
 export function DailyCheckInWidget({
@@ -140,21 +141,31 @@ export function DailyCheckInWidget({
                 type="checkbox"
                 checked={item.completed}
                 onChange={() =>
-                  onToggle?.(item.routineId, item.completed, item.date)
+                  onToggle?.(
+                    item.routineId,
+                    item.completed,
+                    item.date,
+                    item.routineVersion,
+                  )
                 }
                 disabled={!onToggle}
               />
               <span>{item.title}</span>
               <div className="routine-actions">
                 {onPause && (
-                  <button type="button" onClick={() => onPause(item.routineId)}>
+                  <button
+                    type="button"
+                    onClick={() => onPause(item.routineId, item.routineVersion)}
+                  >
                     {t('today.routinePause')}
                   </button>
                 )}
                 {onArchive && (
                   <button
                     type="button"
-                    onClick={() => onArchive(item.routineId)}
+                    onClick={() =>
+                      onArchive(item.routineId, item.routineVersion)
+                    }
                   >
                     {t('today.routineArchive')}
                   </button>

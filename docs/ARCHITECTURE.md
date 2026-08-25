@@ -1007,9 +1007,10 @@ Focus is derived from eligible `todo` or `doing` Tasks. Completing a Task sets
 `todo` and clears `completedAt`. Moving to `later` or `archived` uses the same
 Domain normalization and cannot preserve Focus.
 
-The current maximum-three check is sufficient for one application command
-runtime. Multi-tab or synchronized writers will require a future atomic
-service/transaction boundary so concurrent commands cannot exceed the limit.
+At Phase 1.3 the maximum-three check was sufficient for one application
+command runtime. Phase 2.1B subsequently moved Focus allocation into an atomic
+Unit of Work, and Phase 2.1D verifies that invariant with separate Dexie
+connections.
 
 
 ---
@@ -1052,10 +1053,9 @@ Soft-deleted Task rows remain in IndexedDB for future recovery/sync semantics,
 but `getById` and every `find` query exclude `deletedAt != null`. No physical
 delete is exposed by the Task Repository port.
 
-The maximum-three Focus invariant still spans a query and a write at the
-service layer. It is correct for the current single-tab runtime; multi-tab
-coordination will need an atomic use-case boundary in a later persistence/sync
-phase without moving the rule into Widgets.
+This section describes the Phase 1.4 boundary. Phase 2.1B subsequently made the
+Focus query/write/Activity sequence atomic, and Phase 2.1D added local
+cross-tab invalidation without moving the rule into Widgets.
 
 Waiting, Memo, Routine, Activity, cloud sync, realtime, and sync queues remain
 outside this phase. The existing supporting Mock View Model source is
@@ -1388,3 +1388,39 @@ changed.
 
 This phase does not add cloud recovery, Supabase, Sync Queue, Realtime,
 multi-tab observation, or cloud revisions.
+
+# Phase 2.1D Multi-tab and Migration Hardening
+
+Each `DailyWorkDatabase` owns a `LocalChangeCoordinator`. Repository adapters
+report committed mutations as content-free invalidations containing only
+`store`, `entityId`, `entityVersion`, and a locally generated `revision`.
+`BroadcastChannel` transports those invalidations between tabs for Task,
+Waiting, Memo, Routine, RoutineLog, Activity, and DailyLog. A per-tab source id
+and seen-revision set prevent self-echo and rebroadcast loops.
+
+Transaction-scoped repositories collect invalidations during a Unit of Work;
+`DexieUnitOfWork` publishes them only after the IndexedDB transaction commits.
+A rollback therefore produces neither durable data nor a misleading broadcast.
+The application-level Today container subscribes to the coordinator, debounces
+bursts, and reruns `TodayDashboardQuery`. Widgets and UI components do not know
+about BroadcastChannel, Dexie, or repository types.
+
+Editable Today View Models carry the source entity version. UI commands pass
+that version to the Feature Service, which compares it after loading the
+current entity. A stale command raises `RepositoryVersionConflictError`; the
+container reloads the latest View Model and shows localized safe copy. Fields
+are never auto-merged or silently overwritten.
+
+Startup integrity checking validates all rows and then checks effective
+cross-row invariants: unique Focus slots with at most three entries per
+user/date, one non-deleted RoutineLog per user/routine/date, and one
+non-deleted DailyLog per user/date. Corrupt individual rows are isolated and
+diagnosed; invariant violations enter `recovery-required`. Neither path makes a
+destructive repair.
+
+The migration fixture suite opens realistic Version 1–6 databases and upgrades
+each directly to Version 7. Fixtures cover multiple records, Unicode, nulls,
+tombstones, Activity payloads, and immutable DailyLog snapshots. Upgrade
+failure, blocked upgrade recovery, and versionchange closure are tested. Phase
+2.1D changes no persisted field or index, so the current schema remains Version
+7 and no new Dexie version is declared.

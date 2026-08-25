@@ -9,6 +9,8 @@ import type {
   Waiting,
 } from '@/domain/entities'
 import { DatabaseRuntimeState } from './runtimeState'
+import { LocalChangeCoordinator } from './LocalChangeCoordinator'
+import { checkDatabaseIntegrity } from './checkDatabaseIntegrity'
 
 export const dailyWorkDatabaseName = 'daily-work-os'
 export const currentDatabaseVersion = 7
@@ -69,9 +71,11 @@ export class DailyWorkDatabase extends Dexie {
   activities!: EntityTable<Activity, 'id'>
   daily_logs!: EntityTable<DailyLog, 'id'>
   readonly runtime = new DatabaseRuntimeState(currentDatabaseVersion)
+  readonly changes: LocalChangeCoordinator
 
   constructor(name = dailyWorkDatabaseName) {
     super(name)
+    this.changes = new LocalChangeCoordinator(name)
 
     this.version(1).stores(version1Stores)
     this.version(2).stores(version2Stores)
@@ -111,7 +115,7 @@ export async function initializeLocalDatabase(
   database.runtime.opening()
   try {
     await database.open()
-    database.runtime.ready()
+    if (await checkDatabaseIntegrity(database)) database.runtime.ready()
   } catch (error) {
     database.runtime.failure(error, { phase: 'open' })
     throw new LocalDatabaseInitializationError(error)

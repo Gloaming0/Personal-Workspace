@@ -12,6 +12,7 @@ import {
 import type { Task } from '@/domain/entities'
 import type { EntityId, Instant, LocalDate, UserId } from '@/domain/shared'
 import type { TaskRepository } from '@/repositories/contracts'
+import { RepositoryVersionConflictError } from '@/repositories/errors'
 import { ActivityService } from '@/features/activity/ActivityService'
 import {
   executeAtomic,
@@ -67,6 +68,7 @@ export class TaskService {
     userId: UserId,
     id: EntityId,
     transaction?: UnitOfWorkTransaction,
+    expectedVersion?: number,
   ): Promise<Task> {
     return this.changeAndRecord(
       userId,
@@ -74,6 +76,7 @@ export class TaskService {
       (entity) => completeTask(entity, this.now()),
       'task_completed',
       transaction,
+      expectedVersion,
     )
   }
 
@@ -81,6 +84,7 @@ export class TaskService {
     userId: UserId,
     id: EntityId,
     transaction?: UnitOfWorkTransaction,
+    expectedVersion?: number,
   ): Promise<Task> {
     return this.changeAndRecord(
       userId,
@@ -88,6 +92,7 @@ export class TaskService {
       (entity) => reopenTask(entity, this.now()),
       'task_reopened',
       transaction,
+      expectedVersion,
     )
   }
 
@@ -96,10 +101,12 @@ export class TaskService {
     id: EntityId,
     date: LocalDate,
     transaction?: UnitOfWorkTransaction,
+    expectedVersion?: number,
   ): Promise<Task> {
     return this.atomic(async (activeTransaction) => {
       const tasks = activeTransaction.repository('tasks')
       const task = await this.requireTask(tasks, userId, id)
+      this.assertExpectedVersion(task, expectedVersion)
       if (task.focusDate === date && task.focusOrder !== null) return task
 
       const focusedTasks = await tasks.find(userId, {
@@ -127,10 +134,12 @@ export class TaskService {
     userId: UserId,
     id: EntityId,
     transaction?: UnitOfWorkTransaction,
+    expectedVersion?: number,
   ): Promise<Task> {
     return this.atomic(async (activeTransaction) => {
       const tasks = activeTransaction.repository('tasks')
       const task = await this.requireTask(tasks, userId, id)
+      this.assertExpectedVersion(task, expectedVersion)
       const updated = removeTaskFocus(task, this.now())
       if (updated === task) return task
       await tasks.save(userId, updated, { expectedVersion: task.version })
@@ -209,6 +218,7 @@ export class TaskService {
     update: (task: Task) => Task,
     eventType: 'task_completed' | 'task_reopened',
     transaction?: UnitOfWorkTransaction,
+    expectedVersion?: number,
   ): Promise<Task> {
     return this.atomic(async (activeTransaction) => {
       const task = await this.change(
@@ -216,6 +226,7 @@ export class TaskService {
         userId,
         id,
         update,
+        expectedVersion,
       )
       await this.record(task, eventType, activeTransaction)
       return task
@@ -237,12 +248,20 @@ export class TaskService {
     userId: UserId,
     id: EntityId,
     update: (task: Task) => Task,
+    expectedVersion?: number,
   ): Promise<Task> {
     const task = await this.requireTask(tasks, userId, id)
+    this.assertExpectedVersion(task, expectedVersion)
     const updated = update(task)
     if (updated === task) return task
     await tasks.save(userId, updated, { expectedVersion: task.version })
     return updated
+  }
+
+  private assertExpectedVersion(task: Task, expectedVersion?: number): void {
+    if (expectedVersion !== undefined && task.version !== expectedVersion) {
+      throw new RepositoryVersionConflictError(task.id, 'Task')
+    }
   }
 
   private async requireTask(

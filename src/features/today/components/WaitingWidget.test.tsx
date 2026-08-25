@@ -17,6 +17,7 @@ describe('Waiting Widget date input', () => {
         items={[
           {
             waitingId: 'waiting-1',
+            entityVersion: 3,
             title: 'Approval',
             person: 'Alex',
             notes: null,
@@ -39,6 +40,7 @@ describe('Waiting Widget date input', () => {
     expect(onEdit).toHaveBeenCalledWith(
       'waiting-1',
       expect.objectContaining({ followUpDate: '2026-08-26' }),
+      3,
     )
   })
 })

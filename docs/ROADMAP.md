@@ -219,7 +219,8 @@ Current implementation status:
 
 - Task, Waiting, Memo, Routine, and Activity use real local Domain/Repository
   data.
-- IndexedDB migrations are implemented through schema Version 6.
+- IndexedDB migrations are implemented and fixture-tested through schema
+  Version 7.
 - Recent Activity is append-only and localized from raw event payloads at the
   View Model boundary.
 - End Day persists immutable DailyLog snapshots, and Morning Review handles the
@@ -1015,6 +1016,24 @@ uses a lightweight device-local seen-date marker instead of a new Domain
 Entity. Date selection follows the active IANA timezone. Desktop/Tablet use a
 centered Dialog and Mobile uses a full-screen Sheet. Phase 1 closes without
 Supabase, Realtime, Sync Queue, or cloud synchronization.
+
+## Phase 2.1 — Local Data Reliability Complete
+
+- 2.1A: explicit user ownership, shared Repository contracts, validation, and
+  Activity tombstone semantics.
+- 2.1B: storage-neutral Unit of Work, atomic Entity/Activity writes, concurrent
+  Focus allocation, atomic/idempotent End Day finalization, and failure
+  injection.
+- 2.1C: observable database runtime/recovery states, corrupt-row isolation,
+  unified Instant/LocalDate/timezone policy, and schema Version 7
+  `DailyLog.finalizeTimezone` migration.
+- 2.1D: BroadcastChannel-based local invalidation, stale-version conflict
+  recovery, two-connection invariant tests, Version 1–6 fixture upgrades to
+  Version 7, migration failure/blocked recovery, and non-destructive startup
+  integrity checks.
+
+No Supabase, cloud Realtime, Sync Queue, backup/import, or new business feature
+is included. Phase 2.2 remains unstarted.
 
 
 Always prioritize:

@@ -19,6 +19,10 @@ import {
 } from '@/repositories/validation'
 import { executeDexieWrite } from './executeDexieWrite'
 import { validatePersistedRows } from './validatePersistedRows'
+import {
+  toPersistedChange,
+  type PersistedChangeListener,
+} from './changeNotification'
 
 const cloneLog = (log: RoutineLog) => structuredClone(log)
 
@@ -27,6 +31,8 @@ export class DexieRoutineLogRepository implements RoutineLogRepository {
     private readonly database: DailyWorkDatabase,
     private readonly table = database.routine_logs,
     private readonly transactionBound = false,
+    private readonly onChange: PersistedChangeListener = (change) =>
+      database.changes.publish(change),
   ) {}
 
   async findForDate(userId: UserId, date: LocalDate): Promise<RoutineLog[]> {
@@ -112,6 +118,7 @@ export class DexieRoutineLogRepository implements RoutineLogRepository {
       await (this.transactionBound
         ? write()
         : executeDexieWrite(this.database, this.table, write))
+      this.onChange(toPersistedChange('routine_logs', log))
     } catch (error) {
       if (
         error instanceof RepositoryVersionConflictError ||

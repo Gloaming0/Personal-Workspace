@@ -32,6 +32,7 @@ import { MorningReviewService } from '@/features/morningReview/MorningReviewServ
 import { LocalMorningReviewSeenStore } from '@/features/morningReview/LocalMorningReviewSeenStore'
 import { DexieUnitOfWork } from '@/unitOfWork/dexie/DexieUnitOfWork'
 import type { DatabaseRuntimeState } from '@/database/runtimeState'
+import type { LocalChangeCoordinator } from '@/database/LocalChangeCoordinator'
 
 export const localUserId = 'local-user'
 
@@ -51,6 +52,7 @@ export interface TaskRuntime {
   endDayService?: EndDayService
   morningReviewService?: MorningReviewService
   databaseRuntime?: DatabaseRuntimeState
+  localChanges?: LocalChangeCoordinator
   retryDatabase?: () => Promise<void>
   ready: Promise<void>
 }
@@ -124,6 +126,7 @@ export function createTaskRuntime(
     ),
     morningReviewService,
     databaseRuntime: database.runtime,
+    localChanges: database.changes,
     retryDatabase: () => initializeLocalDatabase(database),
     ready: initializeLocalDatabase(database).catch((error: unknown) => {
       throw new TaskPersistenceError('Task storage could not be initialized.', {

@@ -14,6 +14,7 @@ export type DatabaseErrorCategory =
   | 'quota-exceeded'
   | 'transaction-abort'
   | 'corrupt-record'
+  | 'integrity-violation'
   | 'unknown'
 
 export interface DatabaseDiagnostic {
@@ -133,6 +134,15 @@ export class DatabaseRuntimeState {
 
   corruptRecord(storeName: string): void {
     this.record('corrupt-record', storeName)
+  }
+
+  integrityViolation(storeName: string): void {
+    this.record('integrity-violation', storeName)
+    this.set({
+      status: 'recovery-required',
+      errorCategory: 'integrity-violation',
+      canRetry: true,
+    })
   }
 
   enterReadOnly(): void {

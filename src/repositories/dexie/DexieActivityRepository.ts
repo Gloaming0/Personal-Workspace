@@ -17,6 +17,10 @@ import {
   validateActivity,
 } from '@/repositories/validation'
 import { validatePersistedRows } from './validatePersistedRows'
+import {
+  toPersistedChange,
+  type PersistedChangeListener,
+} from './changeNotification'
 
 const cloneActivity = (activity: Activity) => structuredClone(activity)
 
@@ -24,6 +28,8 @@ export class DexieActivityRepository implements ActivityRepository {
   constructor(
     private readonly database: DailyWorkDatabase,
     private readonly table = database.activities,
+    private readonly onChange: PersistedChangeListener = (change) =>
+      database.changes.publish(change),
   ) {}
 
   async find(userId: UserId, query: ActivityQuery): Promise<Activity[]> {
@@ -66,6 +72,7 @@ export class DexieActivityRepository implements ActivityRepository {
       validateActivity(activity)
       assertRepositoryOwner(userId, activity)
       await this.table.add(cloneActivity(activity))
+      this.onChange(toPersistedChange('activities', activity))
     } catch (error) {
       if ((error as { name?: string }).name === 'ConstraintError') {
         throw new ActivityAppendConflictError(activity.id)

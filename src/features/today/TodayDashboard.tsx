@@ -26,23 +26,41 @@ export interface TodayDashboardProps {
   status?: TodayWidgetStatus
   actionError?: string | null
   onCreateTask?: (title: string) => Promise<unknown>
-  onToggleTask?: (taskId: string, completed: boolean) => Promise<unknown>
-  onToggleFocus?: (taskId: string, focused: boolean) => Promise<unknown>
+  onToggleTask?: (
+    taskId: string,
+    completed: boolean,
+    entityVersion: number,
+  ) => Promise<unknown>
+  onToggleFocus?: (
+    taskId: string,
+    focused: boolean,
+    entityVersion: number,
+  ) => Promise<unknown>
   waitingActionError?: string | null
   onCreateWaiting?: (values: WaitingFormValues) => Promise<unknown>
   onEditWaiting?: (
     waitingId: string,
     values: WaitingFormValues,
+    entityVersion: number,
   ) => Promise<unknown>
   onTransitionWaiting?: (
     waitingId: string,
     action: WaitingTransitionAction,
+    entityVersion: number,
   ) => Promise<unknown>
   memoActionError?: string | null
   onCreateMemo?: (values: MemoFormValues) => Promise<unknown>
-  onEditMemo?: (memoId: string, values: MemoFormValues) => Promise<unknown>
-  onDeleteMemo?: (memoId: string) => Promise<unknown>
-  onToggleMemoPin?: (memoId: string, pinned: boolean) => Promise<unknown>
+  onEditMemo?: (
+    memoId: string,
+    values: MemoFormValues,
+    entityVersion: number,
+  ) => Promise<unknown>
+  onDeleteMemo?: (memoId: string, entityVersion: number) => Promise<unknown>
+  onToggleMemoPin?: (
+    memoId: string,
+    pinned: boolean,
+    entityVersion: number,
+  ) => Promise<unknown>
   routineActionError?: string | null
   databaseState?: DatabaseRuntimeSnapshot
   onRetryDatabase?: () => Promise<void>
@@ -51,9 +69,16 @@ export interface TodayDashboardProps {
     routineId: string,
     completed: boolean,
     date: string,
+    routineVersion: number,
   ) => Promise<unknown>
-  onPauseRoutine?: (routineId: string) => Promise<unknown>
-  onArchiveRoutine?: (routineId: string) => Promise<unknown>
+  onPauseRoutine?: (
+    routineId: string,
+    routineVersion: number,
+  ) => Promise<unknown>
+  onArchiveRoutine?: (
+    routineId: string,
+    routineVersion: number,
+  ) => Promise<unknown>
   onLoadEndDay?: () => Promise<EndDayOverview>
   onFinalizeEndDay?: (
     commandId: string,
@@ -201,7 +226,8 @@ export function TodayDashboard({
               status={status}
               onRemoveFocus={
                 onToggleFocus && !readOnly
-                  ? (taskId) => onToggleFocus(taskId, true)
+                  ? (taskId, entityVersion) =>
+                      onToggleFocus(taskId, true, entityVersion)
                   : undefined
               }
             />

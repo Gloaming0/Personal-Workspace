@@ -17,9 +17,17 @@ interface QuickMemoWidgetProps {
   status?: TodayWidgetStatus
   actionError?: string | null
   onCreate?: (values: MemoFormValues) => Promise<unknown>
-  onEdit?: (memoId: string, values: MemoFormValues) => Promise<unknown>
-  onDelete?: (memoId: string) => Promise<unknown>
-  onTogglePin?: (memoId: string, pinned: boolean) => Promise<unknown>
+  onEdit?: (
+    memoId: string,
+    values: MemoFormValues,
+    entityVersion: number,
+  ) => Promise<unknown>
+  onDelete?: (memoId: string, entityVersion: number) => Promise<unknown>
+  onTogglePin?: (
+    memoId: string,
+    pinned: boolean,
+    entityVersion: number,
+  ) => Promise<unknown>
 }
 
 export function QuickMemoWidget({
@@ -35,6 +43,7 @@ export function QuickMemoWidget({
   const [content, setContent] = useState('')
   const [projectId, setProjectId] = useState('')
   const [editing, setEditing] = useState(false)
+  const [editingVersion, setEditingVersion] = useState<number | null>(null)
   const [editContent, setEditContent] = useState('')
   const [editProjectId, setEditProjectId] = useState('')
 
@@ -50,16 +59,22 @@ export function QuickMemoWidget({
     if (!memo) return
     setEditContent(memo.content)
     setEditProjectId(memo.projectId ?? '')
+    setEditingVersion(memo.entityVersion)
     setEditing(true)
   }
 
   const submitEdit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!memo || !onEdit || !editContent.trim()) return
-    await onEdit(memo.memoId, {
-      content: editContent,
-      projectId: editProjectId.trim() || null,
-    })
+    if (!memo || !onEdit || editingVersion === null || !editContent.trim())
+      return
+    await onEdit(
+      memo.memoId,
+      {
+        content: editContent,
+        projectId: editProjectId.trim() || null,
+      },
+      editingVersion,
+    )
     setEditing(false)
   }
 
@@ -141,7 +156,9 @@ export function QuickMemoWidget({
             {onTogglePin && (
               <button
                 type="button"
-                onClick={() => onTogglePin(memo.memoId, memo.pinned)}
+                onClick={() =>
+                  onTogglePin(memo.memoId, memo.pinned, memo.entityVersion)
+                }
               >
                 {memo.pinned ? t('today.memoUnpin') : t('today.memoPin')}
               </button>
@@ -152,7 +169,10 @@ export function QuickMemoWidget({
               </button>
             )}
             {onDelete && (
-              <button type="button" onClick={() => onDelete(memo.memoId)}>
+              <button
+                type="button"
+                onClick={() => onDelete(memo.memoId, memo.entityVersion)}
+              >
                 {t('today.memoDelete')}
               </button>
             )}

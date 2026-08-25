@@ -11,6 +11,7 @@ import {
   type EditWaitingInput,
 } from '@/domain/waiting'
 import type { WaitingRepository } from '@/repositories/contracts'
+import { RepositoryVersionConflictError } from '@/repositories/errors'
 import { ActivityService } from '@/features/activity/ActivityService'
 import {
   executeAtomic,
@@ -65,6 +66,7 @@ export class WaitingService {
     userId: UserId,
     id: EntityId,
     input: EditWaitingInput,
+    expectedVersion?: number,
   ): Promise<Waiting> {
     return this.change(
       userId,
@@ -72,33 +74,52 @@ export class WaitingService {
       (entity) => editWaiting(entity, input, this.now()),
       'followUpDate' in input ? 'waiting_followup_changed' : undefined,
       (previous, next) => previous.followUpDate !== next.followUpDate,
+      expectedVersion,
     )
   }
 
-  async confirm(userId: UserId, id: EntityId): Promise<Waiting> {
+  async confirm(
+    userId: UserId,
+    id: EntityId,
+    expectedVersion?: number,
+  ): Promise<Waiting> {
     return this.change(
       userId,
       id,
       (entity) => confirmWaiting(entity, this.now()),
       'waiting_confirmed',
+      undefined,
+      expectedVersion,
     )
   }
 
-  async close(userId: UserId, id: EntityId): Promise<Waiting> {
+  async close(
+    userId: UserId,
+    id: EntityId,
+    expectedVersion?: number,
+  ): Promise<Waiting> {
     return this.change(
       userId,
       id,
       (entity) => closeWaiting(entity, this.now()),
       'waiting_closed',
+      undefined,
+      expectedVersion,
     )
   }
 
-  async reopen(userId: UserId, id: EntityId): Promise<Waiting> {
+  async reopen(
+    userId: UserId,
+    id: EntityId,
+    expectedVersion?: number,
+  ): Promise<Waiting> {
     return this.change(
       userId,
       id,
       (entity) => reopenWaiting(entity, this.now()),
       'waiting_reopened',
+      undefined,
+      expectedVersion,
     )
   }
 
@@ -106,6 +127,7 @@ export class WaitingService {
     userId: UserId,
     id: EntityId,
     followUpDate: LocalDate | null,
+    expectedVersion?: number,
   ): Promise<Waiting> {
     return this.change(
       userId,
@@ -113,6 +135,7 @@ export class WaitingService {
       (entity) => setWaitingFollowUpDate(entity, followUpDate, this.now()),
       'waiting_followup_changed',
       (previous, next) => previous.followUpDate !== next.followUpDate,
+      expectedVersion,
     )
   }
 
@@ -126,6 +149,7 @@ export class WaitingService {
       | 'waiting_reopened'
       | 'waiting_followup_changed',
     shouldRecord: (previous: Waiting, next: Waiting) => boolean = () => true,
+    expectedVersion?: number,
   ): Promise<Waiting> {
     return executeAtomic(
       this.unitOfWork,
@@ -133,6 +157,12 @@ export class WaitingService {
       async (transaction) => {
         const waiting = transaction.repository('waiting')
         const entity = await this.requireWaiting(waiting, userId, id)
+        if (
+          expectedVersion !== undefined &&
+          entity.version !== expectedVersion
+        ) {
+          throw new RepositoryVersionConflictError(entity.id, 'Waiting')
+        }
         const updated = update(entity)
         await waiting.save(userId, updated, {
           expectedVersion: entity.version,

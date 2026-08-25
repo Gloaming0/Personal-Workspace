@@ -14,6 +14,7 @@ import { DexieRoutineLogRepository } from '@/repositories/dexie/DexieRoutineLogR
 import { DexieDailyLogRepository } from '@/repositories/dexie/DexieDailyLogRepository'
 import { DexieActivityRepository } from '@/repositories/dexie/DexieActivityRepository'
 import { classifyDatabaseError } from '@/database/runtimeState'
+import type { PersistedChange } from '@/repositories/dexie/changeNotification'
 
 export class DexieUnitOfWork implements UnitOfWork {
   constructor(
@@ -21,6 +22,7 @@ export class DexieUnitOfWork implements UnitOfWork {
     private readonly repositoryOverrides?: (
       transaction: Transaction,
       stores: readonly UnitOfWorkStore[],
+      collectChange: (change: PersistedChange) => void,
     ) => Partial<UnitOfWorkRepositories>,
   ) {}
 
@@ -30,6 +32,9 @@ export class DexieUnitOfWork implements UnitOfWork {
   ): Promise<T> {
     this.database.runtime.assertWritable()
     const uniqueStores = [...new Set(stores)]
+    const committedChanges: PersistedChange[] = []
+    const collectChange = (change: PersistedChange) =>
+      committedChanges.push(change)
     const tableByStore: Record<UnitOfWorkStore, Table> = {
       tasks: this.database.tasks,
       waiting: this.database.confirmations,
@@ -51,6 +56,7 @@ export class DexieUnitOfWork implements UnitOfWork {
                 this.database,
                 transaction.table('tasks') as typeof this.database.tasks,
                 true,
+                collectChange,
               )
             if (store === 'waiting')
               repositories.waiting = new DexieWaitingRepository(
@@ -59,18 +65,21 @@ export class DexieUnitOfWork implements UnitOfWork {
                   'confirmations',
                 ) as typeof this.database.confirmations,
                 true,
+                collectChange,
               )
             if (store === 'memos')
               repositories.memos = new DexieMemoRepository(
                 this.database,
                 transaction.table('memos') as typeof this.database.memos,
                 true,
+                collectChange,
               )
             if (store === 'routines')
               repositories.routines = new DexieRoutineRepository(
                 this.database,
                 transaction.table('routines') as typeof this.database.routines,
                 true,
+                collectChange,
               )
             if (store === 'routineLogs')
               repositories.routineLogs = new DexieRoutineLogRepository(
@@ -79,6 +88,7 @@ export class DexieUnitOfWork implements UnitOfWork {
                   'routine_logs',
                 ) as typeof this.database.routine_logs,
                 true,
+                collectChange,
               )
             if (store === 'dailyLogs')
               repositories.dailyLogs = new DexieDailyLogRepository(
@@ -87,6 +97,7 @@ export class DexieUnitOfWork implements UnitOfWork {
                   'daily_logs',
                 ) as typeof this.database.daily_logs,
                 true,
+                collectChange,
               )
             if (store === 'activities')
               repositories.activities = new DexieActivityRepository(
@@ -94,11 +105,16 @@ export class DexieUnitOfWork implements UnitOfWork {
                 transaction.table(
                   'activities',
                 ) as typeof this.database.activities,
+                collectChange,
               )
           }
           Object.assign(
             repositories,
-            this.repositoryOverrides?.(transaction, uniqueStores),
+            this.repositoryOverrides?.(
+              transaction,
+              uniqueStores,
+              collectChange,
+            ),
           )
           return Dexie.waitFor(
             command(
@@ -109,13 +125,24 @@ export class DexieUnitOfWork implements UnitOfWork {
           )
         },
       )
-    return execute().catch((error: unknown) => {
-      if (classifyDatabaseError(error) !== 'unknown') {
-        this.database.runtime.failure(error, {
-          storeName: uniqueStores.join(','),
-        })
-      }
-      throw error
-    })
+    return execute()
+      .then((result) => {
+        const latest = new Map(
+          committedChanges.map((change) => [
+            `${change.store}:${change.entityId}`,
+            change,
+          ]),
+        )
+        latest.forEach((change) => this.database.changes.publish(change))
+        return result
+      })
+      .catch((error: unknown) => {
+        if (classifyDatabaseError(error) !== 'unknown') {
+          this.database.runtime.failure(error, {
+            storeName: uniqueStores.join(','),
+          })
+        }
+        throw error
+      })
   }
 }

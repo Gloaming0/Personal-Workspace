@@ -214,4 +214,50 @@ describe('Task Today UI boundary', () => {
     expect(screen.getByText('原始 Memo content')).toBeInTheDocument()
     expect(screen.getByText('每日 Review 检查')).toBeInTheDocument()
   })
+
+  it('reloads the latest view model and explains a stale-version conflict', async () => {
+    const user = userEvent.setup()
+    const repository = new InMemoryTaskRepository()
+    const unitOfWork = new InMemoryUnitOfWork({ tasks: repository })
+    const service = new TaskService(repository, unitOfWork, {
+      createId: () => 'stale-task',
+      now: () => '2026-08-25T08:00:00.000Z',
+    })
+    await service.create({
+      userId: 'local-user',
+      title: 'Changed elsewhere',
+      plannedDate: '2026-08-25',
+    })
+    const otherWindow = new TaskService(repository, unitOfWork, {
+      now: () => '2026-08-25T08:01:00.000Z',
+    })
+    const waitingRepository = new InMemoryWaitingRepository()
+    const runtime: TaskRuntime = {
+      repository,
+      service,
+      waitingRepository,
+      waitingService: new WaitingService(
+        waitingRepository,
+        new InMemoryUnitOfWork({ waiting: waitingRepository }),
+      ),
+      ...supportingRuntime(),
+      ready: Promise.resolve(),
+    }
+
+    render(<TaskTodayWorkspace runtime={runtime} />)
+    const task = await screen.findByRole('checkbox', {
+      name: 'Changed elsewhere',
+    })
+    await otherWindow.setFocus('local-user', 'stale-task', '2026-08-25')
+    await user.click(task)
+
+    expect(
+      await screen.findByText(
+        'This content changed in another window. The latest version is now shown.',
+      ),
+    ).toBeInTheDocument()
+    await expect(
+      repository.getById('local-user', 'stale-task'),
+    ).resolves.toMatchObject({ status: 'todo', focusOrder: 1, version: 2 })
+  })
 })

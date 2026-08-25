@@ -19,6 +19,10 @@ import {
 } from '@/repositories/validation'
 import { executeDexieWrite } from './executeDexieWrite'
 import { validatePersistedRows } from './validatePersistedRows'
+import {
+  toPersistedChange,
+  type PersistedChangeListener,
+} from './changeNotification'
 
 function cloneWaiting(waiting: Waiting): Waiting {
   return structuredClone(waiting)
@@ -40,6 +44,8 @@ export class DexieWaitingRepository implements WaitingRepository {
     private readonly database: DailyWorkDatabase,
     private readonly table = database.confirmations,
     private readonly transactionBound = false,
+    private readonly onChange: PersistedChangeListener = (change) =>
+      database.changes.publish(change),
   ) {}
 
   async getById(userId: UserId, id: EntityId): Promise<Waiting | null> {
@@ -101,6 +107,7 @@ export class DexieWaitingRepository implements WaitingRepository {
       await (this.transactionBound
         ? write()
         : executeDexieWrite(this.database, this.table, write))
+      this.onChange(toPersistedChange('confirmations', waiting))
     } catch (error) {
       if (
         error instanceof RepositoryVersionConflictError ||

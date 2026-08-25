@@ -9,6 +9,7 @@ import {
 import type { Memo } from '@/domain/entities'
 import type { EntityId, Instant, UserId } from '@/domain/shared'
 import type { MemoRepository } from '@/repositories/contracts'
+import { RepositoryVersionConflictError } from '@/repositories/errors'
 import { ActivityService } from '@/features/activity/ActivityService'
 import {
   executeAtomic,
@@ -62,36 +63,56 @@ export class MemoService {
     userId: UserId,
     id: EntityId,
     input: EditMemoInput,
+    expectedVersion?: number,
   ): Promise<Memo> {
     return this.update(
       userId,
       id,
       (memo) => editMemo(memo, input, this.context.now()),
       'memo_updated',
+      expectedVersion,
     )
   }
 
-  async pin(userId: UserId, id: EntityId): Promise<Memo> {
+  async pin(
+    userId: UserId,
+    id: EntityId,
+    expectedVersion?: number,
+  ): Promise<Memo> {
     return this.update(
       userId,
       id,
       (memo) => setMemoPinned(memo, true, this.context.now()),
       'memo_pinned',
+      expectedVersion,
     )
   }
 
-  async unpin(userId: UserId, id: EntityId): Promise<Memo> {
+  async unpin(
+    userId: UserId,
+    id: EntityId,
+    expectedVersion?: number,
+  ): Promise<Memo> {
     return this.update(
       userId,
       id,
       (memo) => setMemoPinned(memo, false, this.context.now()),
       'memo_unpinned',
+      expectedVersion,
     )
   }
 
-  async delete(userId: UserId, id: EntityId): Promise<Memo> {
-    return this.update(userId, id, (memo) =>
-      softDeleteMemo(memo, this.context.now()),
+  async delete(
+    userId: UserId,
+    id: EntityId,
+    expectedVersion?: number,
+  ): Promise<Memo> {
+    return this.update(
+      userId,
+      id,
+      (memo) => softDeleteMemo(memo, this.context.now()),
+      undefined,
+      expectedVersion,
     )
   }
 
@@ -100,6 +121,7 @@ export class MemoService {
     id: EntityId,
     command: (memo: Memo) => Memo,
     eventType?: 'memo_updated' | 'memo_pinned' | 'memo_unpinned',
+    expectedVersion?: number,
   ): Promise<Memo> {
     return executeAtomic(
       this.unitOfWork,
@@ -108,6 +130,12 @@ export class MemoService {
         const repository = transaction.repository('memos')
         const current = await repository.getById(userId, id)
         if (!current) throw new MemoNotFoundError(id)
+        if (
+          expectedVersion !== undefined &&
+          current.version !== expectedVersion
+        ) {
+          throw new RepositoryVersionConflictError(current.id, 'Memo')
+        }
         const next = command(current)
         await repository.save(userId, next, {
           expectedVersion: current.version,

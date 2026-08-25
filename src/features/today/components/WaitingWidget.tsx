@@ -23,10 +23,15 @@ interface WaitingWidgetProps {
   status?: TodayWidgetStatus
   actionError?: string | null
   onCreate?: (values: WaitingFormValues) => Promise<unknown>
-  onEdit?: (waitingId: string, values: WaitingFormValues) => Promise<unknown>
+  onEdit?: (
+    waitingId: string,
+    values: WaitingFormValues,
+    entityVersion: number,
+  ) => Promise<unknown>
   onTransition?: (
     waitingId: string,
     action: WaitingTransitionAction,
+    entityVersion: number,
   ) => Promise<unknown>
 }
 
@@ -53,6 +58,7 @@ export function WaitingWidget({
   const { language, t } = useTranslations()
   const [createValues, setCreateValues] = useState(emptyForm)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingVersion, setEditingVersion] = useState<number | null>(null)
   const [editValues, setEditValues] = useState(emptyForm)
 
   const submitCreate = async (event: FormEvent<HTMLFormElement>) => {
@@ -64,6 +70,7 @@ export function WaitingWidget({
 
   const startEditing = (item: TodayWaitingItemViewModel) => {
     setEditingId(item.waitingId)
+    setEditingVersion(item.entityVersion)
     setEditValues({
       title: item.title,
       person: item.person,
@@ -75,8 +82,14 @@ export function WaitingWidget({
 
   const submitEdit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!onEdit || !editingId || !editValues.title.trim()) return
-    await onEdit(editingId, editValues)
+    if (
+      !onEdit ||
+      !editingId ||
+      editingVersion === null ||
+      !editValues.title.trim()
+    )
+      return
+    await onEdit(editingId, editValues, editingVersion)
     setEditingId(null)
   }
 
@@ -260,7 +273,11 @@ export function WaitingWidget({
                         <button
                           type="button"
                           onClick={() =>
-                            void onTransition(item.waitingId, 'confirm')
+                            void onTransition(
+                              item.waitingId,
+                              'confirm',
+                              item.entityVersion,
+                            )
                           }
                         >
                           {t('today.waitingConfirm')}
@@ -270,7 +287,11 @@ export function WaitingWidget({
                         <button
                           type="button"
                           onClick={() =>
-                            void onTransition(item.waitingId, 'reopen')
+                            void onTransition(
+                              item.waitingId,
+                              'reopen',
+                              item.entityVersion,
+                            )
                           }
                         >
                           {t('today.waitingReopen')}
@@ -280,7 +301,11 @@ export function WaitingWidget({
                         <button
                           type="button"
                           onClick={() =>
-                            void onTransition(item.waitingId, 'close')
+                            void onTransition(
+                              item.waitingId,
+                              'close',
+                              item.entityVersion,
+                            )
                           }
                         >
                           {t('today.waitingClose')}

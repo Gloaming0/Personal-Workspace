@@ -14,12 +14,18 @@ import {
   validateDailyLog,
 } from '@/repositories/validation'
 import { executeDexieWrite } from './executeDexieWrite'
+import {
+  toPersistedChange,
+  type PersistedChangeListener,
+} from './changeNotification'
 
 export class DexieDailyLogRepository implements DailyLogRepository {
   constructor(
     private readonly database: DailyWorkDatabase,
     private readonly table = database.daily_logs,
     private readonly transactionBound = false,
+    private readonly onChange: PersistedChangeListener = (change) =>
+      database.changes.publish(change),
   ) {}
 
   async findByDate(userId: UserId, date: LocalDate) {
@@ -56,6 +62,7 @@ export class DexieDailyLogRepository implements DailyLogRepository {
       await (this.transactionBound
         ? write()
         : executeDexieWrite(this.database, this.table, write))
+      this.onChange(toPersistedChange('daily_logs', log))
     } catch (error) {
       if (
         error instanceof DailyLogAlreadyFinalizedError ||

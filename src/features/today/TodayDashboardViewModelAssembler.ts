@@ -61,6 +61,7 @@ function toActivityViewModel(
 function toQuickMemoViewModel(memo: Memo, aggregate: TodayDashboardAggregate) {
   return {
     memoId: memo.id,
+    entityVersion: memo.version,
     content: memo.content,
     pinned: memo.pinned,
     projectId: memo.projectId,
@@ -74,6 +75,7 @@ function toQuickMemoViewModel(memo: Memo, aggregate: TodayDashboardAggregate) {
 function toTaskViewModel(task: Task): TodayTaskItemViewModel {
   return {
     taskId: task.id,
+    entityVersion: task.version,
     title: task.title,
     projectName: null,
     plannedAt: task.dueAt,
@@ -88,6 +90,7 @@ type FocusedTask = Task & { focusOrder: 1 | 2 | 3 }
 function toFocusViewModel(task: FocusedTask): TodayFocusItemViewModel {
   return {
     taskId: task.id,
+    entityVersion: task.version,
     title: task.title,
     projectName: null,
     plannedAt: task.dueAt,
@@ -101,6 +104,7 @@ function toWaitingViewModel(
 ) {
   return {
     waitingId: waiting.id,
+    entityVersion: waiting.version,
     title: waiting.title,
     person: waiting.person,
     notes: waiting.notes,
@@ -158,6 +162,7 @@ export class DefaultTodayDashboardViewModelAssembler implements TodayDashboardVi
       const log = logsByRoutineAndDate.get(`${routine.id}:${date}`)
       return {
         routineId: routine.id,
+        routineVersion: routine.version,
         routineLogId: log?.id ?? null,
         date,
         title: routine.title,

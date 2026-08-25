@@ -8,7 +8,7 @@ import type { TodayFocusItemViewModel, TodayWidgetStatus } from '../viewModel'
 interface FocusWidgetProps {
   items: TodayFocusItemViewModel[]
   status?: TodayWidgetStatus
-  onRemoveFocus?: (taskId: string) => Promise<unknown>
+  onRemoveFocus?: (taskId: string, entityVersion: number) => Promise<unknown>
 }
 
 export function FocusWidget({
@@ -56,7 +56,9 @@ export function FocusWidget({
                 <button
                   className="task-inline-action"
                   type="button"
-                  onClick={() => void onRemoveFocus(item.taskId)}
+                  onClick={() =>
+                    void onRemoveFocus(item.taskId, item.entityVersion)
+                  }
                 >
                   {t('today.removeFocus')}
                 </button>

@@ -789,6 +789,34 @@ version plus one, and a supplied `expectedVersion` must match the stored
 version. These rules are identical in In-memory and Dexie adapters. Business
 reads exclude soft-deleted entities by default; tombstones remain stored.
 
+## Phase 2.1D Migration and Integrity Contract
+
+Phase 2.1D does not change the persisted schema; `currentDatabaseVersion`
+remains 7. Versions 1–7 stay append-only and Version 7 continues to perform the
+only data transform: legacy Version 6 DailyLogs receive
+`finalizeTimezone: "UTC"`.
+
+The migration fixture matrix verifies every supported starting point from
+Version 1 through Version 6. Each fixture includes multiple rows for every
+store available at that version, including Unicode text, nullable fields,
+soft-delete tombstones, Activity payload JSON, and DailyLog snapshot JSON.
+After upgrade, raw values and entity versions must be preserved, tombstones
+must remain hidden from business queries, and the documented timezone fallback
+must be the only transformed value.
+
+On startup, storage-boundary validation checks id/user/version, Instant,
+LocalDate, enum, schedule, payload, and snapshot structure. The integrity pass
+also detects, without auto-repair:
+
+- duplicate or more-than-three effective Focus slots per `[userId+focusDate]`;
+- more than one effective RoutineLog per `[userId+routineId+date]`;
+- more than one effective DailyLog per `[userId+date]`.
+
+Individual malformed rows are isolated with a content-free diagnostic. A
+cross-row invariant failure moves the database runtime to
+`recovery-required`. These checks are application invariants, not new IndexedDB
+unique indexes, so they require no Version 8 schema.
+
 
 
 ---

@@ -943,6 +943,34 @@ DEVELOPMENT_RULES.md
 
 ---
 
+# Multi-tab and Migration Contract
+
+- Cross-tab notifications belong to the local change coordinator, never a UI
+  component. Broadcast only store name, entity id, entity version, revision,
+  and transport source id; never broadcast titles, memo content, snapshot data,
+  or other user-authored values.
+- Repository writes notify only after commit. A Unit of Work collects changes
+  and publishes them after the whole transaction succeeds; rollback must emit
+  nothing.
+- Remote invalidation reloads the relevant application View Model. It must not
+  invoke another write or rebroadcast the received revision.
+- Editable View Models carry the entity version used to render the action.
+  Feature Services compare it with the freshly read entity and raise
+  `RepositoryVersionConflictError` on mismatch. The UI reloads and explains the
+  conflict; it never silently overwrites or auto-merges.
+- Concurrency tests that protect a cross-row invariant must use independent
+  Dexie connections, not two repositories sharing one connection.
+- Every retained historical database version needs a realistic upgrade fixture
+  to the current version. Fixtures include multiple records, Unicode, nulls,
+  tombstones, and any JSON payload/snapshot available at that version.
+- Migration failure tests must prove the old data can be reopened. Blocked and
+  versionchange tests must prove safe close, Retry, and recovery to `ready`.
+- Startup integrity checks are diagnostic and non-destructive. Do not silently
+  renumber Focus, delete duplicate logs, or rewrite malformed records.
+
+
+---
+
 # Final Rule
 
 

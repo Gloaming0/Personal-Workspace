@@ -8,8 +8,16 @@ import type { TodayTaskItemViewModel, TodayWidgetStatus } from '../viewModel'
 interface TodayTasksWidgetProps {
   items: TodayTaskItemViewModel[]
   status?: TodayWidgetStatus
-  onToggleTask?: (taskId: string, completed: boolean) => Promise<unknown>
-  onToggleFocus?: (taskId: string, focused: boolean) => Promise<unknown>
+  onToggleTask?: (
+    taskId: string,
+    completed: boolean,
+    entityVersion: number,
+  ) => Promise<unknown>
+  onToggleFocus?: (
+    taskId: string,
+    focused: boolean,
+    entityVersion: number,
+  ) => Promise<unknown>
 }
 
 export function TodayTasksWidget({
@@ -45,7 +53,11 @@ export function TodayTasksWidget({
                 checked={item.status === 'done'}
                 disabled={!onToggleTask}
                 onChange={() =>
-                  void onToggleTask?.(item.taskId, item.status === 'done')
+                  void onToggleTask?.(
+                    item.taskId,
+                    item.status === 'done',
+                    item.entityVersion,
+                  )
                 }
                 readOnly={!onToggleTask}
               />
@@ -71,7 +83,11 @@ export function TodayTasksWidget({
                     className="task-inline-action"
                     type="button"
                     onClick={() =>
-                      void onToggleFocus(item.taskId, item.focusOrder !== null)
+                      void onToggleFocus(
+                        item.taskId,
+                        item.focusOrder !== null,
+                        item.entityVersion,
+                      )
                     }
                   >
                     {item.focusOrder === null

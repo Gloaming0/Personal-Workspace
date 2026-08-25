@@ -11,6 +11,7 @@ import type {
   RoutineLogRepository,
   RoutineRepository,
 } from '@/repositories/contracts'
+import { RepositoryVersionConflictError } from '@/repositories/errors'
 import { ActivityService } from '@/features/activity/ActivityService'
 import {
   executeAtomic,
@@ -64,22 +65,35 @@ export class RoutineService {
     })
   }
 
-  pause(userId: UserId, id: EntityId): Promise<Routine> {
-    return this.transition(userId, id, 'paused')
+  pause(
+    userId: UserId,
+    id: EntityId,
+    expectedVersion?: number,
+  ): Promise<Routine> {
+    return this.transition(userId, id, 'paused', expectedVersion)
   }
 
-  resume(userId: UserId, id: EntityId): Promise<Routine> {
-    return this.transition(userId, id, 'active')
+  resume(
+    userId: UserId,
+    id: EntityId,
+    expectedVersion?: number,
+  ): Promise<Routine> {
+    return this.transition(userId, id, 'active', expectedVersion)
   }
 
-  archive(userId: UserId, id: EntityId): Promise<Routine> {
-    return this.transition(userId, id, 'archived')
+  archive(
+    userId: UserId,
+    id: EntityId,
+    expectedVersion?: number,
+  ): Promise<Routine> {
+    return this.transition(userId, id, 'archived', expectedVersion)
   }
 
   async complete(
     userId: UserId,
     id: EntityId,
     date: LocalDate,
+    expectedVersion?: number,
   ): Promise<RoutineLog> {
     return executeAtomic(
       this.unitOfWork,
@@ -88,6 +102,7 @@ export class RoutineService {
         const routines = transaction.repository('routines')
         const logs = transaction.repository('routineLogs')
         const routine = await this.requireRoutine(routines, userId, id)
+        this.assertExpectedVersion(routine, expectedVersion)
         if (routine.status !== 'active')
           throw new RoutineCompletionError('inactive')
         if (!isRoutineScheduledOn(routine.schedule, date)) {
@@ -110,6 +125,7 @@ export class RoutineService {
     userId: UserId,
     id: EntityId,
     date: LocalDate,
+    expectedVersion?: number,
   ): Promise<RoutineLog> {
     return executeAtomic(
       this.unitOfWork,
@@ -118,6 +134,7 @@ export class RoutineService {
         const routines = transaction.repository('routines')
         const logs = transaction.repository('routineLogs')
         const routine = await this.requireRoutine(routines, userId, id)
+        this.assertExpectedVersion(routine, expectedVersion)
         const log = await logs.findByRoutineAndDate(userId, id, date)
         if (!log) throw new RoutineCompletionError('not_completed')
         const deleted = softDeleteRoutineLog(log, this.context.now())
@@ -132,16 +149,27 @@ export class RoutineService {
     userId: UserId,
     id: EntityId,
     status: 'active' | 'paused' | 'archived',
+    expectedVersion?: number,
   ): Promise<Routine> {
     return executeAtomic(this.unitOfWork, ['routines'], async (transaction) => {
       const routines = transaction.repository('routines')
       const current = await this.requireRoutine(routines, userId, id)
+      this.assertExpectedVersion(current, expectedVersion)
       const next = transitionRoutine(current, status, this.context.now())
       await routines.save(userId, next, {
         expectedVersion: current.version,
       })
       return next
     })
+  }
+
+  private assertExpectedVersion(
+    routine: Routine,
+    expectedVersion?: number,
+  ): void {
+    if (expectedVersion !== undefined && routine.version !== expectedVersion) {
+      throw new RepositoryVersionConflictError(routine.id, 'Routine')
+    }
   }
 
   private logStores() {

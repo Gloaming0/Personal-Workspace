@@ -92,6 +92,8 @@ const englishMessages = {
   'today.removeFocus': 'Remove focus',
   'today.focusLimitError': 'Today focus is limited to three tasks.',
   'today.taskActionError': 'The task could not be updated. Try again.',
+  'today.staleConflict':
+    'This content changed in another window. The latest version is now shown.',
   'today.localDatabaseError':
     'Local task storage is unavailable. Reload and try again.',
   'database.unavailableTitle': 'Your local workspace is unavailable.',
@@ -337,6 +339,7 @@ const chineseMessages = {
   'today.removeFocus': '移出重点',
   'today.focusLimitError': '今日重点最多只能有三项任务。',
   'today.taskActionError': '任务更新失败，请重试。',
+  'today.staleConflict': '内容已在其他窗口更新，已刷新到最新版本。',
   'today.localDatabaseError': '本地任务存储暂时不可用，请刷新后重试。',
   'database.unavailableTitle': '本地工作空间暂时不可用。',
   'database.unavailableDescription':

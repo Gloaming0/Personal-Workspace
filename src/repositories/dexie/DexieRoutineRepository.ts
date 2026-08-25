@@ -18,6 +18,10 @@ import {
 } from '@/repositories/validation'
 import { executeDexieWrite } from './executeDexieWrite'
 import { validatePersistedRows } from './validatePersistedRows'
+import {
+  toPersistedChange,
+  type PersistedChangeListener,
+} from './changeNotification'
 
 const cloneRoutine = (routine: Routine) => structuredClone(routine)
 
@@ -26,6 +30,8 @@ export class DexieRoutineRepository implements RoutineRepository {
     private readonly database: DailyWorkDatabase,
     private readonly table = database.routines,
     private readonly transactionBound = false,
+    private readonly onChange: PersistedChangeListener = (change) =>
+      database.changes.publish(change),
   ) {}
 
   async getById(userId: UserId, id: EntityId): Promise<Routine | null> {
@@ -97,6 +103,7 @@ export class DexieRoutineRepository implements RoutineRepository {
       await (this.transactionBound
         ? write()
         : executeDexieWrite(this.database, this.table, write))
+      this.onChange(toPersistedChange('routines', routine))
     } catch (error) {
       if (
         error instanceof RepositoryVersionConflictError ||

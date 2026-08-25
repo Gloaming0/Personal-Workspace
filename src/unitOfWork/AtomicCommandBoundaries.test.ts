@@ -1,5 +1,5 @@
 import Dexie from 'dexie'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DailyWorkDatabase } from '@/database/DailyWorkDatabase'
 import { createActivity } from '@/domain/activity'
 import { createTask } from '@/domain/task'
@@ -28,7 +28,15 @@ describe('Dexie atomic command boundaries', () => {
   })
 
   it('rolls back an Entity when Activity append fails after its write', async () => {
+    const publish = vi.spyOn(database.changes, 'publish')
     class FailingActivityRepository extends DexieActivityRepository {
+      constructor(
+        table = database.activities,
+        onChange?: ConstructorParameters<typeof DexieActivityRepository>[2],
+      ) {
+        super(database, table, onChange)
+      }
+
       override async append(
         ...args: Parameters<DexieActivityRepository['append']>
       ) {
@@ -37,16 +45,18 @@ describe('Dexie atomic command boundaries', () => {
       }
     }
     const tasks = new DexieTaskRepository(database)
-    const activities = new FailingActivityRepository(database)
-    const unitOfWork = new DexieUnitOfWork(database, (transaction, stores) =>
-      stores.includes('activities')
-        ? {
-            activities: new FailingActivityRepository(
-              database,
-              transaction.table('activities') as typeof database.activities,
-            ),
-          }
-        : {},
+    const activities = new FailingActivityRepository()
+    const unitOfWork = new DexieUnitOfWork(
+      database,
+      (transaction, stores, collectChange) =>
+        stores.includes('activities')
+          ? {
+              activities: new FailingActivityRepository(
+                transaction.table('activities') as typeof database.activities,
+                collectChange,
+              ),
+            }
+          : {},
     )
     const service = new TaskService(
       tasks,
@@ -70,6 +80,40 @@ describe('Dexie atomic command boundaries', () => {
     ).rejects.toThrow('injected Activity failure')
     await expect(database.tasks.count()).resolves.toBe(0)
     await expect(database.activities.count()).resolves.toBe(0)
+    expect(publish).not.toHaveBeenCalled()
+  })
+
+  it('publishes entity and Activity invalidations only after commit', async () => {
+    const publish = vi.spyOn(database.changes, 'publish')
+    const tasks = new DexieTaskRepository(database)
+    const activities = new DexieActivityRepository(database)
+    const service = new TaskService(
+      tasks,
+      new DexieUnitOfWork(database),
+      {
+        createId: () => 'task-notification',
+        now: () => '2026-08-25T08:00:00.000Z',
+      },
+      new ActivityService(activities, {
+        createId: () => 'activity-notification',
+        now: () => '2026-08-25T08:00:01.000Z',
+      }),
+    )
+
+    await service.create({
+      userId: 'user-1',
+      title: 'Notify after commit',
+      plannedDate: '2026-08-25',
+    })
+
+    expect(publish.mock.calls.map(([change]) => change.store).sort()).toEqual([
+      'activities',
+      'tasks',
+    ])
+    await expect(database.tasks.get('task-notification')).resolves.toBeTruthy()
+    await expect(
+      database.activities.get('activity-notification'),
+    ).resolves.toBeTruthy()
   })
 
   it('rejects a fourth Focus without any Task or Activity partial write', async () => {

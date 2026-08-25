@@ -5,6 +5,7 @@ export type TodayWidgetStatus = 'loading' | 'ready' | 'empty'
 
 export interface TodayFocusItemViewModel {
   taskId: string
+  entityVersion: number
   title: string
   projectName: string | null
   plannedAt: Instant | null
@@ -13,6 +14,7 @@ export interface TodayFocusItemViewModel {
 
 export interface TodayTaskItemViewModel {
   taskId: string
+  entityVersion: number
   title: string
   projectName: string | null
   plannedAt: Instant | null
@@ -23,6 +25,7 @@ export interface TodayTaskItemViewModel {
 
 export interface TodayWaitingItemViewModel {
   waitingId: string
+  entityVersion: number
   title: string
   person: string | null
   notes: string | null
@@ -36,6 +39,7 @@ export interface TodayWaitingItemViewModel {
 
 export interface TodayCheckInItemViewModel {
   routineId: string
+  routineVersion: number
   routineLogId: string | null
   date: LocalDate
   title: string
@@ -44,6 +48,7 @@ export interface TodayCheckInItemViewModel {
 
 export interface TodayQuickMemoViewModel {
   memoId: string
+  entityVersion: number
   content: string
   pinned: boolean
   projectId: string | null

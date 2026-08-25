@@ -76,6 +76,7 @@ export function createTodayDashboardMock(
     },
     focus: copy.focus.map(([title, projectName], index) => ({
       taskId: `task-${index + 1}`,
+      entityVersion: 1,
       title,
       projectName,
       plannedAt: index === 1 ? atTime(now, 14, 30) : null,
@@ -83,6 +84,7 @@ export function createTodayDashboardMock(
     })),
     tasks: copy.tasks.map(([title, projectName], index) => ({
       taskId: `task-${index + 1}`,
+      entityVersion: 1,
       title,
       projectName,
       plannedAt: atTime(now, [10, 13, 9, 16][index] ?? 9, index === 1 ? 30 : 0),
@@ -92,6 +94,7 @@ export function createTodayDashboardMock(
     })),
     waiting: copy.waiting.map(([title, person], index) => ({
       waitingId: `waiting-${index + 1}`,
+      entityVersion: 1,
       title,
       person,
       notes: null,
@@ -104,6 +107,7 @@ export function createTodayDashboardMock(
     })),
     checkIns: copy.checkIns.map((title, index) => ({
       routineId: `routine-${index + 1}`,
+      routineVersion: 1,
       routineLogId: index < 2 ? `routine-log-${index + 1}` : null,
       date: today,
       title,
@@ -111,6 +115,7 @@ export function createTodayDashboardMock(
     })),
     quickMemo: {
       memoId: 'memo-1',
+      entityVersion: 1,
       content: copy.memo,
       pinned: false,
       projectId: null,

@@ -17,6 +17,7 @@ import type { TodayDashboardViewModel } from './viewModel'
 import { FocusLimitError } from '@/features/tasks/TaskService'
 import {
   MemoPersistenceError,
+  RepositoryVersionConflictError,
   RoutinePersistenceError,
   TaskPersistenceError,
   WaitingPersistenceError,
@@ -94,6 +95,14 @@ function createPendingViewModel(date: string): TodayDashboardViewModel {
     quickMemo: null,
     recentActivity: [],
   }
+}
+
+function isVersionConflict(error: unknown): boolean {
+  if (error instanceof RepositoryVersionConflictError) return true
+  return (
+    error instanceof Error &&
+    isVersionConflict((error as Error & { cause?: unknown }).cause)
+  )
 }
 
 interface TodayWorkspaceProviderProps {
@@ -234,12 +243,35 @@ export function TodayWorkspaceProvider({
     }
   }, [date, taskRuntime, timezone])
 
+  useEffect(() => {
+    if (!taskRuntime.localChanges) return
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const unsubscribe = taskRuntime.localChanges.subscribe(() => {
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => {
+        void refresh().catch((error: unknown) => {
+          taskRuntime.databaseRuntime?.failure(error)
+          setActionError(localDatabaseError)
+        })
+      }, 25)
+    })
+    return () => {
+      if (timer) clearTimeout(timer)
+      unsubscribe()
+    }
+  }, [localDatabaseError, refresh, taskRuntime])
+
   const runCommand = async (command: () => Promise<unknown>) => {
     setActionError(null)
     try {
       await command()
       await refresh()
     } catch (error) {
+      if (isVersionConflict(error)) {
+        await refresh().catch(() => undefined)
+        setActionError(t('today.staleConflict'))
+        return
+      }
       setActionError(
         error instanceof FocusLimitError
           ? t('today.focusLimitError')
@@ -256,6 +288,11 @@ export function TodayWorkspaceProvider({
       await command()
       await refresh()
     } catch (error) {
+      if (isVersionConflict(error)) {
+        await refresh().catch(() => undefined)
+        setWaitingActionError(t('today.staleConflict'))
+        return
+      }
       setWaitingActionError(
         error instanceof WaitingPersistenceError
           ? localDatabaseError
@@ -270,6 +307,11 @@ export function TodayWorkspaceProvider({
       await command()
       await refresh()
     } catch (error) {
+      if (isVersionConflict(error)) {
+        await refresh().catch(() => undefined)
+        setMemoActionError(t('today.staleConflict'))
+        return
+      }
       setMemoActionError(
         error instanceof MemoPersistenceError
           ? localDatabaseError
@@ -284,6 +326,11 @@ export function TodayWorkspaceProvider({
       await command()
       await refresh()
     } catch (error) {
+      if (isVersionConflict(error)) {
+        await refresh().catch(() => undefined)
+        setRoutineActionError(t('today.staleConflict'))
+        return
+      }
       setRoutineActionError(
         error instanceof RoutinePersistenceError
           ? localDatabaseError
@@ -349,52 +396,97 @@ export function TodayWorkspaceProvider({
           plannedDate: date,
         }),
       ),
-    onToggleTask: (taskId, completed) =>
+    onToggleTask: (taskId, completed, entityVersion) =>
       runCommand(() =>
         completed
-          ? taskRuntime.service.reopen(localUserId, taskId)
-          : taskRuntime.service.complete(localUserId, taskId),
+          ? taskRuntime.service.reopen(
+              localUserId,
+              taskId,
+              undefined,
+              entityVersion,
+            )
+          : taskRuntime.service.complete(
+              localUserId,
+              taskId,
+              undefined,
+              entityVersion,
+            ),
       ),
-    onToggleFocus: (taskId, focused) =>
+    onToggleFocus: (taskId, focused, entityVersion) =>
       runCommand(() =>
         focused
-          ? taskRuntime.service.removeFocus(localUserId, taskId)
-          : taskRuntime.service.setFocus(localUserId, taskId, date),
+          ? taskRuntime.service.removeFocus(
+              localUserId,
+              taskId,
+              undefined,
+              entityVersion,
+            )
+          : taskRuntime.service.setFocus(
+              localUserId,
+              taskId,
+              date,
+              undefined,
+              entityVersion,
+            ),
       ),
     onCreateWaiting: (values) =>
       runWaitingCommand(() =>
         taskRuntime.waitingService.create({ userId: localUserId, ...values }),
       ),
-    onEditWaiting: (waitingId, values) =>
+    onEditWaiting: (waitingId, values, entityVersion) =>
       runWaitingCommand(() =>
-        taskRuntime.waitingService.edit(localUserId, waitingId, values),
+        taskRuntime.waitingService.edit(
+          localUserId,
+          waitingId,
+          values,
+          entityVersion,
+        ),
       ),
-    onTransitionWaiting: (waitingId, action) =>
+    onTransitionWaiting: (waitingId, action, entityVersion) =>
       runWaitingCommand(() => {
         switch (action) {
           case 'confirm':
-            return taskRuntime.waitingService.confirm(localUserId, waitingId)
+            return taskRuntime.waitingService.confirm(
+              localUserId,
+              waitingId,
+              entityVersion,
+            )
           case 'close':
-            return taskRuntime.waitingService.close(localUserId, waitingId)
+            return taskRuntime.waitingService.close(
+              localUserId,
+              waitingId,
+              entityVersion,
+            )
           case 'reopen':
-            return taskRuntime.waitingService.reopen(localUserId, waitingId)
+            return taskRuntime.waitingService.reopen(
+              localUserId,
+              waitingId,
+              entityVersion,
+            )
         }
       }),
     onCreateMemo: (values) =>
       runMemoCommand(() =>
         taskRuntime.memoService.create({ userId: localUserId, ...values }),
       ),
-    onEditMemo: (memoId, values) =>
+    onEditMemo: (memoId, values, entityVersion) =>
       runMemoCommand(() =>
-        taskRuntime.memoService.edit(localUserId, memoId, values),
+        taskRuntime.memoService.edit(
+          localUserId,
+          memoId,
+          values,
+          entityVersion,
+        ),
       ),
-    onDeleteMemo: (memoId) =>
-      runMemoCommand(() => taskRuntime.memoService.delete(localUserId, memoId)),
-    onToggleMemoPin: (memoId, pinned) =>
+    onDeleteMemo: (memoId, entityVersion) =>
+      runMemoCommand(() =>
+        taskRuntime.memoService.delete(localUserId, memoId, entityVersion),
+      ),
+    onToggleMemoPin: (memoId, pinned, entityVersion) =>
       runMemoCommand(() =>
         pinned
-          ? taskRuntime.memoService.unpin(localUserId, memoId)
-          : taskRuntime.memoService.pin(localUserId, memoId),
+          ? taskRuntime.memoService.unpin(localUserId, memoId, entityVersion)
+          : taskRuntime.memoService.pin(localUserId, memoId, entityVersion),
       ),
     onCreateRoutine: (values) =>
       runRoutineCommand(() =>
@@ -404,23 +496,37 @@ export function TodayWorkspaceProvider({
           ...values,
         }),
       ),
-    onToggleRoutine: (routineId, completed, routineDate) =>
+    onToggleRoutine: (routineId, completed, routineDate, routineVersion) =>
       runRoutineCommand(() =>
         completed
-          ? taskRuntime.routineService.undo(localUserId, routineId, routineDate)
+          ? taskRuntime.routineService.undo(
+              localUserId,
+              routineId,
+              routineDate,
+              routineVersion,
+            )
           : taskRuntime.routineService.complete(
               localUserId,
               routineId,
               routineDate,
+              routineVersion,
             ),
       ),
-    onPauseRoutine: (routineId) =>
+    onPauseRoutine: (routineId, routineVersion) =>
       runRoutineCommand(() =>
-        taskRuntime.routineService.pause(localUserId, routineId),
+        taskRuntime.routineService.pause(
+          localUserId,
+          routineId,
+          routineVersion,
+        ),
       ),
-    onArchiveRoutine: (routineId) =>
+    onArchiveRoutine: (routineId, routineVersion) =>
       runRoutineCommand(() =>
-        taskRuntime.routineService.archive(localUserId, routineId),
+        taskRuntime.routineService.archive(
+          localUserId,
+          routineId,
+          routineVersion,
+        ),
       ),
     ...(taskRuntime.endDayService
       ? {
