@@ -77,7 +77,7 @@ describe('Backup restore invalidation', () => {
       {
         userId: 'local-user',
         title: 'Before restore',
-        plannedDate: '2026-08-25',
+        plannedDate: '2026-08-26',
       },
       {
         id: '00000000-0000-4000-8000-000000000098',

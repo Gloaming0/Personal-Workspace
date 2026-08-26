@@ -169,6 +169,7 @@ export class MemoService {
           projectId: memo.projectId,
         },
         transaction.repository('activities'),
+        transaction.mutation(memo.userId),
       )
   }
 }

@@ -18,6 +18,7 @@ import { DailyLogAlreadyFinalizedError } from '@/repositories/errors'
 import { EndDayQuery } from './EndDayQuery'
 import { EndDayService } from './EndDayService'
 import { InMemoryUnitOfWork } from '@/unitOfWork/inMemory/InMemoryUnitOfWork'
+import { InMemoryMutationJournal } from '@/sync/inMemory/InMemoryMutationJournal'
 
 const userId = 'user-1'
 const date = '2026-08-25'
@@ -37,15 +38,19 @@ function setup(
   const routineLogs = new InMemoryRoutineLogRepository()
   const activities = overrides.activities ?? new InMemoryActivityRepository()
   const logs = overrides.logs ?? new InMemoryDailyLogRepository()
-  const unitOfWork = new InMemoryUnitOfWork({
-    tasks,
-    waiting,
-    memos,
-    routines,
-    routineLogs,
-    activities,
-    dailyLogs: logs,
-  })
+  const journal = new InMemoryMutationJournal()
+  const unitOfWork = new InMemoryUnitOfWork(
+    {
+      tasks,
+      waiting,
+      memos,
+      routines,
+      routineLogs,
+      activities,
+      dailyLogs: logs,
+    },
+    { journal },
+  )
   let taskId = 0
   const taskService = new TaskService(tasks, unitOfWork, {
     createId: () => `task-${++taskId}`,
@@ -81,6 +86,7 @@ function setup(
     logs,
     service,
     query,
+    journal,
   }
 }
 
@@ -422,7 +428,7 @@ describe('End Day service', () => {
       plannedDate: date,
     })
     const input = {
-      commandId: 'idempotent-finalize',
+      commandId: '00000000-0000-4000-8000-000000000090',
       userId,
       date,
       timezone: 'UTC',
@@ -431,11 +437,16 @@ describe('End Day service', () => {
     }
 
     const first = await context.service.finalize(input)
+    const firstChanges = context.journal.listPending(userId)
     const retried = await context.service.finalize(input)
 
     expect(retried).toEqual(first)
     await expect(context.activities.find(userId, {})).resolves.toHaveLength(1)
     await expect(context.logs.findByDate(userId, date)).resolves.toEqual(first)
+    expect(context.journal.listPending(userId)).toEqual(firstChanges)
+    expect(
+      firstChanges.filter((change) => change.mutationId === input.commandId),
+    ).toHaveLength(3)
   })
 
   it('selects completed Tasks by explicit End Day timezone across midnight', async () => {

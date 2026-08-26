@@ -212,6 +212,7 @@ export class WaitingService {
           projectId: waiting.projectId,
         },
         transaction.repository('activities'),
+        transaction.mutation(waiting.userId),
       )
   }
 }

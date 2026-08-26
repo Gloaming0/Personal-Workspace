@@ -192,7 +192,7 @@ describe('DexieTaskRepository', () => {
     await expect(repository.find('local-user', {})).resolves.toEqual([valid])
     expect(database.runtime.diagnostics()).toEqual([
       expect.objectContaining({
-        databaseVersion: 7,
+        databaseVersion: 8,
         storeName: 'tasks',
         errorCategory: 'corrupt-record',
       }),

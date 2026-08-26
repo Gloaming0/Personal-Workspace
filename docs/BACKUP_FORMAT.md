@@ -52,6 +52,7 @@ Version 1 never contains:
 - Morning Review seen-date markers;
 - runtime diagnostics, error messages, or stack traces;
 - account tokens, cookies, credentials, secrets, or sync queues.
+- browser-profile `deviceId`, durable `local_changes`, or `sync_metadata`.
 
 ## Ownership
 
@@ -94,6 +95,12 @@ Version 1 uses Replace Current Local Data:
 Any delete, insert, constraint, quota, or integrity failure aborts the entire
 transaction. Other users' rows remain untouched. There is no field-level merge
 or ownership rewrite.
+
+Replace restore preserves the current browser profile's device identity. It
+clears the restored user's non-portable local mutation journal and remote
+revision metadata so stale pending operations cannot refer to replaced data.
+Those stores are not reconstructed from Backup Format v1; future account
+reconciliation is an explicit Phase 3 concern.
 
 ## Compatibility Policy
 

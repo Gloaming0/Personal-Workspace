@@ -9,6 +9,10 @@ import {
   validateWaiting,
 } from '@/repositories/validation'
 import { InvalidPersistedEntityError } from '@/repositories/errors'
+import {
+  validateLocalMutationChange,
+  validateSyncMetadata,
+} from '@/sync/validation'
 
 function isolateInvalid<T>(
   database: DailyWorkDatabase,
@@ -35,16 +39,27 @@ function containsDuplicate(values: readonly string[]): boolean {
 export async function checkDatabaseIntegrity(
   database: DailyWorkDatabase,
 ): Promise<boolean> {
-  const [tasks, waiting, memos, routines, routineLogs, activities, dailyLogs] =
-    await Promise.all([
-      database.tasks.toArray(),
-      database.confirmations.toArray(),
-      database.memos.toArray(),
-      database.routines.toArray(),
-      database.routine_logs.toArray(),
-      database.activities.toArray(),
-      database.daily_logs.toArray(),
-    ])
+  const [
+    tasks,
+    waiting,
+    memos,
+    routines,
+    routineLogs,
+    activities,
+    dailyLogs,
+    localChanges,
+    syncMetadata,
+  ] = await Promise.all([
+    database.tasks.toArray(),
+    database.confirmations.toArray(),
+    database.memos.toArray(),
+    database.routines.toArray(),
+    database.routine_logs.toArray(),
+    database.activities.toArray(),
+    database.daily_logs.toArray(),
+    database.local_changes.toArray(),
+    database.sync_metadata.toArray(),
+  ])
 
   const validTasks = isolateInvalid(database, 'tasks', tasks, validateTask)
   isolateInvalid(database, 'confirmations', waiting, validateWaiting)
@@ -63,6 +78,13 @@ export async function checkDatabaseIntegrity(
     dailyLogs,
     validateDailyLog,
   )
+  isolateInvalid(
+    database,
+    'local_changes',
+    localChanges,
+    validateLocalMutationChange,
+  )
+  isolateInvalid(database, 'sync_metadata', syncMetadata, validateSyncMetadata)
 
   let valid = true
   const focusGroups = new Map<string, string[]>()

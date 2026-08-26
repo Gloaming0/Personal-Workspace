@@ -168,57 +168,62 @@ function buildFixtures() {
 }
 
 let sequence = 0
-describe.each([1, 2, 3, 4, 5, 6])('migration fixture v%i -> v7', (version) => {
-  const connections: Array<{ close(): void }> = []
-  let name = ''
+describe.each([1, 2, 3, 4, 5, 6, 7])(
+  'migration fixture v%i -> v8',
+  (version) => {
+    const connections: Array<{ close(): void }> = []
+    let name = ''
 
-  afterEach(async () => {
-    connections.forEach((connection) => connection.close())
-    if (name) await Dexie.delete(name)
-  })
-
-  it('preserves every historical store and applies only the declared migration', async () => {
-    name = `migration-matrix-v${version}-${++sequence}`
-    const fixtures = buildFixtures()
-    const legacy = new FixtureDatabase(name, version)
-    connections.push(legacy)
-    await legacy.open()
-
-    for (const storeName of Object.keys(storesAtVersion(version))) {
-      const rows = fixtures[storeName as keyof typeof fixtures].map((row) =>
-        structuredClone(row),
-      )
-      if (storeName === 'daily_logs') {
-        rows.forEach(
-          (row) => delete (row as Partial<DailyLog>).finalizeTimezone,
-        )
-      }
-      await legacy.table(storeName).bulkAdd(rows)
-    }
-    legacy.close()
-
-    const current = new DailyWorkDatabase(name)
-    connections.push(current)
-    await current.open()
-
-    for (const storeName of Object.keys(storesAtVersion(version))) {
-      const rows = await current.table(storeName).orderBy('id').toArray()
-      expect(rows).toHaveLength(2)
-      expect(rows.map((row) => row.version)).toEqual([1, 2])
-      expect(rows.find((row) => row.deletedAt)?.deletedAt).toBe(DELETED)
-      if (storeName === 'daily_logs') {
-        expect(rows.every((row) => row.finalizeTimezone === 'UTC')).toBe(true)
-      }
-    }
-
-    await expect(
-      current.tasks.get('migration-task-active'),
-    ).resolves.toMatchObject({
-      title: '保留任务 ✓',
-      notes: null,
+    afterEach(async () => {
+      connections.forEach((connection) => connection.close())
+      if (name) await Dexie.delete(name)
     })
-    await expect(
-      new DexieTaskRepository(current).find(USER, {}),
-    ).resolves.toHaveLength(1)
-  })
-})
+
+    it('preserves every historical store and applies only the declared migration', async () => {
+      name = `migration-matrix-v${version}-${++sequence}`
+      const fixtures = buildFixtures()
+      const legacy = new FixtureDatabase(name, version)
+      connections.push(legacy)
+      await legacy.open()
+
+      for (const storeName of Object.keys(storesAtVersion(version))) {
+        const rows = fixtures[storeName as keyof typeof fixtures].map((row) =>
+          structuredClone(row),
+        )
+        if (storeName === 'daily_logs' && version <= 6) {
+          rows.forEach(
+            (row) => delete (row as Partial<DailyLog>).finalizeTimezone,
+          )
+        }
+        await legacy.table(storeName).bulkAdd(rows)
+      }
+      legacy.close()
+
+      const current = new DailyWorkDatabase(name)
+      connections.push(current)
+      await current.open()
+
+      for (const storeName of Object.keys(storesAtVersion(version))) {
+        const rows = await current.table(storeName).orderBy('id').toArray()
+        expect(rows).toHaveLength(2)
+        expect(rows.map((row) => row.version)).toEqual([1, 2])
+        expect(rows.find((row) => row.deletedAt)?.deletedAt).toBe(DELETED)
+        if (storeName === 'daily_logs') {
+          expect(rows.every((row) => row.finalizeTimezone === 'UTC')).toBe(true)
+        }
+      }
+
+      await expect(
+        current.tasks.get('migration-task-active'),
+      ).resolves.toMatchObject({
+        title: '保留任务 ✓',
+        notes: null,
+      })
+      await expect(
+        new DexieTaskRepository(current).find(USER, {}),
+      ).resolves.toHaveLength(1)
+      await expect(current.local_changes.count()).resolves.toBe(0)
+      await expect(current.sync_metadata.count()).resolves.toBe(0)
+    })
+  },
+)

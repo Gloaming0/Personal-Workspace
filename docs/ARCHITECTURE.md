@@ -1461,3 +1461,40 @@ Domain and are never included in another backup.
 
 The long-term wire contract is maintained independently in
 `docs/BACKUP_FORMAT.md`. Phase 2.2 does not change IndexedDB schema Version 7.
+
+# Phase 2.3 Sync Readiness Foundation
+
+Sync readiness adds no network path. `DeviceIdentityStore` owns one UUID per
+browser profile outside Domain data. `UnitOfWorkTransaction.mutation(userId)`
+provides one stable command identity and device provenance to Activity creation
+and the durable journal. `executeMutation` lets a future application command
+provide the same UUID again on retry without exposing storage details.
+
+Dexie Version 8 preserves Versions 1–7 and adds `local_changes` plus
+`sync_metadata`. Every transaction-scoped Repository reports its committed
+entity operation to `DexieUnitOfWork`. Before commit, the Unit of Work writes:
+
+```text
+Domain Entity mutation
+  + Activity append (when defined)
+  + SyncMetadata update
+  + LocalMutationChange append
+```
+
+All four effects commit or roll back together. Multi-tab invalidation still
+publishes only after commit and remains distinct from the durable journal.
+In-memory Unit of Work uses snapshot diffing and an optional mutation journal
+to test the same atomic/idempotent behavior.
+
+`SyncRepository` is the only future Sync Engine storage boundary. Its Dexie
+adapter can list pending changes and tombstones, read deleted entities, inspect
+revision metadata, acknowledge a mutation, and apply a validated remote change.
+Remote apply enforces ownership, remote-base checks, immutable DailyLog rules,
+and Focus/RoutineLog/DailyLog invariants; it never silently applies Last Write
+Wins.
+
+Portable Backup v1 intentionally excludes device identity, mutation journal,
+and sync metadata. Replace restore clears the current user's non-portable sync
+state inside the same restore transaction while retaining the browser profile's
+device identity. The complete protocol, conflict taxonomy, and anonymous owner
+migration proposal live in `docs/SYNC_PROTOCOL.md`.

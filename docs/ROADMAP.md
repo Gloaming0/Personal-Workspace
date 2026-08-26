@@ -1045,8 +1045,23 @@ No Supabase, cloud Realtime, Sync Queue, or new business feature is included.
 - Ownership rejection, failure rollback, local query refresh, and multi-tab
   invalidation coverage.
 
-Phase 2.3, Supabase, cloud synchronization, Realtime, Sync Queue, merge restore,
-and anonymous ownership migration remain unstarted.
+## Phase 2.3 — Sync Readiness Foundation Complete
+
+- Stable browser-profile UUID device identity, excluded from backup and
+  preserved by restore.
+- One UUID mutation identity per logical Unit of Work, Activity device
+  provenance, retry rejection, and End Day command/mutation alignment.
+- Separate local optimistic version and future remote revision metadata.
+- Dexie Version 8 additive `local_changes` outbox and `sync_metadata` stores.
+- Atomic Entity + Activity + revision metadata + journal commit and rollback.
+- Storage-neutral pending-change, tombstone, deleted-entity, remote-apply, and
+  acknowledgement ports.
+- Conflict taxonomy and explicit anonymous-to-authenticated migration proposal.
+- Version 1–7 → Version 8 fixture matrix and Backup/Restore regression coverage.
+
+Phase 3, Supabase, authentication, cloud synchronization, Realtime transport,
+conflict-resolution UI, merge restore, and ownership migration execution remain
+unstarted.
 
 
 Always prioritize:

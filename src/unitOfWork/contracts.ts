@@ -7,6 +7,7 @@ import type {
   TaskRepository,
   WaitingRepository,
 } from '@/repositories/contracts'
+import type { MutationIntent, MutationMetadata } from '@/sync/contracts'
 
 export const unitOfWorkStores = [
   'tasks',
@@ -33,12 +34,18 @@ export interface UnitOfWorkRepositories {
 export interface UnitOfWorkTransaction {
   includes(store: UnitOfWorkStore): boolean
   repository<K extends UnitOfWorkStore>(store: K): UnitOfWorkRepositories[K]
+  mutation(userId: string): MutationMetadata
+}
+
+export interface UnitOfWorkExecutionOptions {
+  mutation?: MutationIntent
 }
 
 export interface UnitOfWork {
   execute<T>(
     stores: readonly UnitOfWorkStore[],
     command: (transaction: UnitOfWorkTransaction) => Promise<T>,
+    options?: UnitOfWorkExecutionOptions,
   ): Promise<T>
 }
 
@@ -57,11 +64,19 @@ export class DefaultUnitOfWorkTransaction implements UnitOfWorkTransaction {
   }
 
   private repositories?: Partial<UnitOfWorkRepositories>
+  private mutationResolver?: (userId: string) => MutationMetadata
 
   withRepositories(
     repositories: Partial<UnitOfWorkRepositories>,
   ): DefaultUnitOfWorkTransaction {
     this.repositories = repositories
+    return this
+  }
+
+  withMutationResolver(
+    resolver: (userId: string) => MutationMetadata,
+  ): DefaultUnitOfWorkTransaction {
+    this.mutationResolver = resolver
     return this
   }
 
@@ -74,6 +89,13 @@ export class DefaultUnitOfWorkTransaction implements UnitOfWorkTransaction {
     if (!repository) throw new UnitOfWorkScopeError(store)
     return repository as UnitOfWorkRepositories[K]
   }
+
+  mutation(userId: string): MutationMetadata {
+    if (!this.mutationResolver) {
+      throw new Error('Mutation metadata is unavailable in this transaction.')
+    }
+    return this.mutationResolver(userId)
+  }
 }
 
 export function executeAtomic<T>(
@@ -81,8 +103,9 @@ export function executeAtomic<T>(
   stores: readonly UnitOfWorkStore[],
   command: (transaction: UnitOfWorkTransaction) => Promise<T>,
   transaction?: UnitOfWorkTransaction,
+  options?: UnitOfWorkExecutionOptions,
 ): Promise<T> {
-  if (!transaction) return unitOfWork.execute(stores, command)
+  if (!transaction) return unitOfWork.execute(stores, command, options)
   stores.forEach((store) => {
     if (!transaction.includes(store)) throw new UnitOfWorkScopeError(store)
   })

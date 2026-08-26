@@ -203,6 +203,7 @@ export class RoutineService {
           title: routine.title,
         },
         transaction.repository('activities'),
+        transaction.mutation(routine.userId),
       )
   }
 }

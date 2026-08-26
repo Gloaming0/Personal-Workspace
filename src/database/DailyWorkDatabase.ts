@@ -11,9 +11,10 @@ import type {
 import { DatabaseRuntimeState } from './runtimeState'
 import { LocalChangeCoordinator } from './LocalChangeCoordinator'
 import { checkDatabaseIntegrity } from './checkDatabaseIntegrity'
+import type { LocalMutationChange, SyncMetadata } from '@/sync/contracts'
 
 export const dailyWorkDatabaseName = 'daily-work-os'
-export const currentDatabaseVersion = 7
+export const currentDatabaseVersion = 8
 
 export const taskStoreSchema =
   'id, userId, status, priority, plannedDate, dueAt, projectId, focusDate, completedAt, deletedAt, updatedAt, [userId+plannedDate], [userId+focusDate], [userId+status]'
@@ -29,6 +30,10 @@ export const activityStoreSchema =
   'id, userId, eventType, entityType, entityId, occurredAt, deviceId, [userId+occurredAt], [entityType+entityId], [userId+eventType]'
 export const dailyLogStoreSchema =
   'id, userId, date, finalizedAt, deletedAt, [userId+date], [userId+finalizedAt]'
+export const localChangeStoreSchema =
+  'id, mutationId, userId, entityType, entityId, operation, status, occurredAt, [userId+status], [userId+mutationId], [userId+entityType], [entityType+entityId]'
+export const syncMetadataStoreSchema =
+  'id, userId, entityType, entityId, localVersion, serverRevision, lastMutationId, [userId+entityType+entityId], [userId+lastMutationId]'
 
 const version1Stores = {
   tasks: taskStoreSchema,
@@ -61,6 +66,11 @@ const version6Stores = {
 }
 
 const version7Stores = version6Stores
+const version8Stores = {
+  ...version7Stores,
+  local_changes: localChangeStoreSchema,
+  sync_metadata: syncMetadataStoreSchema,
+}
 
 export class DailyWorkDatabase extends Dexie {
   tasks!: EntityTable<Task, 'id'>
@@ -70,6 +80,8 @@ export class DailyWorkDatabase extends Dexie {
   routine_logs!: EntityTable<RoutineLog, 'id'>
   activities!: EntityTable<Activity, 'id'>
   daily_logs!: EntityTable<DailyLog, 'id'>
+  local_changes!: EntityTable<LocalMutationChange, 'id'>
+  sync_metadata!: EntityTable<SyncMetadata, 'id'>
   readonly runtime = new DatabaseRuntimeState(currentDatabaseVersion)
   readonly changes: LocalChangeCoordinator
 
@@ -83,7 +95,7 @@ export class DailyWorkDatabase extends Dexie {
     this.version(4).stores(version4Stores)
     this.version(5).stores(version5Stores)
     this.version(6).stores(version6Stores)
-    this.version(currentDatabaseVersion)
+    this.version(7)
       .stores(version7Stores)
       .upgrade(async (transaction) => {
         await transaction
@@ -93,6 +105,7 @@ export class DailyWorkDatabase extends Dexie {
             if (!log.finalizeTimezone) log.finalizeTimezone = 'UTC'
           })
       })
+    this.version(currentDatabaseVersion).stores(version8Stores)
 
     this.on('blocked', () => this.runtime.blocked())
     this.on('versionchange', () => {

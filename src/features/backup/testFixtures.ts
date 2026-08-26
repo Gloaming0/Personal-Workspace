@@ -28,7 +28,7 @@ export function createCompleteBackupData(userId = USER): BackupData {
       userId,
       title: '完成提案 ✓ Привет',
       notes: null,
-      plannedDate: '2026-08-25',
+      plannedDate: '2026-08-26',
     },
     { id: fixtureIds.task, now: NOW },
   )

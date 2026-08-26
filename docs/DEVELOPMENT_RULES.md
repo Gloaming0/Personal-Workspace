@@ -990,6 +990,37 @@ DEVELOPMENT_RULES.md
 
 ---
 
+# Sync Readiness Contract
+
+- One logical command has one UUID `mutationId`. Retries reuse it; UI or
+  transport retries must not generate a replacement id.
+- Device identity is browser-profile metadata. Domain entities, portable
+  backup, and ownership migration must never overwrite or transport it.
+- Business writes continue through Feature Service → Unit of Work. A future
+  Sync Engine may use only `SyncRepository`; neither layer may access Dexie
+  tables directly.
+- Entity, Activity, SyncMetadata, and LocalMutationChange belong to the same
+  transaction. A rollback must leave no journal row or partial revision state.
+- Entity `version` is local optimistic concurrency. Never compare it with or
+  assign it as a remote server revision.
+- Journal rows contain identifiers and revision metadata only. Never persist
+  titles, memo content, localized sentences, or UI state in the outbox.
+- Ordinary repositories hide tombstones. Sync ports and portable backup may
+  intentionally read them with explicit ownership.
+- Never physically delete a tombstone before remote acknowledgement and a
+  documented retention policy.
+- Remote apply must validate ownership, revision base, immutable history, and
+  Focus/RoutineLog/DailyLog invariants before commit.
+- DailyLog conflict, delete-versus-update, ownership conflict, and unique
+  invariant conflict must never use silent Last Write Wins.
+- Anonymous ownership migration requires a safety backup and explicit user
+  confirmation. Do not silently rewrite `local-user`.
+- Every schema addition keeps the full historical migration fixture matrix.
+  Sync stores and backup exclusion/restore behavior require regression tests.
+
+
+---
+
 # Final Rule
 
 

@@ -86,6 +86,8 @@ export class DexieBackupRepository implements BackupRepository {
       this.database.routine_logs,
       this.database.activities,
       this.database.daily_logs,
+      this.database.local_changes,
+      this.database.sync_metadata,
     ]
     try {
       await this.database.transaction('rw', tables, async () => {
@@ -131,6 +133,12 @@ export class DexieBackupRepository implements BackupRepository {
           userId,
           validated.dailyLogs,
         )
+        await this.database.local_changes
+          .filter((change) => change.userId === userId)
+          .delete()
+        await this.database.sync_metadata
+          .filter((metadata) => metadata.userId === userId)
+          .delete()
 
         const restored = await this.readAllInsideTransaction(userId)
         validateBackupData(restored, userId)

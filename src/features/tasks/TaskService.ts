@@ -295,6 +295,7 @@ export class TaskService {
           projectId: task.projectId,
         },
         transaction.repository('activities'),
+        transaction.mutation(task.userId),
       )
   }
 }

@@ -43,6 +43,8 @@ const activityEventTypes = [
   'project_status_changed',
   'daily_log_finalized',
 ] as const
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function invalid(entityType: string, field: string): never {
   throw new InvalidPersistedEntityError(entityType, field)
@@ -227,6 +229,7 @@ export function validateActivity(value: unknown): Activity {
   if (!isRecord(activity.payload)) invalid('Activity', 'payload')
   if (activity.deviceId !== null) {
     assertString(activity.deviceId, 'Activity', 'deviceId', false)
+    if (!uuidPattern.test(activity.deviceId)) invalid('Activity', 'deviceId')
   }
   assertInstant(activity.occurredAt, 'Activity', 'occurredAt')
   return activity

@@ -170,7 +170,7 @@ describe('Task Today UI boundary', () => {
       memoRepository,
       memoService: new MemoService(memoRepository, unitOfWork, {
         createId: () => 'memo-user-input',
-        now: () => '2026-08-25T10:00:00.000Z',
+        now: () => '2026-08-26T10:00:00.000Z',
       }),
       routineRepository,
       routineLogRepository,
@@ -180,7 +180,7 @@ describe('Task Today UI boundary', () => {
         unitOfWork,
         {
           createId: () => 'routine-user-input',
-          now: () => '2026-08-25T10:00:00.000Z',
+          now: () => '2026-08-26T10:00:00.000Z',
         },
       ),
       activityRepository,
@@ -221,15 +221,15 @@ describe('Task Today UI boundary', () => {
     const unitOfWork = new InMemoryUnitOfWork({ tasks: repository })
     const service = new TaskService(repository, unitOfWork, {
       createId: () => 'stale-task',
-      now: () => '2026-08-25T08:00:00.000Z',
+      now: () => '2026-08-26T08:00:00.000Z',
     })
     await service.create({
       userId: 'local-user',
       title: 'Changed elsewhere',
-      plannedDate: '2026-08-25',
+      plannedDate: '2026-08-26',
     })
     const otherWindow = new TaskService(repository, unitOfWork, {
-      now: () => '2026-08-25T08:01:00.000Z',
+      now: () => '2026-08-26T08:01:00.000Z',
     })
     const waitingRepository = new InMemoryWaitingRepository()
     const runtime: TaskRuntime = {
@@ -248,7 +248,7 @@ describe('Task Today UI boundary', () => {
     const task = await screen.findByRole('checkbox', {
       name: 'Changed elsewhere',
     })
-    await otherWindow.setFocus('local-user', 'stale-task', '2026-08-25')
+    await otherWindow.setFocus('local-user', 'stale-task', '2026-08-26')
     await user.click(task)
 
     expect(

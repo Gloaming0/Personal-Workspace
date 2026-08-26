@@ -1064,3 +1064,58 @@ readback validation across all seven stores in one IndexedDB transaction. It
 does not clear the whole database and does not touch another user's rows.
 Portable format changes are governed by `docs/BACKUP_FORMAT.md`, not by Dexie
 schema numbering.
+
+# Phase 2.3 Sync Readiness Stores
+
+Dexie Version 8 preserves every Version 1–7 declaration and adds two stores.
+The v7 → v8 migration is additive and performs no business-row transform.
+
+## local_changes
+
+Indexes:
+
+```text
+id
+mutationId
+userId
+entityType
+entityId
+operation
+status
+occurredAt
+[userId+status]
+[userId+mutationId]
+[userId+entityType]
+[entityType+entityId]
+```
+
+Rows contain UUID mutation/device identity, local and base-server revision
+boundaries, operation, sequence, and acknowledgement status. They contain no
+user-authored or localized display text. Pending rows are not physically
+deleted in Phase 2.3.
+
+## sync_metadata
+
+Indexes:
+
+```text
+id
+userId
+entityType
+entityId
+localVersion
+serverRevision
+lastMutationId
+[userId+entityType+entityId]
+[userId+lastMutationId]
+```
+
+The deterministic primary key is `userId:entityType:entityId`.
+`localVersion` mirrors the latest locally committed entity version.
+`baseServerRevision` and `serverRevision` remain `null` until a future server
+acknowledges a change; Phase 2.3 never synthesizes remote revisions.
+
+Business stores remain the tombstone source of truth. Sync ports may enumerate
+`deletedAt != null` rows and read them by id; ordinary repositories still hide
+them. Replace restore clears current-user rows from both Phase 2.3 stores but
+does not modify browser-local device identity.

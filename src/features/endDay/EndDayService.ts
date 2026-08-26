@@ -13,6 +13,7 @@ import type {
   FinalizeEndDayInput,
   UnfinishedTaskAction,
 } from './contracts'
+import { isUuid } from '@/sync/journal'
 
 interface EndDayContext {
   now: () => Instant
@@ -67,113 +68,131 @@ export class EndDayService {
           'routineLogs',
           'dailyLogs',
         ] as const)
-    return executeAtomic(this.unitOfWork, stores, async (transaction) => {
-      const logs = transaction.repository('dailyLogs')
-      const existing = await logs.findByDate(input.userId, input.date)
-      if (existing) {
-        if (existing.id === input.commandId) return existing
-        throw new DailyLogAlreadyFinalizedError(input.userId, input.date)
-      }
-      const finalizedAt = this.context.now()
-      const overview = await this.query.execute(input, transaction, finalizedAt)
-      if (overview.openTasks.some((task) => !input.taskActions[task.id])) {
-        throw new EndDayIncompleteDecisionsError()
-      }
-
-      const openTasks: Task[] = []
-      const tomorrow = addLocalDateDays(input.date, 1)
-      for (const task of overview.openTasks) {
-        const action = input.taskActions[task.id] as UnfinishedTaskAction
-        if (action === 'delete') {
-          await this.taskService.delete(input.userId, task.id, transaction)
-        } else if (action === 'tomorrow') {
-          openTasks.push(
-            await this.taskService.moveToTomorrow(
-              input.userId,
-              task.id,
-              tomorrow,
-              transaction,
-            ),
-          )
-        } else if (action === 'later') {
-          openTasks.push(
-            await this.taskService.moveToLater(
-              input.userId,
-              task.id,
-              transaction,
-            ),
-          )
-        } else {
-          openTasks.push(task)
+    return executeAtomic(
+      this.unitOfWork,
+      stores,
+      async (transaction) => {
+        const logs = transaction.repository('dailyLogs')
+        const existing = await logs.findByDate(input.userId, input.date)
+        if (existing) {
+          if (existing.id === input.commandId) return existing
+          throw new DailyLogAlreadyFinalizedError(input.userId, input.date)
         }
-      }
-
-      const snapshotTask = (
-        task: Task,
-        source: EndDayOverview,
-      ): DailyLogTaskSnapshot => ({
-        entityId: task.id,
-        title: task.title,
-        status: task.status,
-        priority: task.priority,
-        projectName: task.projectId
-          ? (source.projectNames.get(task.projectId) ?? null)
-          : null,
-        plannedDate: task.plannedDate,
-        dueAt: task.dueAt,
-      })
-      const completedRoutineIds = new Map(
-        overview.routineLogs.map((log) => [log.routineId, log.completedAt]),
-      )
-      const log = finalizeDailyLog(
-        {
-          userId: input.userId,
-          date: input.date,
-          finalizeTimezone: input.timezone,
-          summary: input.summary,
-          snapshot: {
-            completedTasks: overview.completedTasks.map((task) =>
-              snapshotTask(task, overview),
-            ),
-            openTasks: openTasks.map((task) => snapshotTask(task, overview)),
-            waiting: overview.waiting.map((item) => ({
-              entityId: item.id,
-              title: item.title,
-              status: item.status,
-              person: item.person,
-              projectName: item.projectId
-                ? (overview.projectNames.get(item.projectId) ?? null)
-                : null,
-              sentAt: item.sentAt,
-              followUpDate: item.followUpDate,
-            })),
-            memos: overview.memos.map((memo) => ({
-              entityId: memo.id,
-              content: memo.content,
-            })),
-            routines: overview.routines.map((routine) => ({
-              entityId: routine.id,
-              title: routine.title,
-              completed: completedRoutineIds.has(routine.id),
-              completedAt: completedRoutineIds.get(routine.id) ?? null,
-            })),
-          },
-        },
-        { id: input.commandId, now: finalizedAt },
-      )
-      await logs.finalize(input.userId, log)
-      if (this.activities)
-        await this.activities.record(
-          {
-            userId: log.userId,
-            eventType: 'daily_log_finalized',
-            entityType: 'daily_log',
-            entityId: log.id,
-            title: log.date,
-          },
-          transaction.repository('activities'),
+        const finalizedAt = this.context.now()
+        const overview = await this.query.execute(
+          input,
+          transaction,
+          finalizedAt,
         )
-      return log
-    })
+        if (overview.openTasks.some((task) => !input.taskActions[task.id])) {
+          throw new EndDayIncompleteDecisionsError()
+        }
+
+        const openTasks: Task[] = []
+        const tomorrow = addLocalDateDays(input.date, 1)
+        for (const task of overview.openTasks) {
+          const action = input.taskActions[task.id] as UnfinishedTaskAction
+          if (action === 'delete') {
+            await this.taskService.delete(input.userId, task.id, transaction)
+          } else if (action === 'tomorrow') {
+            openTasks.push(
+              await this.taskService.moveToTomorrow(
+                input.userId,
+                task.id,
+                tomorrow,
+                transaction,
+              ),
+            )
+          } else if (action === 'later') {
+            openTasks.push(
+              await this.taskService.moveToLater(
+                input.userId,
+                task.id,
+                transaction,
+              ),
+            )
+          } else {
+            openTasks.push(task)
+          }
+        }
+
+        const snapshotTask = (
+          task: Task,
+          source: EndDayOverview,
+        ): DailyLogTaskSnapshot => ({
+          entityId: task.id,
+          title: task.title,
+          status: task.status,
+          priority: task.priority,
+          projectName: task.projectId
+            ? (source.projectNames.get(task.projectId) ?? null)
+            : null,
+          plannedDate: task.plannedDate,
+          dueAt: task.dueAt,
+        })
+        const completedRoutineIds = new Map(
+          overview.routineLogs.map((log) => [log.routineId, log.completedAt]),
+        )
+        const log = finalizeDailyLog(
+          {
+            userId: input.userId,
+            date: input.date,
+            finalizeTimezone: input.timezone,
+            summary: input.summary,
+            snapshot: {
+              completedTasks: overview.completedTasks.map((task) =>
+                snapshotTask(task, overview),
+              ),
+              openTasks: openTasks.map((task) => snapshotTask(task, overview)),
+              waiting: overview.waiting.map((item) => ({
+                entityId: item.id,
+                title: item.title,
+                status: item.status,
+                person: item.person,
+                projectName: item.projectId
+                  ? (overview.projectNames.get(item.projectId) ?? null)
+                  : null,
+                sentAt: item.sentAt,
+                followUpDate: item.followUpDate,
+              })),
+              memos: overview.memos.map((memo) => ({
+                entityId: memo.id,
+                content: memo.content,
+              })),
+              routines: overview.routines.map((routine) => ({
+                entityId: routine.id,
+                title: routine.title,
+                completed: completedRoutineIds.has(routine.id),
+                completedAt: completedRoutineIds.get(routine.id) ?? null,
+              })),
+            },
+          },
+          { id: input.commandId, now: finalizedAt },
+        )
+        await logs.finalize(input.userId, log)
+        if (this.activities)
+          await this.activities.record(
+            {
+              userId: log.userId,
+              eventType: 'daily_log_finalized',
+              entityType: 'daily_log',
+              entityId: log.id,
+              title: log.date,
+            },
+            transaction.repository('activities'),
+            transaction.mutation(log.userId),
+          )
+        return log
+      },
+      undefined,
+      isUuid(input.commandId)
+        ? {
+            mutation: {
+              mutationId: input.commandId,
+              userId: input.userId,
+            },
+          }
+        : undefined,
+    )
   }
 }

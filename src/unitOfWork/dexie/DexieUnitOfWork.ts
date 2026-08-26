@@ -4,6 +4,7 @@ import {
   DefaultUnitOfWorkTransaction,
   type UnitOfWork,
   type UnitOfWorkRepositories,
+  type UnitOfWorkExecutionOptions,
   type UnitOfWorkStore,
 } from '../contracts'
 import { DexieTaskRepository } from '@/repositories/dexie/DexieTaskRepository'
@@ -15,6 +16,22 @@ import { DexieDailyLogRepository } from '@/repositories/dexie/DexieDailyLogRepos
 import { DexieActivityRepository } from '@/repositories/dexie/DexieActivityRepository'
 import { classifyDatabaseError } from '@/database/runtimeState'
 import type { PersistedChange } from '@/repositories/dexie/changeNotification'
+import {
+  DeviceIdentityStore,
+  type DeviceIdentityProvider,
+} from '@/sync/DeviceIdentityStore'
+import {
+  createMutationMetadata,
+  toLocalMutationChange,
+  toSyncMetadata,
+} from '@/sync/journal'
+import { MutationAlreadyAppliedError } from '@/sync/contracts'
+
+export interface DexieUnitOfWorkOptions {
+  deviceIdentity?: DeviceIdentityProvider
+  createId?: () => string
+  now?: () => string
+}
 
 export class DexieUnitOfWork implements UnitOfWork {
   constructor(
@@ -24,17 +41,37 @@ export class DexieUnitOfWork implements UnitOfWork {
       stores: readonly UnitOfWorkStore[],
       collectChange: (change: PersistedChange) => void,
     ) => Partial<UnitOfWorkRepositories>,
+    private readonly options: DexieUnitOfWorkOptions = {},
   ) {}
 
   execute<T>(
     stores: readonly UnitOfWorkStore[],
     command: (transaction: DefaultUnitOfWorkTransaction) => Promise<T>,
+    options: UnitOfWorkExecutionOptions = {},
   ): Promise<T> {
     this.database.runtime.assertWritable()
     const uniqueStores = [...new Set(stores)]
     const committedChanges: PersistedChange[] = []
     const collectChange = (change: PersistedChange) =>
       committedChanges.push(change)
+    const createId = this.options.createId ?? (() => crypto.randomUUID())
+    const now = this.options.now ?? (() => new Date().toISOString())
+    const deviceIdentity =
+      this.options.deviceIdentity ?? new DeviceIdentityStore()
+    let mutationMetadata: ReturnType<typeof createMutationMetadata> | undefined
+    const resolveMutation = (userId: string) => {
+      mutationMetadata ??= createMutationMetadata(
+        userId,
+        deviceIdentity,
+        options.mutation,
+        createId,
+        now,
+      )
+      if (mutationMetadata.userId !== userId) {
+        throw new Error('A mutation cannot change data for multiple users.')
+      }
+      return mutationMetadata
+    }
     const tableByStore: Record<UnitOfWorkStore, Table> = {
       tasks: this.database.tasks,
       waiting: this.database.confirmations,
@@ -47,8 +84,12 @@ export class DexieUnitOfWork implements UnitOfWork {
     const execute = () =>
       this.database.transaction(
         'rw',
-        uniqueStores.map((store) => tableByStore[store]),
-        (transaction) => {
+        [
+          ...uniqueStores.map((store) => tableByStore[store]),
+          this.database.local_changes,
+          this.database.sync_metadata,
+        ],
+        async (transaction) => {
           const repositories: Partial<UnitOfWorkRepositories> = {}
           for (const store of uniqueStores) {
             if (store === 'tasks')
@@ -116,13 +157,55 @@ export class DexieUnitOfWork implements UnitOfWork {
               collectChange,
             ),
           )
-          return Dexie.waitFor(
+          const result = await Dexie.waitFor(
             command(
-              new DefaultUnitOfWorkTransaction(uniqueStores).withRepositories(
-                repositories,
-              ),
+              new DefaultUnitOfWorkTransaction(uniqueStores)
+                .withRepositories(repositories)
+                .withMutationResolver(resolveMutation),
             ),
           )
+          const latest = [
+            ...new Map(
+              committedChanges.map((change) => [
+                `${change.store}:${change.entityId}`,
+                change,
+              ]),
+            ).values(),
+          ]
+          if (latest.length === 0) return result
+
+          const owners = new Set(latest.map((change) => change.userId))
+          if (owners.size !== 1) {
+            throw new Error('A mutation cannot change data for multiple users.')
+          }
+          const mutation = resolveMutation(latest[0]!.userId)
+          const existing = await transaction
+            .table('local_changes')
+            .where('[userId+mutationId]')
+            .equals([mutation.userId, mutation.mutationId])
+            .first()
+          if (existing) {
+            throw new MutationAlreadyAppliedError(mutation.mutationId)
+          }
+
+          for (const [index, change] of latest.entries()) {
+            const metadataTable = transaction.table('sync_metadata')
+            const metadataId = `${mutation.userId}:${change.entityType}:${change.entityId}`
+            const current = await metadataTable.get(metadataId)
+            await metadataTable.put(toSyncMetadata(change, mutation, current))
+            await transaction
+              .table('local_changes')
+              .add(
+                toLocalMutationChange(
+                  change,
+                  mutation,
+                  index + 1,
+                  createId,
+                  current?.serverRevision ?? null,
+                ),
+              )
+          }
+          return result
         },
       )
     return execute()

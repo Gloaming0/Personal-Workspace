@@ -2,6 +2,7 @@ import { createActivity, type RecordActivityInput } from '@/domain/activity'
 import type { Activity } from '@/domain/entities'
 import type { EntityId, Instant } from '@/domain/shared'
 import type { ActivityRepository } from '@/repositories/contracts'
+import type { MutationMetadata } from '@/sync/contracts'
 
 interface ActivityServiceContext {
   createId: () => EntityId
@@ -22,11 +23,15 @@ export class ActivityService {
   async record(
     input: RecordActivityInput,
     repository: ActivityRepository = this.activities,
+    mutation?: MutationMetadata,
   ): Promise<Activity> {
-    const activity = createActivity(input, {
-      id: this.context.createId(),
-      now: this.context.now(),
-    })
+    const activity = createActivity(
+      { ...input, deviceId: mutation?.deviceId ?? input.deviceId },
+      {
+        id: this.context.createId(),
+        now: this.context.now(),
+      },
+    )
     await repository.append(input.userId, activity)
     return activity
   }

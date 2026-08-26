@@ -14,7 +14,7 @@ export function SettingsPage() {
   return (
     <div className="settings-page">
       <header className="page-heading">
-        <p className="eyebrow">Phase 2.2</p>
+        <p className="eyebrow">Phase 2.3</p>
         <h1>{t('settings.title')}</h1>
         <p>{t('settings.description')}</p>
       </header>
