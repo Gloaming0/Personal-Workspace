@@ -1116,7 +1116,23 @@ development Supabase project.
 Background Push/Pull, Realtime, merge UI, project sync, and tombstone cleanup
 remain out of scope.
 
-## Phase 3.3 — Incremental Push/Pull and Conflicts
+## Phase 3.3 — Initial Bootstrap and Ownership Migration Complete
+
+- Storage-neutral Bootstrap Coordinator implements all four local/cloud cases
+  without exposing Dexie or Supabase to UI.
+- Dexie Version 10 adds durable progress and ownership checkpoints; Version
+  1–9 migration fixtures preserve all prior data and never fabricate progress.
+- `local-user` ownership migration, pre-commit rollback, cloud replacement, and
+  server metadata/cursor initialization are atomic local commands.
+- Deterministic validated snapshots/chunks include tombstones, Activity, and
+  DailyLog history while excluding device and transport state.
+- Bilingual responsive Settings UX provides safe confirmation, retry, and a
+  double-confirmed Use Cloud path; merge and Keep Local overwrite are absent.
+- Real development-project acceptance: 5 passed, 0 failed, 0 skipped, covering
+  two Auth owners, upload, restore feed, RLS, history, tombstones, revisions,
+  idempotency, and the both-sides-blocked decision.
+
+## Phase 3.4 — Incremental Push/Pull and Conflicts
 
 - Implement the Sync Engine, persisted retry scheduling, per-entity
   acknowledgements, revision-page pull, tombstone propagation, and sync status.
@@ -1125,7 +1141,7 @@ remain out of scope.
 - Validate multiple devices, offline edits, unknown network outcomes, and RLS
   isolation before general use.
 
-## Phase 3.4 — Realtime Invalidation and Operational Hardening
+## Phase 3.5 — Realtime Invalidation and Operational Hardening
 
 - Add private owner-scoped Realtime invalidation that only schedules a normal
   pull; retain polling/reconnect catch-up as the correctness path.
@@ -1134,9 +1150,9 @@ remain out of scope.
 - Realtime payloads never become UI state and physical tombstone cleanup remains
   disabled until all retention preconditions are proven.
 
-Supabase SDK installation, authentication, network synchronization, Realtime,
-conflict-resolution UI, and ownership migration execution remain unimplemented
-at the end of Phase 3.1. Phase 3.2 is the next implementation boundary.
+Continuous synchronization, Realtime, conflict-resolution UI, project sync, and
+tombstone physical cleanup remain unimplemented after Phase 3.3. Phase 3.4 is
+the next implementation boundary.
 
 
 Always prioritize:

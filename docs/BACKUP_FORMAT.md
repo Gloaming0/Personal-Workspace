@@ -119,3 +119,16 @@ reconciliation is an explicit Phase 3 concern.
   explicit importer/migration path. It must not reinterpret Version 1 in place.
 - `sourceDatabaseVersion` is diagnostic metadata only. Portable-format support
   is not coupled to a matching Dexie version.
+
+## Safety Backup versus Bootstrap Snapshot
+
+A Phase 3.3 safety backup is an ordinary user-portable Backup Format v1 file
+created before ownership migration or Use Cloud replacement. It remains owned
+by the pre-operation local owner and can be imported only through the explicit
+future ownership policy.
+
+A Bootstrap Snapshot is a non-portable authenticated initialization envelope.
+It uses the same validated Domain content but adds deterministic entity/chunk
+ordering for server commit. It is never offered as a backup file and excludes
+device identity, cursors, Outbox/journal, bootstrap progress/checkpoints,
+diagnostics, Auth tokens, and temporary UI state.

@@ -7,13 +7,15 @@ import {
   TaskTodayWorkspace,
   TodayWorkspaceProvider,
 } from '@/features/today/TaskTodayWorkspace'
+import { useAuth } from '@/features/auth/useAuth'
 
 export function App() {
   const [activeView, setActiveView] = useState<AppView>('today')
   const { t } = useTranslations()
+  const auth = useAuth()
 
   return (
-    <TodayWorkspaceProvider>
+    <TodayWorkspaceProvider userId={auth.identity.userId}>
       <AppShell
         activeView={activeView}
         onNavigate={setActiveView}

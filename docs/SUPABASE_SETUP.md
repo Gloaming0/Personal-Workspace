@@ -86,6 +86,18 @@ npx supabase db query --linked --file supabase/tests/database/phase_3_2.sql
 The test file converts `finish()` diagnostics into an exception, so a failing
 assertion cannot be hidden when the API returns only the final result set.
 
+Phase 3.3 initial-bootstrap acceptance uses two temporary real Auth owners and
+removes them after the run:
+
+```sh
+node scripts/run-supabase-bootstrap-acceptance.mjs
+```
+
+It verifies local-history upload into an empty cloud workspace, idempotent chunk
+and commit retry, revision-feed restore for a new device, owner RLS, tombstones,
+Activity/DailyLog preservation, and the both-sides-data blocked decision. Core
+checks must report zero skipped tests.
+
 ## Migration and rollback discipline
 
 1. Create a new timestamped migration; do not edit an already deployed file.

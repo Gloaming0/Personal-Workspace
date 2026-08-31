@@ -76,4 +76,82 @@ describe('SupabaseCloudSyncAdapter', () => {
       expect.objectContaining({ p_total_chunks: 2 }),
     )
   })
+
+  it('assembles the latest authoritative cloud snapshot from revision pages', async () => {
+    const rpc = vi.fn(async (name: string) => {
+      if (name !== 'pull_sync_changes_v1') return { data: null, error: null }
+      return {
+        data: {
+          highWatermark: 2,
+          changes: [
+            {
+              entity_type: 'task',
+              entity_id: '33333333-3333-4333-8333-333333333333',
+              server_revision: 1,
+              mutation_id: mutation.mutationId,
+              device_id: mutation.deviceId,
+              record: {
+                id: '33333333-3333-4333-8333-333333333333',
+                user_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                title: 'Original',
+                notes: null,
+                status: 'todo',
+                priority: 'P2',
+                planned_date: '2026-08-31',
+                due_at: null,
+                project_id: null,
+                focus_date: null,
+                focus_order: null,
+                completed_at: null,
+                version: 1,
+                created_at: mutation.occurredAt,
+                updated_at: mutation.occurredAt,
+                deleted_at: null,
+                server_changed_at: mutation.occurredAt,
+              },
+            },
+            {
+              entity_type: 'task',
+              entity_id: '33333333-3333-4333-8333-333333333333',
+              server_revision: 2,
+              mutation_id: mutation.mutationId,
+              device_id: mutation.deviceId,
+              record: {
+                id: '33333333-3333-4333-8333-333333333333',
+                user_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                title: 'Latest',
+                notes: null,
+                status: 'todo',
+                priority: 'P2',
+                planned_date: '2026-08-31',
+                due_at: null,
+                project_id: null,
+                focus_date: null,
+                focus_order: null,
+                completed_at: null,
+                version: 2,
+                created_at: mutation.occurredAt,
+                updated_at: mutation.occurredAt,
+                deleted_at: null,
+                server_changed_at: mutation.occurredAt,
+              },
+            },
+          ],
+        },
+        error: null,
+      }
+    })
+    const adapter = new SupabaseCloudSyncAdapter({ rpc } as RpcClient)
+
+    const snapshot = await adapter.downloadBootstrapSnapshot(
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    )
+
+    expect(snapshot.highWatermark).toBe(2)
+    expect(snapshot.entries).toHaveLength(1)
+    expect(snapshot.entries[0]).toMatchObject({
+      serverRevision: 2,
+      entitySnapshot: { title: 'Latest', version: 2 },
+    })
+  })
 })

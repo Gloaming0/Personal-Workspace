@@ -18,10 +18,12 @@ import type {
   SyncBootstrapRecord,
   SyncDeviceState,
   SyncMetadata,
+  BootstrapProgressRecord,
+  OwnershipCheckpointRecord,
 } from '@/sync/contracts'
 
 export const dailyWorkDatabaseName = 'daily-work-os'
-export const currentDatabaseVersion = 9
+export const currentDatabaseVersion = 10
 
 export const taskStoreSchema =
   'id, userId, status, priority, plannedDate, dueAt, projectId, focusDate, completedAt, deletedAt, updatedAt, [userId+plannedDate], [userId+focusDate], [userId+status]'
@@ -48,6 +50,10 @@ export const syncDeviceStateStoreSchema =
 export const syncConflictStoreSchema =
   'id, userId, mutationId, entityType, entityId, status, createdAt, [userId+status], [userId+entityType+entityId], [userId+mutationId]'
 export const syncBootstrapStoreSchema = 'userId, state, updatedAt'
+export const bootstrapProgressStoreSchema =
+  'userId, bootstrapId, sourceUserId, mode, stage, updatedAt'
+export const ownershipCheckpointStoreSchema =
+  'bootstrapId, sourceUserId, targetUserId, createdAt'
 
 const version1Stores = {
   tasks: taskStoreSchema,
@@ -92,6 +98,11 @@ const version9Stores = {
   sync_conflicts: syncConflictStoreSchema,
   sync_bootstrap: syncBootstrapStoreSchema,
 }
+const version10Stores = {
+  ...version9Stores,
+  bootstrap_progress: bootstrapProgressStoreSchema,
+  ownership_checkpoints: ownershipCheckpointStoreSchema,
+}
 
 export class DailyWorkDatabase extends Dexie {
   tasks!: EntityTable<Task, 'id'>
@@ -107,6 +118,8 @@ export class DailyWorkDatabase extends Dexie {
   sync_device_state!: EntityTable<SyncDeviceState, 'id'>
   sync_conflicts!: EntityTable<PersistedSyncConflict, 'id'>
   sync_bootstrap!: EntityTable<SyncBootstrapRecord, 'userId'>
+  bootstrap_progress!: EntityTable<BootstrapProgressRecord, 'userId'>
+  ownership_checkpoints!: EntityTable<OwnershipCheckpointRecord, 'bootstrapId'>
   readonly runtime = new DatabaseRuntimeState(currentDatabaseVersion)
   readonly changes: LocalChangeCoordinator
 
@@ -131,7 +144,7 @@ export class DailyWorkDatabase extends Dexie {
           })
       })
     this.version(8).stores(version8Stores)
-    this.version(currentDatabaseVersion)
+    this.version(9)
       .stores(version9Stores)
       .upgrade(async (transaction) => {
         const userIds = new Set<string>()
@@ -166,6 +179,7 @@ export class DailyWorkDatabase extends Dexie {
         await transaction.table('local_changes').clear()
         await transaction.table('sync_metadata').clear()
       })
+    this.version(currentDatabaseVersion).stores(version10Stores)
 
     this.on('blocked', () => this.runtime.blocked())
     this.on('versionchange', () => {

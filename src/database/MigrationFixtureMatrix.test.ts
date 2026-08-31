@@ -16,10 +16,14 @@ import {
   DailyWorkDatabase,
   dailyLogStoreSchema,
   localChangeStoreSchema,
+  localMutationStoreSchema,
   memoStoreSchema,
   routineLogStoreSchema,
   routineStoreSchema,
   syncMetadataStoreSchema,
+  syncBootstrapStoreSchema,
+  syncConflictStoreSchema,
+  syncDeviceStateStoreSchema,
   taskStoreSchema,
 } from './DailyWorkDatabase'
 
@@ -207,7 +211,7 @@ function buildFixtures() {
 
 let sequence = 0
 describe.each([1, 2, 3, 4, 5, 6, 7, 8])(
-  'migration fixture v%i -> v9',
+  'migration fixture v%i -> v10',
   (version) => {
     const connections: Array<{ close(): void }> = []
     let name = ''
@@ -273,3 +277,50 @@ describe.each([1, 2, 3, 4, 5, 6, 7, 8])(
     })
   },
 )
+
+describe('migration fixture v9 -> v10', () => {
+  let name = ''
+  const connections: Array<{ close(): void }> = []
+
+  afterEach(async () => {
+    connections.forEach((connection) => connection.close())
+    if (name) await Dexie.delete(name)
+  })
+
+  it('preserves the formal sync contract and adds empty bootstrap recovery stores', async () => {
+    name = `migration-matrix-v9-${++sequence}`
+    const legacy = new Dexie(name)
+    connections.push(legacy)
+    legacy.version(9).stores({
+      ...storesAtVersion(8),
+      local_mutations: localMutationStoreSchema,
+      sync_device_state: syncDeviceStateStoreSchema,
+      sync_conflicts: syncConflictStoreSchema,
+      sync_bootstrap: syncBootstrapStoreSchema,
+    })
+    await legacy.open()
+    const fixtures = buildFixtures()
+    await legacy.table('tasks').bulkPut(fixtures.tasks)
+    await legacy.table('sync_metadata').bulkPut(fixtures.sync_metadata)
+    await legacy.table('sync_bootstrap').put({
+      userId: USER,
+      state: 'requires_bootstrap',
+      updatedAt: NOW,
+    })
+    legacy.close()
+
+    const current = new DailyWorkDatabase(name)
+    connections.push(current)
+    await current.open()
+
+    await expect(current.tasks.count()).resolves.toBe(2)
+    await expect(current.sync_metadata.toArray()).resolves.toEqual(
+      fixtures.sync_metadata,
+    )
+    await expect(current.sync_bootstrap.get(USER)).resolves.toMatchObject({
+      state: 'requires_bootstrap',
+    })
+    await expect(current.bootstrap_progress.count()).resolves.toBe(0)
+    await expect(current.ownership_checkpoints.count()).resolves.toBe(0)
+  })
+})

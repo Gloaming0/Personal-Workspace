@@ -8,14 +8,16 @@ import { SidebarModeSwitcher } from './preferences/SidebarModeSwitcher'
 import { ThemeSwitcher } from './theme/ThemeSwitcher'
 import { BackupRestorePanel } from '@/features/backup/BackupRestorePanel'
 import { AuthPanel } from '@/features/auth/AuthPanel'
+import { useAuth } from '@/features/auth/useAuth'
 
 export function SettingsPage() {
   const { t } = useTranslations()
+  const auth = useAuth()
 
   return (
     <div className="settings-page">
       <header className="page-heading">
-        <p className="eyebrow">Phase 3.2</p>
+        <p className="eyebrow">Phase 3.3</p>
         <h1>{t('settings.title')}</h1>
         <p>{t('settings.description')}</p>
       </header>
@@ -52,7 +54,7 @@ export function SettingsPage() {
         title={t('backup.sectionTitle')}
         description={t('backup.sectionDescription')}
       >
-        <BackupRestorePanel />
+        <BackupRestorePanel userId={auth.identity.userId} />
       </SettingsSection>
 
       <SettingsSection

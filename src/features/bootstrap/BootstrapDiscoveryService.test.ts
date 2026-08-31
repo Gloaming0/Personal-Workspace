@@ -27,7 +27,9 @@ describe('BootstrapDiscoveryService', () => {
   ] as const)(
     'maps local=%s cloud=%s without mutating either side',
     async (local, cloud, decision) => {
-      await expect(service(local, cloud).inspect()).resolves.toMatchObject({
+      await expect(
+        service(local, cloud).inspect('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+      ).resolves.toMatchObject({
         local: local ? 'has_data' : 'empty',
         cloud: cloud ? 'has_data' : 'empty',
         syncBootstrapState: 'requires_bootstrap',

@@ -630,10 +630,41 @@ button {
 }
 
 .bootstrap-discovery {
+  display: grid;
+  gap: var(--space-3);
   padding: var(--space-4);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface-muted);
+}
+
+.bootstrap-discovery button,
+.bootstrap-confirmation button {
+  min-height: var(--control-height);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+.bootstrap-confirmation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.bootstrap-confirmation p {
+  flex-basis: 100%;
+}
+
+@media (max-width: 47.99rem) {
+  .bootstrap-confirmation,
+  .bootstrap-confirmation button,
+  .bootstrap-discovery > button {
+    width: 100%;
+  }
 }
 
 .backup-restore-panel {

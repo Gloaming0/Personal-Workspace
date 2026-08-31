@@ -1,6 +1,5 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
 import { Download, ShieldCheck, Upload } from 'lucide-react'
-import { localUserId } from '@/features/tasks/taskRuntime'
 import { useTranslations } from '@/features/settings/language/useTranslations'
 import type { MessageKey } from '@/features/settings/language/messages'
 import { BackupError, type BackupErrorCode } from './errors'
@@ -17,6 +16,7 @@ interface BackupRestorePanelProps {
   runtime?: BackupRuntime
   fileGateway?: BrowserBackupFileGateway
   timezone?: string
+  userId?: string
 }
 
 function errorMessageKey(code: BackupErrorCode) {
@@ -34,6 +34,7 @@ export function BackupRestorePanel({
   runtime = getBackupRuntime(),
   fileGateway = new BrowserBackupFileGateway(),
   timezone = Intl.DateTimeFormat().resolvedOptions().timeZone,
+  userId = 'local-user',
 }: BackupRestorePanelProps) {
   const { t } = useTranslations()
   const [lastExportedAt, setLastExportedAt] = useState(readLastSuccessfulExport)
@@ -76,7 +77,7 @@ export function BackupRestorePanel({
     setSuccessKey(null)
     try {
       await runtime.ready
-      const result = await runtime.service.createBackup(localUserId, timezone)
+      const result = await runtime.service.createBackup(userId, timezone)
       fileGateway.download(result.json, result.filename)
       writeLastSuccessfulExport(result.backup.exportedAt)
       setLastExportedAt(result.backup.exportedAt)
@@ -100,7 +101,7 @@ export function BackupRestorePanel({
     try {
       await runtime.ready
       const json = await file.text()
-      setPrepared(runtime.service.validateImport(json, localUserId))
+      setPrepared(runtime.service.validateImport(json, userId))
     } catch (caught) {
       showError(caught)
     } finally {
@@ -115,7 +116,7 @@ export function BackupRestorePanel({
     setSuccessKey(null)
     try {
       await runtime.service.restore(
-        localUserId,
+        userId,
         prepared.backup,
         timezone,
         fileGateway,

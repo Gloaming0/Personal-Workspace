@@ -55,6 +55,40 @@ describe('Task Today UI boundary', () => {
     })
   })
 
+  it('reads and writes the authenticated owner after bootstrap', async () => {
+    const authenticatedUser = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    const repository = new InMemoryTaskRepository()
+    const waitingRepository = new InMemoryWaitingRepository()
+    const unitOfWork = new InMemoryUnitOfWork({ tasks: repository })
+    const service = new TaskService(repository, unitOfWork, {
+      createId: () => 'authenticated-task',
+      now: () => `${TODAY}T10:00:00.000Z`,
+    })
+    await service.create({
+      userId: authenticatedUser,
+      title: 'Authenticated workspace task',
+      plannedDate: TODAY,
+    })
+    const runtime: TaskRuntime = {
+      repository,
+      service,
+      waitingRepository,
+      waitingService: new WaitingService(
+        waitingRepository,
+        new InMemoryUnitOfWork({ waiting: waitingRepository }),
+      ),
+      ...supportingRuntime(),
+      ready: Promise.resolve(),
+    }
+
+    render(<TaskTodayWorkspace runtime={runtime} userId={authenticatedUser} />)
+
+    expect(
+      await screen.findByText('Authenticated workspace task'),
+    ).toBeInTheDocument()
+    await expect(repository.find('local-user', {})).resolves.toEqual([])
+  })
+
   it('keeps user-authored content unchanged when UI language changes', async () => {
     const user = userEvent.setup()
     const repository = new InMemoryTaskRepository()

@@ -1,4 +1,8 @@
 import type { LocalMutationRecord, MutationAck } from '@/sync/contracts'
+import type {
+  BootstrapCommitResult,
+  CloudBootstrapSnapshot,
+} from '@/features/bootstrap/model'
 
 export interface CloudWorkspaceInspection {
   hasData: boolean
@@ -24,6 +28,11 @@ export interface BootstrapChunkRequest {
   payload: Readonly<Record<string, unknown>>
 }
 
+export interface BootstrapBeginResult {
+  bootstrapId: string
+  status: 'staging' | 'committed'
+}
+
 export interface CloudSyncPort {
   inspectCloudWorkspace(): Promise<CloudWorkspaceInspection>
   getRemoteHighWatermark(): Promise<number>
@@ -33,9 +42,10 @@ export interface CloudSyncPort {
   ): Promise<CloudChangePage>
   submitMutation(mutation: LocalMutationRecord): Promise<MutationAck>
   queryMutationResult(mutationId: string): Promise<MutationAck | null>
-  beginBootstrap(request: BootstrapBeginRequest): Promise<unknown>
+  beginBootstrap(request: BootstrapBeginRequest): Promise<BootstrapBeginResult>
   uploadBootstrapChunk(request: BootstrapChunkRequest): Promise<unknown>
-  commitBootstrap(bootstrapId: string): Promise<unknown>
+  commitBootstrap(bootstrapId: string): Promise<BootstrapCommitResult>
+  downloadBootstrapSnapshot(userId: string): Promise<CloudBootstrapSnapshot>
 }
 
 export class CloudPortError extends Error {

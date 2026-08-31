@@ -4,11 +4,15 @@ import {
   initializeLocalDatabase,
 } from '@/database/DailyWorkDatabase'
 import { DexieBackupRepository } from '@/features/backup/DexieBackupRepository'
+import { BackupService } from '@/features/backup/BackupService'
+import { BootstrapCoordinator } from '@/features/bootstrap/BootstrapCoordinator'
+import { DexieBootstrapRepository } from '@/features/bootstrap/DexieBootstrapRepository'
 import { BootstrapDiscoveryService } from '@/features/bootstrap/BootstrapDiscoveryService'
 import type { LocalWorkspaceInspector } from '@/features/bootstrap/contracts'
 import { SupabaseAuthGateway } from '@/features/auth/SupabaseAuthGateway'
 import type { AuthGateway } from '@/features/auth/contracts'
 import { DexieSyncRepository } from '@/sync/dexie/DexieSyncRepository'
+import { DeviceIdentityStore } from '@/sync/DeviceIdentityStore'
 import type { CloudSyncPort } from './contracts'
 import {
   SupabaseCloudSyncAdapter,
@@ -48,6 +52,8 @@ export interface CloudRuntime {
   authGateway: AuthGateway | null
   cloudPort: CloudSyncPort | null
   bootstrapDiscovery: BootstrapDiscoveryService | null
+  bootstrapCoordinator: BootstrapCoordinator | null
+  ready: Promise<void>
 }
 
 export function createCloudRuntime(): CloudRuntime {
@@ -58,21 +64,32 @@ export function createCloudRuntime(): CloudRuntime {
       authGateway: null,
       cloudPort: null,
       bootstrapDiscovery: null,
+      bootstrapCoordinator: null,
+      ready: Promise.resolve(),
     }
   }
   const client = createBrowserSupabaseClient(environment)
   const cloudPort = new SupabaseCloudSyncAdapter(asRpcClient(client))
   const database = new DailyWorkDatabase()
-  void initializeLocalDatabase(database)
+  const ready = initializeLocalDatabase(database)
+  const backupRepository = new DexieBackupRepository(database)
+  const bootstrapLocal = new DexieBootstrapRepository(database)
   return {
     configured: true,
     authGateway: new SupabaseAuthGateway(client, environment.authRedirectUrl),
     cloudPort,
     bootstrapDiscovery: new BootstrapDiscoveryService(
-      new DexieLocalWorkspaceInspector(new DexieBackupRepository(database)),
+      new DexieLocalWorkspaceInspector(backupRepository),
       cloudPort,
       new DexieSyncRepository(database),
     ),
+    bootstrapCoordinator: new BootstrapCoordinator(
+      bootstrapLocal,
+      cloudPort,
+      new BackupService(backupRepository),
+      new DeviceIdentityStore(),
+    ),
+    ready,
   }
 }
 

@@ -1382,3 +1382,22 @@ Sync control tables:
 All public tables enable RLS and expose owner-only SELECT to `authenticated`.
 `anon` receives no table or RPC access. Authenticated clients receive no table
 INSERT/UPDATE/DELETE grants; canonical writes use authenticated-only RPCs.
+
+# Dexie Version 10 — Bootstrap Recovery
+
+Version 10 is additive and preserves every Version 1–9 store.
+
+`bootstrap_progress` is keyed by authenticated `userId` and stores bootstrap
+ID, source owner, device ID, mode, durable stage, next chunk index, manifest
+hash, optional committed acknowledgement, high watermark, and update instant.
+Only one bootstrap can be active for an authenticated owner.
+
+`ownership_checkpoints` is keyed by `bootstrapId`. It contains a local-only
+pre-commit snapshot of Domain rows and sync metadata needed to restore
+`local-user` exactly. It is deleted after successful finalization or explicit
+pre-commit rollback and is never uploaded or included in Backup.
+
+Ownership migration keeps entity IDs, timestamps, Domain versions, Activity
+payloads, DailyLog snapshots, and references unchanged. Embedded ownership keys
+are rebuilt in the same transaction. Version 9 → 10 adds empty recovery stores
+and never synthesizes progress.

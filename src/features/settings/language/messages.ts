@@ -324,6 +324,31 @@ const englishMessages = {
     'Cloud data is available to restore to this device.',
   'auth.bootstrap.manual_choice_required':
     'Both sides contain data. Choose explicitly before continuing.',
+  'auth.bootstrap.already_bootstrapped':
+    'This device is connected to your account.',
+  'auth.bootstrap.initialize': 'Initialize workspace',
+  'auth.bootstrap.connect': 'Connect local data',
+  'auth.bootstrap.restore': 'Restore from cloud',
+  'auth.bootstrap.useCloud': 'Use cloud data',
+  'auth.bootstrap.confirmConnect':
+    'A safety backup will be downloaded before this device is connected.',
+  'auth.bootstrap.confirmUseCloud':
+    'This will replace local workspace data after downloading a safety backup.',
+  'auth.bootstrap.confirmAgain': 'Confirm use cloud data',
+  'auth.bootstrap.cancel': 'Cancel',
+  'auth.bootstrap.retry': 'Retry',
+  'auth.bootstrap.complete': 'This device is connected to your account.',
+  'auth.bootstrap.error':
+    'The workspace could not be connected. Existing data remains recoverable.',
+  'auth.bootstrapStage.detecting': 'Detecting workspace…',
+  'auth.bootstrapStage.decision': 'Waiting for your decision',
+  'auth.bootstrapStage.safety_backup': 'Creating safety backup…',
+  'auth.bootstrapStage.preparing': 'Preparing local data…',
+  'auth.bootstrapStage.uploading': 'Connecting this device…',
+  'auth.bootstrapStage.downloading': 'Restoring cloud data…',
+  'auth.bootstrapStage.finalizing': 'Finalizing securely…',
+  'auth.bootstrapStage.complete': 'Complete',
+  'auth.bootstrapStage.error': 'Needs attention',
 } as const
 
 export type MessageKey = keyof typeof englishMessages
@@ -626,6 +651,28 @@ const chineseMessages = {
   'auth.bootstrap.restore_cloud_data': '可从云端恢复数据到此设备。',
   'auth.bootstrap.manual_choice_required':
     '本地与云端都有数据，继续前必须明确选择。',
+  'auth.bootstrap.already_bootstrapped': '此设备已连接到你的账号。',
+  'auth.bootstrap.initialize': '初始化工作区',
+  'auth.bootstrap.connect': '连接本机数据',
+  'auth.bootstrap.restore': '从云端恢复',
+  'auth.bootstrap.useCloud': '使用云端数据',
+  'auth.bootstrap.confirmConnect': '连接此设备前会先下载一份安全备份。',
+  'auth.bootstrap.confirmUseCloud':
+    '下载安全备份后，云端工作区将替换当前本地数据。',
+  'auth.bootstrap.confirmAgain': '确认使用云端数据',
+  'auth.bootstrap.cancel': '取消',
+  'auth.bootstrap.retry': '重试',
+  'auth.bootstrap.complete': '此设备已连接到你的账号。',
+  'auth.bootstrap.error': '无法连接工作区，现有数据仍可恢复。',
+  'auth.bootstrapStage.detecting': '正在检查工作区…',
+  'auth.bootstrapStage.decision': '等待你的选择',
+  'auth.bootstrapStage.safety_backup': '正在创建安全备份…',
+  'auth.bootstrapStage.preparing': '正在准备本机数据…',
+  'auth.bootstrapStage.uploading': '正在连接此设备…',
+  'auth.bootstrapStage.downloading': '正在恢复云端数据…',
+  'auth.bootstrapStage.finalizing': '正在安全完成…',
+  'auth.bootstrapStage.complete': '已完成',
+  'auth.bootstrapStage.error': '需要处理',
 } satisfies Record<MessageKey, string>
 
 export const messages = {

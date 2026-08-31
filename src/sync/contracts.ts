@@ -108,6 +108,37 @@ export interface SyncBootstrapRecord {
   updatedAt: Instant
 }
 
+export type BootstrapProgressStage =
+  | 'safety_backup_created'
+  | 'ownership_migrated'
+  | 'uploading'
+  | 'server_committed'
+  | 'downloading'
+  | 'finalizing'
+
+export interface BootstrapProgressRecord {
+  userId: UserId
+  bootstrapId: string
+  sourceUserId: UserId
+  deviceId: string
+  mode: 'connect_local' | 'restore_cloud' | 'use_cloud'
+  stage: BootstrapProgressStage
+  nextChunkIndex: number
+  totalChunks: number
+  manifestHash: string | null
+  serverResult: MutationAck | null
+  highWatermark: number | null
+  updatedAt: Instant
+}
+
+export interface OwnershipCheckpointRecord {
+  bootstrapId: string
+  sourceUserId: UserId
+  targetUserId: UserId
+  createdAt: Instant
+  snapshot: unknown
+}
+
 export type SyncConflict =
   | {
       type: 'SameBaseConcurrentEdit'

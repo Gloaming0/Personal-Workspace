@@ -108,11 +108,13 @@ function isVersionConflict(error: unknown): boolean {
 interface TodayWorkspaceProviderProps {
   children: ReactNode
   runtime?: TaskRuntime
+  userId?: string
 }
 
 export function TodayWorkspaceProvider({
   children,
   runtime,
+  userId = localUserId,
 }: TodayWorkspaceProviderProps) {
   const { language, t } = useTranslations()
   const localDatabaseError = t('today.localDatabaseError')
@@ -169,7 +171,7 @@ export function TodayWorkspaceProvider({
   const refresh = useCallback(async () => {
     await ensureDatabaseReady()
     const data = await query.execute({
-      userId: localUserId,
+      userId: userId,
       date,
       timezone,
       language,
@@ -177,14 +179,14 @@ export function TodayWorkspaceProvider({
     })
     setViewModel(data)
     setLoading(false)
-  }, [date, ensureDatabaseReady, instant, language, query, timezone])
+  }, [date, ensureDatabaseReady, instant, language, query, timezone, userId])
 
   useEffect(() => {
     let active = true
     void taskRuntime.ready
       .then(() =>
         query.execute({
-          userId: localUserId,
+          userId: userId,
           date,
           timezone,
           language,
@@ -220,6 +222,7 @@ export function TodayWorkspaceProvider({
     query,
     taskRuntime,
     timezone,
+    userId,
   ])
 
   useEffect(() => {
@@ -228,7 +231,7 @@ export function TodayWorkspaceProvider({
     void taskRuntime.ready
       .then(() =>
         taskRuntime.morningReviewService!.load({
-          userId: localUserId,
+          userId: userId,
           date,
           timezone,
         }),
@@ -241,7 +244,7 @@ export function TodayWorkspaceProvider({
     return () => {
       active = false
     }
-  }, [date, taskRuntime, timezone])
+  }, [date, taskRuntime, timezone, userId])
 
   useEffect(() => {
     if (!taskRuntime.localChanges) return
@@ -362,7 +365,7 @@ export function TodayWorkspaceProvider({
     onApplyMorningReview: async (taskId, action) => {
       if (!taskRuntime.morningReviewService) return
       const next = await taskRuntime.morningReviewService.apply(
-        { userId: localUserId, date, timezone },
+        { userId: userId, date, timezone },
         taskId,
         action,
       )
@@ -372,7 +375,7 @@ export function TodayWorkspaceProvider({
     onMoveAllMorningReview: async () => {
       if (!taskRuntime.morningReviewService) return
       await taskRuntime.morningReviewService.moveAll({
-        userId: localUserId,
+        userId: userId,
         date,
         timezone,
       })
@@ -382,7 +385,7 @@ export function TodayWorkspaceProvider({
     onSkipMorningReview: async () => {
       if (!taskRuntime.morningReviewService) return
       await taskRuntime.morningReviewService.skip({
-        userId: localUserId,
+        userId: userId,
         date,
         timezone,
       })
@@ -391,7 +394,7 @@ export function TodayWorkspaceProvider({
     onCreateTask: (title) =>
       runCommand(() =>
         taskRuntime.service.create({
-          userId: localUserId,
+          userId: userId,
           title,
           plannedDate: date,
         }),
@@ -399,14 +402,9 @@ export function TodayWorkspaceProvider({
     onToggleTask: (taskId, completed, entityVersion) =>
       runCommand(() =>
         completed
-          ? taskRuntime.service.reopen(
-              localUserId,
-              taskId,
-              undefined,
-              entityVersion,
-            )
+          ? taskRuntime.service.reopen(userId, taskId, undefined, entityVersion)
           : taskRuntime.service.complete(
-              localUserId,
+              userId,
               taskId,
               undefined,
               entityVersion,
@@ -416,13 +414,13 @@ export function TodayWorkspaceProvider({
       runCommand(() =>
         focused
           ? taskRuntime.service.removeFocus(
-              localUserId,
+              userId,
               taskId,
               undefined,
               entityVersion,
             )
           : taskRuntime.service.setFocus(
-              localUserId,
+              userId,
               taskId,
               date,
               undefined,
@@ -431,12 +429,12 @@ export function TodayWorkspaceProvider({
       ),
     onCreateWaiting: (values) =>
       runWaitingCommand(() =>
-        taskRuntime.waitingService.create({ userId: localUserId, ...values }),
+        taskRuntime.waitingService.create({ userId: userId, ...values }),
       ),
     onEditWaiting: (waitingId, values, entityVersion) =>
       runWaitingCommand(() =>
         taskRuntime.waitingService.edit(
-          localUserId,
+          userId,
           waitingId,
           values,
           entityVersion,
@@ -447,19 +445,19 @@ export function TodayWorkspaceProvider({
         switch (action) {
           case 'confirm':
             return taskRuntime.waitingService.confirm(
-              localUserId,
+              userId,
               waitingId,
               entityVersion,
             )
           case 'close':
             return taskRuntime.waitingService.close(
-              localUserId,
+              userId,
               waitingId,
               entityVersion,
             )
           case 'reopen':
             return taskRuntime.waitingService.reopen(
-              localUserId,
+              userId,
               waitingId,
               entityVersion,
             )
@@ -467,31 +465,26 @@ export function TodayWorkspaceProvider({
       }),
     onCreateMemo: (values) =>
       runMemoCommand(() =>
-        taskRuntime.memoService.create({ userId: localUserId, ...values }),
+        taskRuntime.memoService.create({ userId: userId, ...values }),
       ),
     onEditMemo: (memoId, values, entityVersion) =>
       runMemoCommand(() =>
-        taskRuntime.memoService.edit(
-          localUserId,
-          memoId,
-          values,
-          entityVersion,
-        ),
+        taskRuntime.memoService.edit(userId, memoId, values, entityVersion),
       ),
     onDeleteMemo: (memoId, entityVersion) =>
       runMemoCommand(() =>
-        taskRuntime.memoService.delete(localUserId, memoId, entityVersion),
+        taskRuntime.memoService.delete(userId, memoId, entityVersion),
       ),
     onToggleMemoPin: (memoId, pinned, entityVersion) =>
       runMemoCommand(() =>
         pinned
-          ? taskRuntime.memoService.unpin(localUserId, memoId, entityVersion)
-          : taskRuntime.memoService.pin(localUserId, memoId, entityVersion),
+          ? taskRuntime.memoService.unpin(userId, memoId, entityVersion)
+          : taskRuntime.memoService.pin(userId, memoId, entityVersion),
       ),
     onCreateRoutine: (values) =>
       runRoutineCommand(() =>
         taskRuntime.routineService.create({
-          userId: localUserId,
+          userId: userId,
           timezone,
           ...values,
         }),
@@ -500,13 +493,13 @@ export function TodayWorkspaceProvider({
       runRoutineCommand(() =>
         completed
           ? taskRuntime.routineService.undo(
-              localUserId,
+              userId,
               routineId,
               routineDate,
               routineVersion,
             )
           : taskRuntime.routineService.complete(
-              localUserId,
+              userId,
               routineId,
               routineDate,
               routineVersion,
@@ -514,26 +507,18 @@ export function TodayWorkspaceProvider({
       ),
     onPauseRoutine: (routineId, routineVersion) =>
       runRoutineCommand(() =>
-        taskRuntime.routineService.pause(
-          localUserId,
-          routineId,
-          routineVersion,
-        ),
+        taskRuntime.routineService.pause(userId, routineId, routineVersion),
       ),
     onArchiveRoutine: (routineId, routineVersion) =>
       runRoutineCommand(() =>
-        taskRuntime.routineService.archive(
-          localUserId,
-          routineId,
-          routineVersion,
-        ),
+        taskRuntime.routineService.archive(userId, routineId, routineVersion),
       ),
     ...(taskRuntime.endDayService
       ? {
           onLoadEndDay: async () => {
             await ensureDatabaseReady()
             return taskRuntime.endDayService!.preview({
-              userId: localUserId,
+              userId: userId,
               date,
               timezone,
             })
@@ -549,7 +534,7 @@ export function TodayWorkspaceProvider({
             await ensureDatabaseReady()
             await taskRuntime.endDayService!.finalize({
               commandId,
-              userId: localUserId,
+              userId: userId,
               date,
               timezone,
               summary,
@@ -597,12 +582,16 @@ function TodayWorkspaceDashboard() {
 
 interface TaskTodayWorkspaceProps {
   runtime?: TaskRuntime
+  userId?: string
 }
 
-export function TaskTodayWorkspace({ runtime }: TaskTodayWorkspaceProps) {
+export function TaskTodayWorkspace({
+  runtime,
+  userId,
+}: TaskTodayWorkspaceProps) {
   if (runtime) {
     return (
-      <TodayWorkspaceProvider runtime={runtime}>
+      <TodayWorkspaceProvider runtime={runtime} userId={userId}>
         <TodayWorkspaceDashboard />
       </TodayWorkspaceProvider>
     )

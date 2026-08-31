@@ -702,3 +702,35 @@ local/cloud, cloud/local, or both-with-explicit-choice. It never rewrites
 
 Pull read contracts expose ordered `sync_changes` after a revision cursor, but
 Phase 3.2 contains no polling or Push/Pull engine. Realtime is disabled.
+
+# Phase 3.3 Initial Bootstrap Contract
+
+`BootstrapCoordinator` is the only feature boundary combining authenticated
+identity, local/cloud inspection, safety backup, ownership changes, bootstrap
+RPCs, and local sync initialization. UI components never call Dexie or
+Supabase directly.
+
+| Local | Cloud | Allowed result |
+| --- | --- | --- |
+| empty | empty | initialize the authenticated owner and cursor |
+| data | empty | safety backup, checkpointed ownership migration, snapshot upload, commit |
+| empty | data | download the revision snapshot and atomically install it locally |
+| data | data | stop; MVP permits only Cancel or confirmed Use Cloud |
+
+Bootstrap snapshots contain all authoritative Domain rows, including
+tombstones, Activity payloads, and immutable DailyLog snapshots. They exclude
+device identity, mutation transport state, cursors, diagnostics, tokens, and UI
+preferences. Entity order is type-then-ID, chunk size is centrally fixed, and
+chunk UUIDs are deterministically derived from bootstrap ID, index, and
+payload. Historical data never enters the ordinary Outbox.
+
+Dexie Version 10 persists one progress record per authenticated owner and a
+pre-commit ownership checkpoint. Restart resumes the same bootstrap ID and next
+chunk. Ownership can return to `local-user` only before server commit. After
+commit, local finalization installs per-entity server metadata and advances the
+device cursor to the returned high watermark atomically.
+
+Cloud restore reads the durable revision feed from zero, retains the newest
+record per entity, validates the complete owner snapshot, and atomically
+replaces local Domain and transport state. It creates no Activity or mutation.
+Phase 3.3 still has no recurring Push/Pull scheduler or Realtime listener.

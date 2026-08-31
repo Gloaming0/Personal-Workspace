@@ -1611,3 +1611,25 @@ Optimistic base-revision conflicts are converted to PostgREST `PT409` only at
 the public RPC boundary; entity, receipt, change-feed, and revision writes still
 share one rollback boundary. Bootstrap commit checks every canonical store, not
 only the change feed, before accepting an initial workspace.
+
+# Phase 3.3 Bootstrap Composition
+
+The cloud composition root supplies a storage-neutral `BootstrapCoordinator`.
+It depends on `BootstrapLocalPort`, `CloudSyncPort`, `BackupService`, and
+`DeviceIdentityProvider`; React depends only on the coordinator and its
+decision/progress model.
+
+`DexieBootstrapRepository` owns every destructive local boundary. Checkpoint
+creation, Domain owner rewrite, and sync-metadata rewrite share one transaction.
+Cloud replacement and server-result finalization are separate atomic
+transactions. Cross-tab invalidation is published only after success.
+
+```text
+safety backup -> ownership checkpoint -> deterministic chunks
+              -> server commit -> local metadata/cursor finalize
+```
+
+Before server commit an explicit cancel may restore the checkpoint exactly.
+After commit rollback is forbidden; retry reuses the same durable bootstrap
+session. Download restore uses the revision feed as a full authoritative
+snapshot but does not start an incremental sync loop.

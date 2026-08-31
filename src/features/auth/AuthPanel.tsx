@@ -1,10 +1,18 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { getCloudRuntime } from '@/cloud/cloudRuntime'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { getCloudRuntime, type CloudRuntime } from '@/cloud/cloudRuntime'
 import type { BootstrapDiscoveryResult } from '@/features/bootstrap/contracts'
+import type { BootstrapUiStage } from '@/features/bootstrap/BootstrapCoordinator'
+import { BrowserBackupFileGateway } from '@/features/backup/BrowserBackupFileGateway'
 import { useTranslations } from '@/features/settings/language/useTranslations'
 import { useAuth } from './useAuth'
 
-export function AuthPanel() {
+export function AuthPanel({
+  runtime = getCloudRuntime(),
+  fileGateway = new BrowserBackupFileGateway(),
+}: {
+  runtime?: CloudRuntime
+  fileGateway?: BrowserBackupFileGateway
+}) {
   const { t } = useTranslations()
   const auth = useAuth()
   const [email, setEmail] = useState('')
@@ -13,24 +21,74 @@ export function AuthPanel() {
     null,
   )
   const [discoveryError, setDiscoveryError] = useState(false)
+  const [bootstrapStage, setBootstrapStage] = useState<BootstrapUiStage | null>(
+    null,
+  )
+  const [confirmation, setConfirmation] = useState<0 | 1 | 2>(0)
+  const [busy, setBusy] = useState(false)
+
+  const detect = useCallback(async () => {
+    if (auth.status !== 'signed_in' || auth.identity.kind !== 'authenticated')
+      return
+    const coordinator = runtime.bootstrapCoordinator
+    if (!coordinator) return
+    setDiscoveryError(false)
+    setBootstrapStage('detecting')
+    try {
+      await runtime.ready
+      await coordinator.resume(auth.identity.userId)
+      const result = await coordinator.inspect(auth.identity.userId)
+      setDiscovery(result)
+      setBootstrapStage('decision')
+    } catch {
+      setDiscoveryError(true)
+      setBootstrapStage('error')
+    }
+  }, [auth.identity, auth.status, runtime])
 
   useEffect(() => {
     if (auth.status !== 'signed_in') return
-    const service = getCloudRuntime().bootstrapDiscovery
-    if (!service) return
-    let active = true
-    void service
-      .inspect()
-      .then((result) => {
-        if (active) setDiscovery(result)
-      })
-      .catch(() => {
-        if (active) setDiscoveryError(true)
-      })
-    return () => {
-      active = false
+    const timeout = window.setTimeout(() => void detect(), 0)
+    return () => window.clearTimeout(timeout)
+  }, [auth.status, detect])
+
+  const runBootstrap = async (
+    action: 'initialize' | 'connect' | 'restore' | 'use_cloud',
+  ) => {
+    if (auth.identity.kind !== 'authenticated') return
+    const coordinator = runtime.bootstrapCoordinator
+    if (!coordinator) return
+    setBusy(true)
+    setDiscoveryError(false)
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    try {
+      if (action === 'initialize') {
+        setBootstrapStage('finalizing')
+        await coordinator.initializeEmpty(auth.identity.userId)
+      } else if (action === 'connect') {
+        setBootstrapStage('safety_backup')
+        await coordinator.connectLocalData(
+          auth.identity.userId,
+          timezone,
+          fileGateway,
+        )
+      } else if (action === 'restore') {
+        setBootstrapStage('downloading')
+        await coordinator.restoreCloud(auth.identity.userId)
+      } else {
+        setBootstrapStage('safety_backup')
+        await coordinator.useCloud(auth.identity.userId, timezone, fileGateway)
+      }
+      setBootstrapStage('complete')
+      setConfirmation(0)
+      await detect()
+    } catch {
+      setDiscoveryError(true)
+      setBootstrapStage('error')
+    } finally {
+      setBusy(false)
     }
-  }, [auth.status])
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -72,10 +130,80 @@ export function AuthPanel() {
         {discovery ? (
           <div className="bootstrap-discovery" role="status">
             <strong>{t(`auth.bootstrap.${discovery.decision}`)}</strong>
-            <p>{t('auth.bootstrapNoAutomaticChange')}</p>
+            {bootstrapStage ? (
+              <p>{t(`auth.bootstrapStage.${bootstrapStage}`)}</p>
+            ) : null}
+            {discovery.decision ===
+            'already_bootstrapped' ? null : discovery.decision ===
+              'initialize_authenticated_workspace' ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void runBootstrap('initialize')}
+              >
+                {t('auth.bootstrap.initialize')}
+              </button>
+            ) : discovery.decision === 'connect_local_data' ? (
+              confirmation === 0 ? (
+                <button type="button" onClick={() => setConfirmation(1)}>
+                  {t('auth.bootstrap.connect')}
+                </button>
+              ) : (
+                <div className="bootstrap-confirmation" role="alert">
+                  <p>{t('auth.bootstrap.confirmConnect')}</p>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void runBootstrap('connect')}
+                  >
+                    {t('auth.bootstrap.connect')}
+                  </button>
+                  <button type="button" onClick={() => setConfirmation(0)}>
+                    {t('auth.bootstrap.cancel')}
+                  </button>
+                </div>
+              )
+            ) : discovery.decision === 'restore_cloud_data' ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void runBootstrap('restore')}
+              >
+                {t('auth.bootstrap.restore')}
+              </button>
+            ) : confirmation < 2 ? (
+              <div className="bootstrap-confirmation" role="alert">
+                <p>{t('auth.bootstrap.confirmUseCloud')}</p>
+                <button
+                  type="button"
+                  onClick={() => setConfirmation((confirmation + 1) as 1 | 2)}
+                >
+                  {confirmation === 0
+                    ? t('auth.bootstrap.useCloud')
+                    : t('auth.bootstrap.confirmAgain')}
+                </button>
+                <button type="button" onClick={() => setConfirmation(0)}>
+                  {t('auth.bootstrap.cancel')}
+                </button>
+              </div>
+            ) : (
+              <button
+                className="danger-button"
+                type="button"
+                disabled={busy}
+                onClick={() => void runBootstrap('use_cloud')}
+              >
+                {t('auth.bootstrap.confirmAgain')}
+              </button>
+            )}
           </div>
         ) : discoveryError ? (
-          <p role="alert">{t('auth.discoveryError')}</p>
+          <div role="alert">
+            <p>{t('auth.bootstrap.error')}</p>
+            <button type="button" onClick={() => void detect()}>
+              {t('auth.bootstrap.retry')}
+            </button>
+          </div>
         ) : (
           <p>{t('auth.discovering')}</p>
         )}

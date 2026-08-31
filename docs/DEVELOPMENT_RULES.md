@@ -1046,6 +1046,16 @@ DEVELOPMENT_RULES.md
 - Do not expose SQLSTATE `40001` for deterministic optimistic conflicts through
   PostgREST. Map them to `PT409` at the authenticated RPC boundary so gateway
   retry behavior cannot turn a user conflict into a timeout.
+- Bootstrap UI may depend only on `BootstrapCoordinator`; it must not read a
+  Dexie table or invoke a Supabase RPC directly.
+- Ownership migration, cloud replacement, and metadata finalization are atomic
+  local commands. Never rewrite ownership one table at a time.
+- Never upload pre-bootstrap history through the ordinary Outbox. Bootstrap
+  includes tombstones and immutable history but excludes device, cursor,
+  journal, token, diagnostics, and UI state.
+- A retry reuses persisted bootstrap/chunk identities. A checkpoint may be
+  restored before server commit; after commit only metadata finalization may
+  proceed.
 
 
 ---

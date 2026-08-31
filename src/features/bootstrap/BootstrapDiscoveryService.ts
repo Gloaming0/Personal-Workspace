@@ -12,11 +12,13 @@ export class BootstrapDiscoveryService {
     private readonly sync: SyncRepository,
   ) {}
 
-  async inspect(): Promise<BootstrapDiscoveryResult> {
+  async inspect(
+    authenticatedUserId: string,
+  ): Promise<BootstrapDiscoveryResult> {
     const [localHasData, cloud, syncBootstrapState] = await Promise.all([
       this.local.hasData('local-user'),
       this.cloud.inspectCloudWorkspace(),
-      this.sync.getBootstrapState('local-user'),
+      this.sync.getBootstrapState(authenticatedUserId),
     ])
     const local = localHasData ? 'has_data' : 'empty'
     const cloudState = cloud.hasData ? 'has_data' : 'empty'
