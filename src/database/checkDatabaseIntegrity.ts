@@ -11,6 +11,10 @@ import {
 import { InvalidPersistedEntityError } from '@/repositories/errors'
 import {
   validateLocalMutationChange,
+  validateLocalMutationRecord,
+  validatePersistedSyncConflict,
+  validateSyncBootstrapRecord,
+  validateSyncDeviceState,
   validateSyncMetadata,
 } from '@/sync/validation'
 
@@ -49,6 +53,10 @@ export async function checkDatabaseIntegrity(
     dailyLogs,
     localChanges,
     syncMetadata,
+    localMutations,
+    syncDeviceStates,
+    syncConflicts,
+    syncBootstrap,
   ] = await Promise.all([
     database.tasks.toArray(),
     database.confirmations.toArray(),
@@ -59,6 +67,10 @@ export async function checkDatabaseIntegrity(
     database.daily_logs.toArray(),
     database.local_changes.toArray(),
     database.sync_metadata.toArray(),
+    database.local_mutations.toArray(),
+    database.sync_device_state.toArray(),
+    database.sync_conflicts.toArray(),
+    database.sync_bootstrap.toArray(),
   ])
 
   const validTasks = isolateInvalid(database, 'tasks', tasks, validateTask)
@@ -85,6 +97,30 @@ export async function checkDatabaseIntegrity(
     validateLocalMutationChange,
   )
   isolateInvalid(database, 'sync_metadata', syncMetadata, validateSyncMetadata)
+  isolateInvalid(
+    database,
+    'local_mutations',
+    localMutations,
+    validateLocalMutationRecord,
+  )
+  isolateInvalid(
+    database,
+    'sync_device_state',
+    syncDeviceStates,
+    validateSyncDeviceState,
+  )
+  isolateInvalid(
+    database,
+    'sync_conflicts',
+    syncConflicts,
+    validatePersistedSyncConflict,
+  )
+  isolateInvalid(
+    database,
+    'sync_bootstrap',
+    syncBootstrap,
+    validateSyncBootstrapRecord,
+  )
 
   let valid = true
   const focusGroups = new Map<string, string[]>()

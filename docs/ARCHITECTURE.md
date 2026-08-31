@@ -1498,3 +1498,92 @@ and sync metadata. Replace restore clears the current user's non-portable sync
 state inside the same restore transaction while retaining the browser profile's
 device identity. The complete protocol, conflict taxonomy, and anonymous owner
 migration proposal live in `docs/SYNC_PROTOCOL.md`.
+
+# Phase 3.0 Supabase Cloud Architecture Review
+
+Phase 3.0 adds a reviewed cloud boundary only. It does not add a Supabase SDK,
+authentication, HTTP traffic, Realtime subscription, or change any local
+business behavior.
+
+The future runtime keeps Dexie as the UI-facing source of truth:
+
+```text
+UI / Feature Services
+        ↓
+Local Domain + UnitOfWork
+        ↓
+Dexie entities + Activity + Outbox
+        ↓
+storage-neutral Sync Engine
+        ↓
+versioned Supabase RPC
+        ↓
+PostgreSQL canonical rows + receipts + revision feed
+```
+
+Cloud writes never bypass the RPC. The RPC validates authenticated ownership,
+the exact base server revision, immutable history, and cross-row invariants,
+then atomically commits canonical rows, mutation receipts, and change-feed
+entries. PostgreSQL assigns owner-scoped ordered revisions by locking that
+owner's revision-state row; local entity versions remain a separate device-local
+optimistic-concurrency concept.
+
+Pull applies an ordered revision page and advances its local cursor in one
+transaction. Push groups durable journal records by logical `mutationId` and
+acknowledges every resulting entity revision, rather than assigning one revision
+to an entire multi-entity mutation. Realtime is only a content-free invalidation
+hint that schedules the same cursor-based pull path.
+
+Initial bootstrap is an explicit state machine. Local-to-account adoption uses
+a verified safety backup, reversible local ownership checkpoint, server staging,
+and an idempotent atomic server commit. When both local and cloud contain data,
+the application stops for a user decision and does not merge automatically.
+
+Phase 3.1 hardens the local Outbox with immutable post-mutation snapshots,
+durable commit order, causal predecessor information, per-entity
+acknowledgements, and an atomic pull-page/cursor port. These changes are sync
+infrastructure only and use Dexie Version 9.
+
+The normative protocol, schema constraints, conflict matrix, tombstone
+lifecycle, RLS design, and retry taxonomy are in `docs/SYNC_PROTOCOL.md` and the
+proposed cloud table details are in `docs/DATABASE_SCHEMA.md`.
+
+# Phase 3.1 Local Sync Contract Hardening
+
+The Unit of Work now records one `LocalMutationRecord` per logical command. Its
+raw Domain snapshots are captured from committed Repository writes inside the
+same transaction; later entity edits cannot mutate prior records. Multiple
+writes to one entity in a Unit of Work collapse to its final snapshot while
+preserving the earliest local base.
+
+`sync_device_state` allocates a per-user/device `commitOrder` in that same Dexie
+transaction. IndexedDB rollback restores both data and sequence state, and a
+new connection resumes from the persisted counter. Push candidates are ordered
+only by this value.
+
+Each entity change links to the prior local mutation from `SyncMetadata`.
+Consequently, a second offline edit is not Push-ready until its predecessor is
+acknowledged. Conflict or permanent failure blocks the causal successor without
+rewriting its snapshot.
+
+Acknowledgements contain one remote revision/version per entity. They advance
+remote metadata idempotently while preserving a later local version,
+`lastMutationId`, and device provenance. A matching direct causal successor is
+safely rebased to the acknowledged revision using its stored version edge. End
+Day remains one record containing all Task decisions, immutable DailyLog, and
+Activity snapshots.
+
+`SyncRepository.applyRemotePage` is the sole Pull write boundary. One Dexie
+transaction applies non-conflicting entities, updates sync metadata, persists
+conflict candidates, and advances the device cursor. Unexpected failure rolls
+back the page; expected intersections quarantine their candidate and may advance
+the page safely. Page replay at an already committed revision is a no-op.
+
+Version 9 adds `local_mutations`, `sync_device_state`, `sync_conflicts`, and
+`sync_bootstrap`. Version 1–8 upgrades preserve all Domain data but never invent
+snapshots for the incomplete Version 8 Outbox. Known owners become
+`requires_bootstrap`. Replace Restore clears transport state, preserves device
+identity and commit monotonicity, and also requires bootstrap.
+
+Phase 3.1 contains no Supabase dependency, authentication, RPC, Realtime, or
+network request. Dexie remains the only runtime persistence implementation.

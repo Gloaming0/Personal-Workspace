@@ -1059,9 +1059,69 @@ No Supabase, cloud Realtime, Sync Queue, or new business feature is included.
 - Conflict taxonomy and explicit anonymous-to-authenticated migration proposal.
 - Version 1–7 → Version 8 fixture matrix and Backup/Restore regression coverage.
 
-Phase 3, Supabase, authentication, cloud synchronization, Realtime transport,
-conflict-resolution UI, merge restore, and ownership migration execution remain
-unstarted.
+## Phase 3.0 — Supabase Cloud Architecture Review Complete
+
+Phase 3.0 defines, without connecting a cloud service:
+
+- composite-owner canonical tables and server-enforced entity invariants;
+- separate local version, remote row version, and owner-scoped ordered server
+  revision semantics;
+- idempotent mutation receipts and per-entity acknowledgement results;
+- explicit four-case bootstrap and reversible local-owner adoption flow;
+- cursor-based pull, exact-snapshot Outbox push, conflict quarantine, and
+  tombstone retention;
+- RLS/RPC authorization, retry taxonomy, and Realtime-as-invalidation boundary.
+
+The review identified a Phase 3.1 P0 prerequisite: Version 8 Outbox identifiers
+alone cannot faithfully replay successive offline entity states. Network work
+must wait for immutable Outbox snapshots, durable commit order, causal
+predecessors, per-entity acknowledgements, and atomic pull cursor advancement.
+
+## Phase 3.1 — Local Sync Contract Hardening Complete
+
+- Additive Dexie Version 9 formalizes immutable Mutation Record snapshots,
+  device-scoped commit order, per-entity causal predecessors, five transport
+  states, and per-entity acknowledgement results.
+- `applyRemotePage` atomically applies remote candidates, revision metadata,
+  conflict quarantine, and cursor advancement without exposing Dexie.
+- Version 1–8 migration marks known owners `requires_bootstrap` and never
+  fabricates history from the incomplete Version 8 Outbox.
+- Replace Restore preserves device identity/commit monotonicity, clears
+  non-portable transport state, and requires explicit future bootstrap.
+- Offline chains, rollback, restart, late Ack, crash recovery, intersection,
+  tombstone, invariant, migration, End Day, and Backup regressions are covered
+  without network code.
+
+## Phase 3.2 — Supabase Schema, Auth, and Bootstrap
+
+- Provision canonical/sync tables, SQL constraints, RLS, restricted grants, and
+  versioned mutation/bootstrap RPCs in an isolated development environment.
+- Add authentication and the four-case bootstrap state machine, including
+  safety backup, staging, ownership confirmation, atomic commit, and recovery.
+- Do not enable background synchronization until security and migration tests
+  pass.
+
+## Phase 3.3 — Incremental Push/Pull and Conflicts
+
+- Implement the Sync Engine, persisted retry scheduling, per-entity
+  acknowledgements, revision-page pull, tombstone propagation, and sync status.
+- Add quarantine and explicit resolution for stale edits, delete/update,
+  immutable DailyLog, Focus, RoutineLog, DailyLog uniqueness, and ownership.
+- Validate multiple devices, offline edits, unknown network outcomes, and RLS
+  isolation before general use.
+
+## Phase 3.4 — Realtime Invalidation and Operational Hardening
+
+- Add private owner-scoped Realtime invalidation that only schedules a normal
+  pull; retain polling/reconnect catch-up as the correctness path.
+- Add observability without user content, device retirement, retention policy,
+  protocol compatibility, load/security tests, and rollout/rollback controls.
+- Realtime payloads never become UI state and physical tombstone cleanup remains
+  disabled until all retention preconditions are proven.
+
+Supabase SDK installation, authentication, network synchronization, Realtime,
+conflict-resolution UI, and ownership migration execution remain unimplemented
+at the end of Phase 3.1. Phase 3.2 is the next implementation boundary.
 
 
 Always prioritize:

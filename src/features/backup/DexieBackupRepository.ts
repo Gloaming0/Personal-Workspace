@@ -87,7 +87,11 @@ export class DexieBackupRepository implements BackupRepository {
       this.database.activities,
       this.database.daily_logs,
       this.database.local_changes,
+      this.database.local_mutations,
       this.database.sync_metadata,
+      this.database.sync_device_state,
+      this.database.sync_conflicts,
+      this.database.sync_bootstrap,
     ]
     try {
       await this.database.transaction('rw', tables, async () => {
@@ -136,9 +140,27 @@ export class DexieBackupRepository implements BackupRepository {
         await this.database.local_changes
           .filter((change) => change.userId === userId)
           .delete()
+        await this.database.local_mutations
+          .filter((mutation) => mutation.userId === userId)
+          .delete()
         await this.database.sync_metadata
           .filter((metadata) => metadata.userId === userId)
           .delete()
+        await this.database.sync_conflicts
+          .filter((conflict) => conflict.userId === userId)
+          .delete()
+        const restoredAt = new Date().toISOString()
+        await this.database.sync_device_state
+          .filter((state) => state.userId === userId)
+          .modify((state) => {
+            state.lastPulledRevision = 0
+            state.updatedAt = restoredAt
+          })
+        await this.database.sync_bootstrap.put({
+          userId,
+          state: 'requires_bootstrap',
+          updatedAt: restoredAt,
+        })
 
         const restored = await this.readAllInsideTransaction(userId)
         validateBackupData(restored, userId)

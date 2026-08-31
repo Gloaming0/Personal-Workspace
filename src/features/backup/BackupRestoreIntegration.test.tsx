@@ -42,6 +42,7 @@ class ChannelHub {
 }
 
 let sequence = 0
+const TODAY = new Date().toISOString().slice(0, 10)
 describe('Backup restore invalidation', () => {
   const databases: DailyWorkDatabase[] = []
   const coordinators: LocalChangeCoordinator[] = []
@@ -77,7 +78,7 @@ describe('Backup restore invalidation', () => {
       {
         userId: 'local-user',
         title: 'Before restore',
-        plannedDate: '2026-08-26',
+        plannedDate: TODAY,
       },
       {
         id: '00000000-0000-4000-8000-000000000098',
@@ -95,9 +96,11 @@ describe('Backup restore invalidation', () => {
     )
     expect(await screen.findByText('Before restore')).toBeInTheDocument()
 
+    const restored = createCompleteBackupData()
+    restored.tasks[0]!.plannedDate = TODAY
     await new DexieBackupRepository(restoreDatabase).replaceAll(
       'local-user',
-      createCompleteBackupData(),
+      restored,
     )
 
     expect(await screen.findByText('完成提案 ✓ Привет')).toBeInTheDocument()

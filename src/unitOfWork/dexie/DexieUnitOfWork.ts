@@ -22,7 +22,9 @@ import {
 } from '@/sync/DeviceIdentityStore'
 import {
   createMutationMetadata,
-  toLocalMutationChange,
+  syncDeviceStateId,
+  syncMetadataId,
+  toLocalMutationRecord,
   toSyncMetadata,
 } from '@/sync/journal'
 import { MutationAlreadyAppliedError } from '@/sync/contracts'
@@ -86,8 +88,10 @@ export class DexieUnitOfWork implements UnitOfWork {
         'rw',
         [
           ...uniqueStores.map((store) => tableByStore[store]),
-          this.database.local_changes,
+          this.database.local_mutations,
           this.database.sync_metadata,
+          this.database.sync_device_state,
+          this.database.sync_bootstrap,
         ],
         async (transaction) => {
           const repositories: Partial<UnitOfWorkRepositories> = {}
@@ -165,12 +169,28 @@ export class DexieUnitOfWork implements UnitOfWork {
             ),
           )
           const latest = [
-            ...new Map(
-              committedChanges.map((change) => [
-                `${change.store}:${change.entityId}`,
-                change,
-              ]),
-            ).values(),
+            ...committedChanges
+              .reduce((changes, change) => {
+                const key = `${change.store}:${change.entityId}`
+                const first = changes.get(key)
+                changes.set(
+                  key,
+                  first
+                    ? {
+                        ...change,
+                        baseVersion: first.baseVersion,
+                        operation:
+                          first.baseVersion === 0
+                            ? 'create'
+                            : change.entitySnapshot.deletedAt !== null
+                              ? 'delete'
+                              : 'update',
+                      }
+                    : change,
+                )
+                return changes
+              }, new Map<string, PersistedChange>())
+              .values(),
           ]
           if (latest.length === 0) return result
 
@@ -180,30 +200,67 @@ export class DexieUnitOfWork implements UnitOfWork {
           }
           const mutation = resolveMutation(latest[0]!.userId)
           const existing = await transaction
-            .table('local_changes')
-            .where('[userId+mutationId]')
-            .equals([mutation.userId, mutation.mutationId])
-            .first()
+            .table('local_mutations')
+            .get(mutation.mutationId)
           if (existing) {
             throw new MutationAlreadyAppliedError(mutation.mutationId)
           }
 
-          for (const [index, change] of latest.entries()) {
-            const metadataTable = transaction.table('sync_metadata')
-            const metadataId = `${mutation.userId}:${change.entityType}:${change.entityId}`
-            const current = await metadataTable.get(metadataId)
-            await metadataTable.put(toSyncMetadata(change, mutation, current))
-            await transaction
-              .table('local_changes')
-              .add(
-                toLocalMutationChange(
-                  change,
-                  mutation,
-                  index + 1,
-                  createId,
-                  current?.serverRevision ?? null,
-                ),
-              )
+          const metadataTable = transaction.table('sync_metadata')
+          const currentMetadata = new Map()
+          for (const change of latest) {
+            const metadataId = syncMetadataId(
+              mutation.userId,
+              change.entityType,
+              change.entityId,
+            )
+            currentMetadata.set(metadataId, await metadataTable.get(metadataId))
+          }
+          const deviceStateId = syncDeviceStateId(
+            mutation.userId,
+            mutation.deviceId,
+          )
+          const currentDeviceState = await transaction
+            .table('sync_device_state')
+            .get(deviceStateId)
+          const commitOrder = (currentDeviceState?.lastCommitOrder ?? 0) + 1
+          await transaction
+            .table('local_mutations')
+            .add(
+              toLocalMutationRecord(
+                latest,
+                mutation,
+                commitOrder,
+                currentMetadata,
+              ),
+            )
+          for (const change of latest) {
+            const metadataId = syncMetadataId(
+              mutation.userId,
+              change.entityType,
+              change.entityId,
+            )
+            await metadataTable.put(
+              toSyncMetadata(change, mutation, currentMetadata.get(metadataId)),
+            )
+          }
+          await transaction.table('sync_device_state').put({
+            id: deviceStateId,
+            userId: mutation.userId,
+            deviceId: mutation.deviceId,
+            lastCommitOrder: commitOrder,
+            lastPulledRevision: currentDeviceState?.lastPulledRevision ?? 0,
+            updatedAt: mutation.occurredAt,
+          })
+          const bootstrap = await transaction
+            .table('sync_bootstrap')
+            .get(mutation.userId)
+          if (!bootstrap || bootstrap.state === 'clean') {
+            await transaction.table('sync_bootstrap').put({
+              userId: mutation.userId,
+              state: 'requires_bootstrap',
+              updatedAt: mutation.occurredAt,
+            })
           }
           return result
         },

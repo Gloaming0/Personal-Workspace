@@ -15,7 +15,7 @@ import { DeviceIdentityStore, FixedDeviceIdentity } from './DeviceIdentityStore'
 import { executeMutation } from './MutationCommandExecutor'
 import { detectConcurrentMutationConflict } from './conflicts'
 import { DexieSyncRepository } from './dexie/DexieSyncRepository'
-import { MutationAlreadyAppliedError, SyncConflictError } from './contracts'
+import { MutationAlreadyAppliedError } from './contracts'
 
 const USER = 'local-user'
 const OTHER_USER = 'other-user'
@@ -117,18 +117,22 @@ describe('sync readiness foundation', () => {
     )
 
     const sync = new DexieSyncRepository(value)
-    const changes = await sync.listPendingChanges(USER)
-    expect(changes).toHaveLength(2)
+    const mutations = await sync.listPendingMutations(USER)
+    expect(mutations).toHaveLength(1)
+    const changes = mutations[0]!.changes
     expect(changes.map((change) => change.entityType)).toEqual([
       'task',
       'activity',
     ])
-    expect(changes.every((change) => change.mutationId === MUTATION)).toBe(true)
+    expect(mutations[0]).toMatchObject({
+      mutationId: MUTATION,
+      deviceId: DEVICE,
+      commitOrder: 1,
+    })
     expect(changes[0]).toMatchObject({
       operation: 'update',
-      baseVersion: 1,
-      resultingVersion: 2,
-      deviceId: DEVICE,
+      baseLocalVersion: 1,
+      resultingLocalVersion: 2,
     })
     await expect(activities.find(USER, {})).resolves.toEqual([
       expect.objectContaining({ deviceId: DEVICE }),
@@ -141,14 +145,21 @@ describe('sync readiness foundation', () => {
       lastMutationId: MUTATION,
       lastModifiedByDeviceId: DEVICE,
     })
-    await expect(sync.listPendingChanges(OTHER_USER)).resolves.toEqual([])
+    await expect(sync.listPendingMutations(OTHER_USER)).resolves.toEqual([])
     await sync.markMutationAcknowledged(
       USER,
-      MUTATION,
-      11,
+      {
+        mutationId: MUTATION,
+        entityResults: changes.map((change, index) => ({
+          entityType: change.entityType,
+          entityId: change.entityId,
+          serverRevision: 11 + index,
+          serverVersion: 1,
+        })),
+      },
       '2026-08-26T09:00:00.000Z',
     )
-    await expect(sync.listPendingChanges(USER)).resolves.toEqual([])
+    await expect(sync.listPendingMutations(USER)).resolves.toEqual([])
     await expect(
       sync.getSyncMetadata(USER, 'task', TASK_ID),
     ).resolves.toMatchObject({
@@ -202,6 +213,7 @@ describe('sync readiness foundation', () => {
       version: 1,
     })
     await expect(value.local_changes.count()).resolves.toBe(0)
+    await expect(value.local_mutations.count()).resolves.toBe(0)
     await expect(value.sync_metadata.count()).resolves.toBe(0)
   })
 
@@ -246,7 +258,7 @@ describe('sync readiness foundation', () => {
       version: 2,
     })
     await expect(activities.find(USER, {})).resolves.toHaveLength(1)
-    await expect(value.local_changes.count()).resolves.toBe(2)
+    await expect(value.local_mutations.count()).resolves.toBe(1)
   })
 
   it('enumerates user-owned tombstones and reads deleted entities through sync ports', async () => {
@@ -341,18 +353,27 @@ describe('sync readiness foundation', () => {
     const remote = {
       userId: USER,
       baseServerRevision: null,
-      serverRevision: 1,
+      serverVersion: 1,
       mutationId: MUTATION,
       deviceId: DEVICE,
       occurredAt: NOW,
     }
-    await expect(
-      sync.applyRemoteChange({
-        ...remote,
-        entityType: 'task',
-        entity: incoming,
-      }),
-    ).rejects.toMatchObject({
+    const focusResult = await sync.applyRemotePage({
+      userId: USER,
+      deviceId: DEVICE,
+      fromRevision: 0,
+      toRevision: 1,
+      changes: [
+        {
+          ...remote,
+          operation: 'create',
+          serverRevision: 1,
+          entityType: 'task',
+          entity: incoming,
+        },
+      ],
+    })
+    expect(focusResult.conflicts[0]).toMatchObject({
       conflict: { type: 'DuplicateUniqueInvariant', invariant: 'focus' },
     })
 
@@ -366,25 +387,45 @@ describe('sync readiness foundation', () => {
       },
       { id: '00000000-0000-4000-8000-0000000000e1', now: NOW },
     )
-    await expect(
-      sync.applyRemoteChange({
-        ...remote,
-        entityType: 'routine_log',
-        entity: duplicateRoutineLog,
-      }),
-    ).rejects.toBeInstanceOf(SyncConflictError)
+    const routineResult = await sync.applyRemotePage({
+      userId: USER,
+      deviceId: DEVICE,
+      fromRevision: 1,
+      toRevision: 2,
+      changes: [
+        {
+          ...remote,
+          operation: 'create',
+          serverRevision: 2,
+          entityType: 'routine_log',
+          entity: duplicateRoutineLog,
+        },
+      ],
+    })
+    expect(routineResult.conflicts[0]).toMatchObject({
+      conflict: { type: 'DuplicateUniqueInvariant', invariant: 'routine_log' },
+    })
 
     await value.daily_logs.add(backup.dailyLogs[0]!)
-    await expect(
-      sync.applyRemoteChange({
-        ...remote,
-        entityType: 'daily_log',
-        entity: {
-          ...backup.dailyLogs[0]!,
-          id: '00000000-0000-4000-8000-0000000000e2',
+    const dailyResult = await sync.applyRemotePage({
+      userId: USER,
+      deviceId: DEVICE,
+      fromRevision: 2,
+      toRevision: 3,
+      changes: [
+        {
+          ...remote,
+          operation: 'create',
+          serverRevision: 3,
+          entityType: 'daily_log',
+          entity: {
+            ...backup.dailyLogs[0]!,
+            id: '00000000-0000-4000-8000-0000000000e2',
+          },
         },
-      }),
-    ).rejects.toMatchObject({
+      ],
+    })
+    expect(dailyResult.conflicts[0]).toMatchObject({
       conflict: { type: 'DuplicateUniqueInvariant', invariant: 'daily_log' },
     })
   })
@@ -417,6 +458,10 @@ describe('sync readiness foundation', () => {
 
     expect(new DeviceIdentityStore().getDeviceId()).toBe(DEVICE)
     await expect(value.local_changes.count()).resolves.toBe(0)
+    await expect(value.local_mutations.count()).resolves.toBe(0)
     await expect(value.sync_metadata.count()).resolves.toBe(0)
+    await expect(
+      new DexieSyncRepository(value).getBootstrapState(USER),
+    ).resolves.toBe('requires_bootstrap')
   })
 })

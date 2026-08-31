@@ -51,8 +51,16 @@ Version 1 never contains:
 - open panels, drafts, loading state, or other transient UI state;
 - Morning Review seen-date markers;
 - runtime diagnostics, error messages, or stack traces;
-- account tokens, cookies, credentials, secrets, or sync queues.
-- browser-profile `deviceId`, durable `local_changes`, or `sync_metadata`.
+- account tokens, cookies, credentials, secrets, or sync queues;
+- browser-profile `deviceId`, legacy `local_changes`, Version 9
+  `local_mutations`, `sync_metadata`, device commit/cursor state,
+  `sync_conflicts`, or bootstrap transport state.
+
+Replace Restore clears pending/terminal Mutation Records, revision metadata,
+conflicts, and the pull cursor for the restored owner. It preserves the current
+browser profile's device identity and the monotonic commit counter, then marks
+the owner `requires_bootstrap`. Restored Domain data is never converted into a
+synthetic Outbox history.
 
 ## Ownership
 

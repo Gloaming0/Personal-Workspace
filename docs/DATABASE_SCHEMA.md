@@ -1119,3 +1119,237 @@ Business stores remain the tombstone source of truth. Sync ports may enumerate
 `deletedAt != null` rows and read them by id; ordinary repositories still hide
 them. Replace restore clears current-user rows from both Phase 2.3 stores but
 does not modify browser-local device identity.
+
+# Proposed Supabase Schema (Phase 3.0 Review Only)
+
+This section is a cloud contract proposal. No remote migration has been applied
+and no Supabase project is connected.
+
+## Common canonical columns
+
+Every tenant-owned entity uses:
+
+```sql
+user_id uuid not null references auth.users(id)
+id uuid not null
+version bigint not null check (version >= 1)
+server_revision bigint not null
+last_mutation_id uuid not null
+last_modified_by_device_id uuid not null
+created_at timestamptz not null
+updated_at timestamptz not null
+server_changed_at timestamptz not null default now()
+deleted_at timestamptz null
+primary key (user_id, id)
+```
+
+`version` is the cloud row edit count; it is not a copied Dexie version.
+`server_revision` is allocated by atomically advancing the owner's locked
+`sync_user_state` row and is the incremental sync cursor. Domain timestamps are
+preserved, while `server_changed_at` is server-owned. All ownership references
+use composite `(user_id, id)` keys. Each canonical table additionally enforces
+unique `(user_id, server_revision)`.
+
+Every canonical table has `(user_id, server_revision)`. Active UI-query indexes
+may use `where deleted_at is null`; tombstone synchronization must use the
+unfiltered owner/revision index.
+
+## Canonical tables
+
+### tasks
+
+Domain fields: `title`, `notes`, `status`, `priority`, `planned_date`, `due_at`,
+`project_id`, `focus_date`, `focus_order`, and `completed_at`.
+
+Constraints:
+
+- task status and priority enums match the Domain contract;
+- `focus_date` and `focus_order` are both null or both non-null;
+- focused rows are `todo` or `doing`, with `focus_order` from 1 through 3;
+- partial unique `(user_id, focus_date, focus_order)` where the row is active and
+  focused.
+
+### confirmations
+
+This is the remote name for the Waiting entity. Domain fields include `title`,
+`notes`, `status`, `person`, `project_id`, `source_task_id`, `sent_at`,
+`follow_up_date`, `confirmed_at`, and `closed_at`. Status is only `waiting`,
+`confirmed`, or `closed`. `needsFollowUp` is never stored.
+
+### memos
+
+Domain fields: raw `content`, `pinned`, and nullable `project_id`. User content is
+stored once and is never localized by the persistence layer.
+
+### routines
+
+Domain fields: `title`, `status`, `schedule jsonb`, `timezone`, and `sort_order`.
+The mutation RPC validates the schedule discriminated union and IANA timezone.
+
+### routine_logs
+
+Domain fields: `routine_id`, LocalDate `date`, and `completed_at`. A composite
+foreign key points to `(user_id, routine_id)`. Partial unique
+`(user_id, routine_id, date)` applies to active rows.
+
+### activities
+
+Domain fields: `event_type`, `entity_type`, `entity_id`, `payload jsonb`,
+`device_id`, and `occurred_at`. Payload contains the minimum raw display
+snapshot, never a translated sentence. Ordinary update/delete is unavailable;
+the mutation RPC is the only append path.
+
+### daily_logs
+
+Domain fields: LocalDate `date`, `summary`, immutable `snapshot jsonb`,
+`finalize_timezone`, and `finalized_at`. Partial unique `(user_id, date)` applies
+to active rows. The cloud contract exposes no ordinary update or replacement.
+
+### projects (deferred)
+
+Project is currently a Domain reference but has no local Repository or Dexie
+table. A future table may use the same common columns plus its eventual Domain
+fields. Phase 3 must not enforce project foreign keys or synchronize projects
+until that local vertical slice exists.
+
+## Synchronization control tables
+
+### sync_user_state
+
+```text
+user_id primary key
+last_revision bigint check (last_revision >= 0)
+updated_at timestamptz
+```
+
+The mutation RPC locks this row and reserves an ordered range for all results in
+one mutation. Allocation is isolated per owner and rolls back with the mutation.
+
+### sync_mutations
+
+```text
+user_id
+mutation_id
+device_id
+protocol_version
+request_hash
+status (applied | conflict | rejected)
+result
+created_at
+committed_at
+primary key (user_id, mutation_id)
+```
+
+The request hash prevents one UUID from being reused for different content. An
+identical replay returns the stored structured result.
+
+### sync_mutation_results
+
+```text
+user_id
+mutation_id
+sequence
+entity_type
+entity_id
+operation
+server_revision
+server_changed_at
+primary key (user_id, mutation_id, sequence)
+```
+
+This table provides per-entity acknowledgements for multi-entity commands.
+
+### sync_changes
+
+```text
+user_id
+change_revision bigint
+entity_type
+entity_id
+operation
+mutation_id
+device_id
+record jsonb
+changed_at timestamptz
+primary key (user_id, change_revision)
+```
+
+`change_revision` and the resulting row's `server_revision` are identical. The
+immutable canonical record snapshot makes paginated pull deterministic.
+Indexes: `(user_id, change_revision)` and `(user_id, entity_type,
+change_revision)`.
+
+### sync_device_cursors
+
+```text
+user_id
+device_id
+last_pulled_revision
+last_seen_at
+retired_at
+primary key (user_id, device_id)
+```
+
+These rows gate eventual tombstone retention. A device is retired only through
+an explicit account/device action.
+
+### sync_conflicts (planned for conflict workflow)
+
+Stores owner, conflict type, entity identity, base/current revisions,
+mutation/device provenance, candidate snapshots, status, and resolution
+timestamps. It is user data protected by RLS, not a diagnostic log.
+
+## Local Version 9 — Sync Contract Hardening
+
+Version 9 is additive and retains the empty legacy `local_changes` store only
+for safe historical schema continuity. New local commands use these stores:
+
+### local_mutations
+
+```text
+mutationId
+userId
+deviceId
+commitOrder
+occurredAt
+entityKeys[]
+changes[]
+status
+acknowledgedAt
+entityResults[]
+failureCode
+[userId+status]
+[userId+deviceId+commitOrder]
+[userId+deviceId+status]
+*entityKeys
+```
+
+Each `changes[]` entry preserves operation, local/server base, local result,
+causal predecessor, and a complete immutable Domain/tombstone snapshot.
+
+### sync_device_state
+
+One deterministic `userId:deviceId` row stores `lastCommitOrder` and
+`lastPulledRevision`. Commit order increments inside the Domain mutation
+transaction; Pull cursor advances inside the remote-page transaction.
+
+### sync_conflicts
+
+Stores the conflict taxonomy, local mutation link when present, immutable remote
+candidate, entity identity, and resolution status. Conflict records are local
+sync state and are not portable backup data.
+
+### sync_bootstrap
+
+One owner row stores `clean`, `requires_bootstrap`, or `bootstrapped`. Version
+1–8 data upgrades to `requires_bootstrap`; Restore also sets that state.
+
+### Version 8 → 9 migration
+
+Version 8 `local_changes` cannot be upgraded into formal Mutation Records
+because it has no immutable snapshot or causal chain. Migration collects every
+known owner, marks each `requires_bootstrap`, clears legacy Outbox and incomplete
+sync metadata, and preserves all Domain stores unchanged. It never fabricates
+history. The fixture matrix covers Versions 1–8 upgrading to Version 9.
+
+Portable Backup excludes all Version 9 sync infrastructure and device identity.

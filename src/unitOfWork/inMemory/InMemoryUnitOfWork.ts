@@ -129,7 +129,7 @@ export class InMemoryUnitOfWork implements UnitOfWork {
             ) {
               throw new MutationAlreadyAppliedError(mutation.mutationId)
             }
-            this.options.journal.record(changes, mutation, createId)
+            this.options.journal.record(changes, mutation)
           }
         }
         return result

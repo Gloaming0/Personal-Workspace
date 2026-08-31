@@ -999,12 +999,24 @@ DEVELOPMENT_RULES.md
 - Business writes continue through Feature Service → Unit of Work. A future
   Sync Engine may use only `SyncRepository`; neither layer may access Dexie
   tables directly.
-- Entity, Activity, SyncMetadata, and LocalMutationChange belong to the same
-  transaction. A rollback must leave no journal row or partial revision state.
+- Entity, Activity, SyncMetadata, LocalMutationRecord, device commit sequence,
+  and bootstrap marker belong to the same transaction. A rollback must leave no
+  journal snapshot, consumed commit order, or partial revision state.
 - Entity `version` is local optimistic concurrency. Never compare it with or
   assign it as a remote server revision.
-- Journal rows contain identifiers and revision metadata only. Never persist
-  titles, memo content, localized sentences, or UI state in the outbox.
+- Version 9 Mutation Records contain the immutable raw Domain snapshot required
+  to replay that exact logical command. Never reconstruct an older mutation from
+  the current entity. Snapshots may contain user-authored Domain content but
+  never translated UI sentences, component state, credentials, or diagnostics.
+- `commitOrder` is allocated transactionally per user/device and is the only
+  Push ordering authority. Do not order mutations by client timestamps.
+- A successor mutation records its per-entity predecessor. Conflicted or
+  permanently failed predecessors block automatic Push of their causal chain.
+- Acknowledgement is per entity. A late acknowledgement may advance remote
+  metadata but must not replace a newer `lastMutationId`, local version, or
+  snapshot.
+- Pull uses the atomic page port. Applying entities, metadata, conflicts, and
+  cursor advancement in separate transactions is forbidden.
 - Ordinary repositories hide tombstones. Sync ports and portable backup may
   intentionally read them with explicit ownership.
 - Never physically delete a tombstone before remote acknowledgement and a

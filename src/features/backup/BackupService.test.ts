@@ -37,7 +37,7 @@ describe('Backup Format and Service', () => {
       formatVersion: currentBackupFormatVersion,
       exportedAt: NOW,
       appVersion: '0.1.0',
-      metadata: { sourceDatabaseVersion: 8, userId: 'local-user' },
+      metadata: { sourceDatabaseVersion: 9, userId: 'local-user' },
     })
     expect(result.backup.data).toEqual(before)
     expect(repository.data).toEqual(before)
@@ -104,7 +104,7 @@ describe('Backup Format and Service', () => {
         formatVersion: 2,
         exportedAt: NOW,
         appVersion: null,
-        metadata: { sourceDatabaseVersion: 8, userId: 'local-user' },
+        metadata: { sourceDatabaseVersion: 9, userId: 'local-user' },
         data: createCompleteBackupData(),
       }),
       'unsupported-version',

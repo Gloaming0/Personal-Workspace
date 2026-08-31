@@ -444,9 +444,18 @@ describe('End Day service', () => {
     await expect(context.activities.find(userId, {})).resolves.toHaveLength(1)
     await expect(context.logs.findByDate(userId, date)).resolves.toEqual(first)
     expect(context.journal.listPending(userId)).toEqual(firstChanges)
+    const mutation = firstChanges.find(
+      (candidate) => candidate.mutationId === input.commandId,
+    )
+    expect(mutation?.changes).toHaveLength(3)
+    expect(mutation?.changes.map((change) => change.entityType).sort()).toEqual(
+      ['activity', 'daily_log', 'task'],
+    )
     expect(
-      firstChanges.filter((change) => change.mutationId === input.commandId),
-    ).toHaveLength(3)
+      mutation?.changes.every(
+        (change) => change.entitySnapshot.userId === userId,
+      ),
+    ).toBe(true)
   })
 
   it('selects completed Tasks by explicit End Day timezone across midnight', async () => {

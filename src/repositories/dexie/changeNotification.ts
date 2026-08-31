@@ -10,13 +10,14 @@ export interface PersistedChange {
   entityType: SyncEntityType
   operation: LocalChangeOperation
   baseVersion: number
+  entitySnapshot: SyncEntity
 }
 
 export type PersistedChangeListener = (change: PersistedChange) => void
 
 export function toPersistedChange(
   store: LocalChangeStore,
-  entity: Pick<SyncEntity, 'id' | 'version' | 'userId' | 'deletedAt'>,
+  entity: SyncEntity,
 ): PersistedChange {
   const entityTypes: Record<LocalChangeStore, SyncEntityType> = {
     tasks: 'task',
@@ -40,5 +41,6 @@ export function toPersistedChange(
           ? 'delete'
           : 'update',
     baseVersion: entity.version - 1,
+    entitySnapshot: structuredClone(entity),
   }
 }

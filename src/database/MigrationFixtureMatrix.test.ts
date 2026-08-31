@@ -15,9 +15,11 @@ import {
   confirmationStoreSchema,
   DailyWorkDatabase,
   dailyLogStoreSchema,
+  localChangeStoreSchema,
   memoStoreSchema,
   routineLogStoreSchema,
   routineStoreSchema,
+  syncMetadataStoreSchema,
   taskStoreSchema,
 } from './DailyWorkDatabase'
 
@@ -33,6 +35,8 @@ const storeSchemas = {
   routine_logs: routineLogStoreSchema,
   activities: activityStoreSchema,
   daily_logs: dailyLogStoreSchema,
+  local_changes: localChangeStoreSchema,
+  sync_metadata: syncMetadataStoreSchema,
 }
 
 const storesAtVersion = (version: number) =>
@@ -46,6 +50,8 @@ const storesAtVersion = (version: number) =>
         routine_logs: 4,
         activities: 5,
         daily_logs: 6,
+        local_changes: 8,
+        sync_metadata: 8,
       }[name]
       return introduced !== undefined && introduced <= version
     }),
@@ -164,12 +170,44 @@ function buildFixtures() {
       dailyLog,
       tombstone({ ...dailyLog, id: 'migration-daily-log-deleted' }),
     ],
+    local_changes: [
+      {
+        id: '00000000-0000-4000-8000-000000000901',
+        mutationId: '00000000-0000-4000-8000-000000000902',
+        deviceId: '00000000-0000-4000-8000-000000000903',
+        userId: USER,
+        occurredAt: NOW,
+        sequence: 1,
+        entityType: 'task',
+        entityId: task.id,
+        operation: 'update',
+        baseVersion: 1,
+        resultingVersion: 2,
+        baseServerRevision: null,
+        status: 'pending',
+        acknowledgedAt: null,
+      },
+    ],
+    sync_metadata: [
+      {
+        id: `${USER}:task:${task.id}`,
+        userId: USER,
+        entityType: 'task',
+        entityId: task.id,
+        localVersion: 1,
+        baseServerRevision: null,
+        serverRevision: null,
+        lastMutationId: '00000000-0000-4000-8000-000000000902',
+        lastModifiedByDeviceId: '00000000-0000-4000-8000-000000000903',
+        updatedAt: NOW,
+      },
+    ],
   }
 }
 
 let sequence = 0
-describe.each([1, 2, 3, 4, 5, 6, 7])(
-  'migration fixture v%i -> v8',
+describe.each([1, 2, 3, 4, 5, 6, 7, 8])(
+  'migration fixture v%i -> v9',
   (version) => {
     const connections: Array<{ close(): void }> = []
     let name = ''
@@ -204,6 +242,9 @@ describe.each([1, 2, 3, 4, 5, 6, 7])(
       await current.open()
 
       for (const storeName of Object.keys(storesAtVersion(version))) {
+        if (storeName === 'local_changes' || storeName === 'sync_metadata') {
+          continue
+        }
         const rows = await current.table(storeName).orderBy('id').toArray()
         expect(rows).toHaveLength(2)
         expect(rows.map((row) => row.version)).toEqual([1, 2])
@@ -224,6 +265,11 @@ describe.each([1, 2, 3, 4, 5, 6, 7])(
       ).resolves.toHaveLength(1)
       await expect(current.local_changes.count()).resolves.toBe(0)
       await expect(current.sync_metadata.count()).resolves.toBe(0)
+      await expect(current.local_mutations.count()).resolves.toBe(0)
+      await expect(current.sync_conflicts.count()).resolves.toBe(0)
+      await expect(current.sync_bootstrap.get(USER)).resolves.toMatchObject({
+        state: 'requires_bootstrap',
+      })
     })
   },
 )

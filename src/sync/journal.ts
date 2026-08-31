@@ -1,6 +1,8 @@
 import type { PersistedChange } from '@/repositories/dexie/changeNotification'
 import type {
   LocalMutationChange,
+  LocalMutationRecord,
+  MutationEntityChange,
   MutationIntent,
   MutationMetadata,
   SyncMetadata,
@@ -84,8 +86,72 @@ export function toSyncMetadata(
     localVersion: persisted.entityVersion,
     baseServerRevision: current?.baseServerRevision ?? null,
     serverRevision: current?.serverRevision ?? null,
+    serverVersion: current?.serverVersion ?? null,
     lastMutationId: mutation.mutationId,
+    lastAcknowledgedMutationId: current?.lastAcknowledgedMutationId ?? null,
     lastModifiedByDeviceId: mutation.deviceId,
     updatedAt: mutation.occurredAt,
   }
+}
+
+export function mutationEntityKey(
+  entityType: string,
+  entityId: string,
+): string {
+  return `${entityType}:${entityId}`
+}
+
+export function toMutationEntityChange(
+  persisted: PersistedChange,
+  sequence: number,
+  current?: SyncMetadata,
+): MutationEntityChange {
+  return {
+    sequence,
+    entityType: persisted.entityType,
+    entityId: persisted.entityId,
+    operation: persisted.operation,
+    baseServerRevision: current?.serverRevision ?? null,
+    baseLocalVersion: persisted.baseVersion,
+    resultingLocalVersion: persisted.entityVersion,
+    predecessorMutationId: current?.lastMutationId ?? null,
+    entitySnapshot: structuredClone(persisted.entitySnapshot),
+  }
+}
+
+export function toLocalMutationRecord(
+  persistedChanges: readonly PersistedChange[],
+  mutation: MutationMetadata,
+  commitOrder: number,
+  currentMetadata: ReadonlyMap<string, SyncMetadata | undefined>,
+): LocalMutationRecord {
+  const changes = persistedChanges.map((persisted, index) =>
+    toMutationEntityChange(
+      persisted,
+      index + 1,
+      currentMetadata.get(
+        syncMetadataId(
+          mutation.userId,
+          persisted.entityType,
+          persisted.entityId,
+        ),
+      ),
+    ),
+  )
+  return {
+    ...mutation,
+    commitOrder,
+    entityKeys: changes.map((change) =>
+      mutationEntityKey(change.entityType, change.entityId),
+    ),
+    changes,
+    status: 'pending',
+    acknowledgedAt: null,
+    entityResults: [],
+    failureCode: null,
+  }
+}
+
+export function syncDeviceStateId(userId: string, deviceId: string): string {
+  return `${userId}:${deviceId}`
 }

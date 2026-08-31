@@ -106,7 +106,7 @@ describe('migration and connection recovery', () => {
 
     const future = new Dexie(name)
     connections.push(future)
-    future.version(9).stores({ tasks: taskStoreSchema })
+    future.version(10).stores({ tasks: taskStoreSchema })
     await future.open()
 
     expect(current.isOpen()).toBe(false)

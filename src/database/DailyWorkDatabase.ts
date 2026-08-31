@@ -11,10 +11,17 @@ import type {
 import { DatabaseRuntimeState } from './runtimeState'
 import { LocalChangeCoordinator } from './LocalChangeCoordinator'
 import { checkDatabaseIntegrity } from './checkDatabaseIntegrity'
-import type { LocalMutationChange, SyncMetadata } from '@/sync/contracts'
+import type {
+  LocalMutationChange,
+  LocalMutationRecord,
+  PersistedSyncConflict,
+  SyncBootstrapRecord,
+  SyncDeviceState,
+  SyncMetadata,
+} from '@/sync/contracts'
 
 export const dailyWorkDatabaseName = 'daily-work-os'
-export const currentDatabaseVersion = 8
+export const currentDatabaseVersion = 9
 
 export const taskStoreSchema =
   'id, userId, status, priority, plannedDate, dueAt, projectId, focusDate, completedAt, deletedAt, updatedAt, [userId+plannedDate], [userId+focusDate], [userId+status]'
@@ -34,6 +41,13 @@ export const localChangeStoreSchema =
   'id, mutationId, userId, entityType, entityId, operation, status, occurredAt, [userId+status], [userId+mutationId], [userId+entityType], [entityType+entityId]'
 export const syncMetadataStoreSchema =
   'id, userId, entityType, entityId, localVersion, serverRevision, lastMutationId, [userId+entityType+entityId], [userId+lastMutationId]'
+export const localMutationStoreSchema =
+  'mutationId, userId, deviceId, commitOrder, status, occurredAt, *entityKeys, [userId+status], [userId+deviceId+commitOrder], [userId+deviceId+status]'
+export const syncDeviceStateStoreSchema =
+  'id, userId, deviceId, lastCommitOrder, lastPulledRevision, [userId+deviceId]'
+export const syncConflictStoreSchema =
+  'id, userId, mutationId, entityType, entityId, status, createdAt, [userId+status], [userId+entityType+entityId], [userId+mutationId]'
+export const syncBootstrapStoreSchema = 'userId, state, updatedAt'
 
 const version1Stores = {
   tasks: taskStoreSchema,
@@ -71,6 +85,13 @@ const version8Stores = {
   local_changes: localChangeStoreSchema,
   sync_metadata: syncMetadataStoreSchema,
 }
+const version9Stores = {
+  ...version8Stores,
+  local_mutations: localMutationStoreSchema,
+  sync_device_state: syncDeviceStateStoreSchema,
+  sync_conflicts: syncConflictStoreSchema,
+  sync_bootstrap: syncBootstrapStoreSchema,
+}
 
 export class DailyWorkDatabase extends Dexie {
   tasks!: EntityTable<Task, 'id'>
@@ -82,6 +103,10 @@ export class DailyWorkDatabase extends Dexie {
   daily_logs!: EntityTable<DailyLog, 'id'>
   local_changes!: EntityTable<LocalMutationChange, 'id'>
   sync_metadata!: EntityTable<SyncMetadata, 'id'>
+  local_mutations!: EntityTable<LocalMutationRecord, 'mutationId'>
+  sync_device_state!: EntityTable<SyncDeviceState, 'id'>
+  sync_conflicts!: EntityTable<PersistedSyncConflict, 'id'>
+  sync_bootstrap!: EntityTable<SyncBootstrapRecord, 'userId'>
   readonly runtime = new DatabaseRuntimeState(currentDatabaseVersion)
   readonly changes: LocalChangeCoordinator
 
@@ -105,7 +130,42 @@ export class DailyWorkDatabase extends Dexie {
             if (!log.finalizeTimezone) log.finalizeTimezone = 'UTC'
           })
       })
-    this.version(currentDatabaseVersion).stores(version8Stores)
+    this.version(8).stores(version8Stores)
+    this.version(currentDatabaseVersion)
+      .stores(version9Stores)
+      .upgrade(async (transaction) => {
+        const userIds = new Set<string>()
+        for (const storeName of [
+          'tasks',
+          'confirmations',
+          'memos',
+          'routines',
+          'routine_logs',
+          'activities',
+          'daily_logs',
+          'local_changes',
+          'sync_metadata',
+        ]) {
+          const rows = await transaction.table(storeName).toArray()
+          rows.forEach((row) => {
+            if (typeof row.userId === 'string' && row.userId) {
+              userIds.add(row.userId)
+            }
+          })
+        }
+        const updatedAt = new Date().toISOString()
+        await transaction.table('sync_bootstrap').bulkPut(
+          [...userIds].map((userId) => ({
+            userId,
+            state: 'requires_bootstrap',
+            updatedAt,
+          })),
+        )
+        // Version 8 rows contain no immutable snapshots. They cannot be
+        // promoted into the formal Version 9 mutation contract.
+        await transaction.table('local_changes').clear()
+        await transaction.table('sync_metadata').clear()
+      })
 
     this.on('blocked', () => this.runtime.blocked())
     this.on('versionchange', () => {

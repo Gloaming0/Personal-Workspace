@@ -1,67 +1,91 @@
 import type { PersistedChange } from '@/repositories/dexie/changeNotification'
 import type { InMemoryTransactionalStore } from '@/unitOfWork/inMemory/transactionalStore'
 import type {
-  LocalMutationChange,
+  LocalMutationRecord,
   MutationMetadata,
   SyncMetadata,
 } from '../contracts'
-import { toLocalMutationChange, toSyncMetadata } from '../journal'
+import {
+  syncDeviceStateId,
+  syncMetadataId,
+  toLocalMutationRecord,
+  toSyncMetadata,
+} from '../journal'
 
 interface JournalSnapshot {
-  changes: LocalMutationChange[]
+  mutations: LocalMutationRecord[]
   metadata: SyncMetadata[]
+  commitOrders: [string, number][]
 }
 
 export class InMemoryMutationJournal implements InMemoryTransactionalStore {
-  private changes: LocalMutationChange[] = []
+  private mutations: LocalMutationRecord[] = []
   private metadata = new Map<string, SyncMetadata>()
+  private commitOrders = new Map<string, number>()
 
   createTransactionSnapshot(): JournalSnapshot {
     return structuredClone({
-      changes: this.changes,
+      mutations: this.mutations,
       metadata: [...this.metadata.values()],
+      commitOrders: [...this.commitOrders.entries()],
     })
   }
 
   restoreTransactionSnapshot(snapshot: unknown): void {
     const value = structuredClone(snapshot as JournalSnapshot)
-    this.changes = value.changes
+    this.mutations = value.mutations
     this.metadata = new Map(value.metadata.map((entry) => [entry.id, entry]))
+    this.commitOrders = new Map(value.commitOrders)
   }
 
   hasMutation(userId: string, mutationId: string): boolean {
-    return this.changes.some(
-      (change) => change.userId === userId && change.mutationId === mutationId,
+    return this.mutations.some(
+      (mutation) =>
+        mutation.userId === userId && mutation.mutationId === mutationId,
     )
   }
 
   record(
     persistedChanges: readonly PersistedChange[],
     mutation: MutationMetadata,
-    createId: () => string,
   ): void {
-    persistedChanges.forEach((change, index) => {
-      const current = this.metadata.get(
-        `${mutation.userId}:${change.entityType}:${change.entityId}`,
+    const metadataBefore = new Map<string, SyncMetadata | undefined>()
+    persistedChanges.forEach((change) => {
+      const id = syncMetadataId(
+        mutation.userId,
+        change.entityType,
+        change.entityId,
       )
+      metadataBefore.set(id, this.metadata.get(id))
+    })
+    const deviceKey = syncDeviceStateId(mutation.userId, mutation.deviceId)
+    const commitOrder = (this.commitOrders.get(deviceKey) ?? 0) + 1
+    this.mutations.push(
+      toLocalMutationRecord(
+        persistedChanges,
+        mutation,
+        commitOrder,
+        metadataBefore,
+      ),
+    )
+    this.commitOrders.set(deviceKey, commitOrder)
+    persistedChanges.forEach((change) => {
+      const id = syncMetadataId(
+        mutation.userId,
+        change.entityType,
+        change.entityId,
+      )
+      const current = metadataBefore.get(id)
       const metadata = toSyncMetadata(change, mutation, current)
       this.metadata.set(metadata.id, metadata)
-      this.changes.push(
-        toLocalMutationChange(
-          change,
-          mutation,
-          index + 1,
-          createId,
-          current?.serverRevision ?? null,
-        ),
-      )
     })
   }
 
-  listPending(userId: string): LocalMutationChange[] {
+  listPending(userId: string): LocalMutationRecord[] {
     return structuredClone(
-      this.changes.filter(
-        (change) => change.userId === userId && change.status === 'pending',
+      this.mutations.filter(
+        (mutation) =>
+          mutation.userId === userId && mutation.status === 'pending',
       ),
     )
   }
