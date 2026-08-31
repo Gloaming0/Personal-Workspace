@@ -1094,12 +1094,21 @@ predecessors, per-entity acknowledgements, and atomic pull cursor advancement.
 
 ## Phase 3.2 — Supabase Schema, Auth, and Bootstrap
 
-- Provision canonical/sync tables, SQL constraints, RLS, restricted grants, and
-  versioned mutation/bootstrap RPCs in an isolated development environment.
-- Add authentication and the four-case bootstrap state machine, including
-  safety backup, staging, ownership confirmation, atomic commit, and recovery.
-- Do not enable background synchronization until security and migration tests
-  pass.
+Implementation complete in repository; remote development deployment requires
+the environment credentials documented in `SUPABASE_SETUP.md`.
+
+- Version-controlled canonical/sync/bootstrap schema, Focus/RoutineLog/DailyLog
+  invariants, immutable Activity/DailyLog guards, RLS, and restricted grants.
+- Email Magic Link session foundation with bilingual, token-based responsive
+  Settings UI and explicit anonymous/authenticated identity boundary.
+- Four-case bootstrap discovery without automatic ownership migration or data
+  movement.
+- Idempotent mutation RPC v1, per-entity server revisions/results, ordered
+  change feed, and replay-safe atomic bootstrap staging/commit.
+- Storage-neutral cloud ports and conditional two-user/pgTAP integration suites.
+
+Background Push/Pull, Realtime, merge UI, project sync, and tombstone cleanup
+remain out of scope.
 
 ## Phase 3.3 — Incremental Push/Pull and Conflicts
 

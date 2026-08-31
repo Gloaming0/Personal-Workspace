@@ -1353,3 +1353,29 @@ sync metadata, and preserves all Domain stores unchanged. It never fabricates
 history. The fixture matrix covers Versions 1–8 upgrading to Version 9.
 
 Portable Backup excludes all Version 9 sync infrastructure and device identity.
+
+# Supabase Phase 3.2 Schema
+
+The normative DDL is
+`supabase/migrations/20260831000100_phase_3_2_cloud_foundation.sql`.
+
+Canonical tables are `tasks`, `confirmations`, `memos`, `routines`,
+`routine_logs`, `activities`, and `daily_logs`. Every row has composite owner
+identity, server row `version`, owner-scoped `server_revision`, mutation/device
+provenance, entity timestamps, tombstone, and server change time. Projects are
+intentionally absent. Focus slots, active RoutineLog day, and active DailyLog
+day have partial unique indexes. Activity and DailyLog update/delete are
+rejected by immutable triggers in addition to RPC/grant restrictions.
+
+Sync control tables:
+
+- `sync_user_state`: locked owner high-watermark;
+- `sync_mutations` / `sync_mutation_results`: payload receipt and per-entity Ack;
+- `sync_changes`: immutable ordered pull feed;
+- `sync_device_cursors`: future device pull position;
+- `sync_conflicts`: future owner-scoped quarantine;
+- `sync_bootstrap_sessions` / `sync_bootstrap_chunks`: non-canonical staging.
+
+All public tables enable RLS and expose owner-only SELECT to `authenticated`.
+`anon` receives no table or RPC access. Authenticated clients receive no table
+INSERT/UPDATE/DELETE grants; canonical writes use authenticated-only RPCs.

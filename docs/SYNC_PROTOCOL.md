@@ -666,3 +666,36 @@ identity and commit-order monotonicity, then writes `requires_bootstrap`.
 Portable Backup v1 continues to contain Domain history only. Mutation snapshots,
 Ack results, cursor, conflicts, bootstrap state, sync metadata, and device state
 remain deliberately non-portable.
+
+# Phase 3.2 Cloud Foundation Contract
+
+The tracked Supabase migration provisions the seven canonical entity tables,
+owner revision state, mutation receipts/results, ordered changes, device
+cursors, conflict quarantine, and isolated bootstrap staging. Projects remain
+local-only. Canonical primary keys are `(user_id, id)` and owner revisions are
+allocated only while holding `sync_user_state` for update.
+
+`apply_sync_mutation_v1` is the only ordinary canonical write boundary. It
+derives the owner from `auth.uid()`, hashes canonical `jsonb`, locks the mutation
+receipt, validates every base revision, allocates one revision per changed
+entity, and stores per-entity results. An identical retry returns its durable
+result; a changed payload with the same UUID raises `MutationIdReuse`. Any
+exception rolls back receipt, entities, revisions, and `sync_changes`.
+
+Bootstrap is a separate state machine:
+
+```text
+begin(id, manifest, chunk count)
+  -> idempotent staging chunks
+  -> atomic commit into an empty canonical workspace
+  -> durable replayable acknowledgement
+```
+
+Staged chunks never appear in canonical queries. Commit takes one owner lock,
+requires every chunk, revalidates canonical emptiness, and applies all snapshots
+in one server transaction. Phase 3.2 UI performs discovery only: empty/empty,
+local/cloud, cloud/local, or both-with-explicit-choice. It never rewrites
+`local-user` or starts background synchronization.
+
+Pull read contracts expose ordered `sync_changes` after a revision cursor, but
+Phase 3.2 contains no polling or Push/Pull engine. Realtime is disabled.

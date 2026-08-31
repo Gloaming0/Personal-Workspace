@@ -1030,6 +1030,20 @@ DEVELOPMENT_RULES.md
 - Every schema addition keeps the full historical migration fixture matrix.
   Sync stores and backup exclusion/restore behavior require regression tests.
 
+- Supabase schema changes must be timestamped migrations committed under
+  `supabase/migrations`; Dashboard-only changes are forbidden.
+- Browser configuration may contain URL and anon/publishable key only. Never
+  expose service-role credentials, database passwords, CLI tokens, or test-user
+  secrets through `VITE_` variables.
+- UI and Feature code may not import a Supabase table client. Auth uses
+  `AuthGateway`; cloud data uses `CloudSyncPort` and versioned RPCs.
+- RPC ownership is always `auth.uid()`. A request `userId` is an assertion to
+  validate, never an authority to trust.
+- Business tables grant authenticated SELECT only. Entity DML, bootstrap, and
+  revision allocation must remain server-atomic RPC commands.
+- A deployed migration is immutable. Rollback is a reviewed forward migration
+  tested locally and in the isolated development project.
+
 
 ---
 

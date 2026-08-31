@@ -5,13 +5,17 @@ import { applyDocumentPreferences } from '@/features/settings/preferences/docume
 import { PreferencesProvider } from '@/features/settings/preferences/PreferencesProvider'
 import { usePreferencesStore } from '@/features/settings/preferences/preferencesStore'
 import '@/styles/index.css'
+import { AuthProvider } from '@/features/auth/AuthProvider'
+import { getCloudRuntime } from '@/cloud/cloudRuntime'
 
 applyDocumentPreferences(usePreferencesStore.getState())
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <PreferencesProvider>
-      <App />
+      <AuthProvider gateway={getCloudRuntime().authGateway}>
+        <App />
+      </AuthProvider>
     </PreferencesProvider>
   </StrictMode>,
 )

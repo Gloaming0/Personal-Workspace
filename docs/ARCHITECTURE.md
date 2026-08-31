@@ -1587,3 +1587,23 @@ identity and commit monotonicity, and also requires bootstrap.
 
 Phase 3.1 contains no Supabase dependency, authentication, RPC, Realtime, or
 network request. Dexie remains the only runtime persistence implementation.
+
+# Phase 3.2 Supabase and Auth Foundation
+
+The browser now has an optional cloud composition root. Missing Supabase
+environment configuration leaves the local-first application fully usable.
+When configured, `SupabaseAuthGateway` owns session restore, Magic Link, and
+local sign-out; `AuthProvider` exposes identity state without adding Auth to the
+Domain model. `RuntimeIdentity` distinguishes `local-anonymous` from
+`authenticated`, and cloud ownership always comes from the active session.
+
+Feature/UI code depends on `CloudSyncPort`, not the Supabase client. The adapter
+offers discovery, watermark, page reads, mutation submission/result lookup, and
+bootstrap begin/chunk/commit. It does not schedule synchronization. Bootstrap
+Discovery reads local state as `local-user`, cloud state as the authenticated
+owner, and the local bootstrap marker, then returns a decision without writes.
+
+PostgreSQL is the canonical security/transaction boundary: business tables are
+owner-selectable under RLS but deny browser DML. Versioned security-definer RPCs
+use an empty search path, explicit qualified objects, authenticated-only grants,
+payload/ownership checks, mutation locks, and per-user revision locking.

@@ -9,8 +9,12 @@ build/
 
 # environment
 .env
-.env.local
-.env.production
+.env.*
+!.env.example
+
+# Supabase local state (schema/config/migrations remain tracked)
+supabase/.temp/
+supabase/.branches/
 
 
 # database

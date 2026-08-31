@@ -7,6 +7,7 @@ import { DensitySwitcher } from './preferences/DensitySwitcher'
 import { SidebarModeSwitcher } from './preferences/SidebarModeSwitcher'
 import { ThemeSwitcher } from './theme/ThemeSwitcher'
 import { BackupRestorePanel } from '@/features/backup/BackupRestorePanel'
+import { AuthPanel } from '@/features/auth/AuthPanel'
 
 export function SettingsPage() {
   const { t } = useTranslations()
@@ -14,10 +15,17 @@ export function SettingsPage() {
   return (
     <div className="settings-page">
       <header className="page-heading">
-        <p className="eyebrow">Phase 2.3</p>
+        <p className="eyebrow">Phase 3.2</p>
         <h1>{t('settings.title')}</h1>
         <p>{t('settings.description')}</p>
       </header>
+
+      <SettingsSection
+        title={t('auth.sectionTitle')}
+        description={t('auth.sectionDescription')}
+      >
+        <AuthPanel />
+      </SettingsSection>
 
       <SettingsSection
         title={t('settings.appearance')}
@@ -62,7 +70,7 @@ export function SettingsPage() {
         className="settings-placeholder-grid"
         aria-label={t('settings.title')}
       >
-        {(['account', 'keyboard', 'about'] as const).map((section) => (
+        {(['keyboard', 'about'] as const).map((section) => (
           <SettingsPlaceholder
             key={section}
             label={t(`settings.${section}`)}

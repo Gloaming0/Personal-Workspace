@@ -294,6 +294,36 @@ const englishMessages = {
   'backup.errorRestore':
     'Restore failed. Your existing local data was kept unchanged.',
   'backup.errorExport': 'The backup could not be exported. Try again.',
+  'auth.sectionTitle': 'Account & cloud foundation',
+  'auth.sectionDescription':
+    'Sign in safely and inspect how this device could connect to your account.',
+  'auth.notConfiguredTitle': 'Cloud development is not configured.',
+  'auth.notConfiguredDescription':
+    'Your local workspace remains available. Add the browser-safe Supabase environment variables to enable sign-in.',
+  'auth.restoring': 'Restoring your session…',
+  'auth.magicLinkTitle': 'Sign in with email',
+  'auth.magicLinkDescription':
+    'We will send a secure magic link. Signing in does not move or delete local data.',
+  'auth.email': 'Email address',
+  'auth.sendMagicLink': 'Send magic link',
+  'auth.sending': 'Sending…',
+  'auth.linkSent': 'Check your email to finish signing in.',
+  'auth.error': 'Account access failed. Check your details and try again.',
+  'auth.signedIn': 'Signed in',
+  'auth.signOut': 'Sign out',
+  'auth.discovering': 'Checking local and cloud workspace state…',
+  'auth.discoveryError':
+    'Workspace state could not be checked. No data was changed.',
+  'auth.bootstrapNoAutomaticChange':
+    'This is discovery only. No ownership or data has been changed.',
+  'auth.bootstrap.initialize_authenticated_workspace':
+    'This account is ready for a new workspace.',
+  'auth.bootstrap.connect_local_data':
+    'Connect this device’s local data to the account.',
+  'auth.bootstrap.restore_cloud_data':
+    'Cloud data is available to restore to this device.',
+  'auth.bootstrap.manual_choice_required':
+    'Both sides contain data. Choose explicitly before continuing.',
 } as const
 
 export type MessageKey = keyof typeof englishMessages
@@ -571,6 +601,31 @@ const chineseMessages = {
   'backup.errorSafetyBackup': '无法创建安全备份，因此已取消恢复。',
   'backup.errorRestore': '恢复失败，原有本地数据保持不变。',
   'backup.errorExport': '无法导出备份，请重试。',
+  'auth.sectionTitle': '账号与云端基础',
+  'auth.sectionDescription': '安全登录，并检查此设备可如何连接到你的账号。',
+  'auth.notConfiguredTitle': '尚未配置云端开发环境。',
+  'auth.notConfiguredDescription':
+    '本地工作区仍可正常使用。配置浏览器安全的 Supabase 环境变量后即可登录。',
+  'auth.restoring': '正在恢复登录会话…',
+  'auth.magicLinkTitle': '使用邮箱登录',
+  'auth.magicLinkDescription':
+    '我们会发送安全登录链接。登录不会移动或删除本地数据。',
+  'auth.email': '邮箱地址',
+  'auth.sendMagicLink': '发送登录链接',
+  'auth.sending': '正在发送…',
+  'auth.linkSent': '请检查邮箱并完成登录。',
+  'auth.error': '账号访问失败，请检查后重试。',
+  'auth.signedIn': '已登录',
+  'auth.signOut': '退出登录',
+  'auth.discovering': '正在检查本地与云端工作区…',
+  'auth.discoveryError': '无法检查工作区状态，未修改任何数据。',
+  'auth.bootstrapNoAutomaticChange': '当前仅进行发现，尚未修改归属或数据。',
+  'auth.bootstrap.initialize_authenticated_workspace':
+    '此账号可初始化全新工作区。',
+  'auth.bootstrap.connect_local_data': '将本机数据连接到此账号。',
+  'auth.bootstrap.restore_cloud_data': '可从云端恢复数据到此设备。',
+  'auth.bootstrap.manual_choice_required':
+    '本地与云端都有数据，继续前必须明确选择。',
 } satisfies Record<MessageKey, string>
 
 export const messages = {

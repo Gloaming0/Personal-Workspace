@@ -9,11 +9,14 @@ import {
   usePreferencesStore,
 } from '@/features/settings/preferences/preferencesStore'
 import { themeOptions } from '@/features/settings/theme/types'
+import { AuthProvider } from '@/features/auth/AuthProvider'
 
 function renderApplication() {
   return render(
     <PreferencesProvider>
-      <App />
+      <AuthProvider gateway={null}>
+        <App />
+      </AuthProvider>
     </PreferencesProvider>,
   )
 }
@@ -68,10 +71,10 @@ describe('Daily Work OS application shell', () => {
     expect(screen.getByRole('combobox', { name: 'Theme' })).toBeEnabled()
     expect(screen.getByRole('combobox', { name: 'Density' })).toBeEnabled()
     expect(screen.getByRole('combobox', { name: 'Sidebar' })).toBeEnabled()
-    expect(screen.getByText('Account')).toBeInTheDocument()
+    expect(screen.getByText('Account & cloud foundation')).toBeInTheDocument()
     expect(screen.getByText('Backup & Restore')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Export backup' })).toBeEnabled()
-    expect(screen.getAllByText('Available in a later phase')).toHaveLength(3)
+    expect(screen.getAllByText('Available in a later phase')).toHaveLength(2)
   })
 
   it('applies and persists preferences through the shared model', async () => {
