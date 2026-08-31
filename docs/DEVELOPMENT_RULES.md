@@ -1043,6 +1043,9 @@ DEVELOPMENT_RULES.md
   revision allocation must remain server-atomic RPC commands.
 - A deployed migration is immutable. Rollback is a reviewed forward migration
   tested locally and in the isolated development project.
+- Do not expose SQLSTATE `40001` for deterministic optimistic conflicts through
+  PostgREST. Map them to `PT409` at the authenticated RPC boundary so gateway
+  retry behavior cannot turn a user conflict into a timeout.
 
 
 ---

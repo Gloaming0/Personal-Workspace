@@ -1,4 +1,6 @@
 begin;
+create extension if not exists pgtap with schema extensions;
+set local search_path = public, extensions, pg_temp;
 select plan(31);
 
 insert into auth.users(id,email)
@@ -65,7 +67,7 @@ select is(
     "changes":[{"entityType":"task","entityId":"10000000-0000-4000-8000-000000000012","operation":"create","baseServerRevision":null,
       "entitySnapshot":{"id":"10000000-0000-4000-8000-000000000012","userId":"local-user","title":"Unicode 任务","notes":null,
       "status":"todo","priority":"P2","plannedDate":"2026-08-31","dueAt":null,"projectId":null,"focusDate":null,"focusOrder":null,
-      "completedAt":null,"version":1,"createdAt":"2026-08-31T00:00:00.000Z","updatedAt":"2026-08-31T00:00:00.000Z","deletedAt":null}}]}$$::jsonb)->>'highWatermark',
+      "completedAt":null,"version":1,"createdAt":"2026-08-31T00:00:00.000Z","updatedAt":"2026-08-31T00:00:00.000Z","deletedAt":null}}]}$$::jsonb))->>'highWatermark',
   '1','first entity receives revision one');
 
 select is(
@@ -76,7 +78,7 @@ select is(
     "changes":[{"entityType":"task","entityId":"10000000-0000-4000-8000-000000000012","operation":"create","baseServerRevision":null,
       "entitySnapshot":{"id":"10000000-0000-4000-8000-000000000012","userId":"local-user","title":"Unicode 任务","notes":null,
       "status":"todo","priority":"P2","plannedDate":"2026-08-31","dueAt":null,"projectId":null,"focusDate":null,"focusOrder":null,
-      "completedAt":null,"version":1,"createdAt":"2026-08-31T00:00:00.000Z","updatedAt":"2026-08-31T00:00:00.000Z","deletedAt":null}}]}$$::jsonb)->>'highWatermark',
+      "completedAt":null,"version":1,"createdAt":"2026-08-31T00:00:00.000Z","updatedAt":"2026-08-31T00:00:00.000Z","deletedAt":null}}]}$$::jsonb))->>'highWatermark',
   '1','same mutation and payload is idempotent');
 
 select throws_ok(
@@ -164,5 +166,12 @@ select is(public.commit_sync_bootstrap_v1('70000000-0000-4000-8000-000000000001'
 select is(public.commit_sync_bootstrap_v1('70000000-0000-4000-8000-000000000001')->>'status','committed','lost bootstrap acknowledgement can be replayed');
 reset role;
 
-select * from finish();
+do $$
+declare v_diagnostic text;
+begin
+  for v_diagnostic in select * from finish() loop
+    raise exception 'pgTAP failure: %', v_diagnostic;
+  end loop;
+end;
+$$;
 rollback;

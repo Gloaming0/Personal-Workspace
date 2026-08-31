@@ -1607,3 +1607,7 @@ PostgreSQL is the canonical security/transaction boundary: business tables are
 owner-selectable under RLS but deny browser DML. Versioned security-definer RPCs
 use an empty search path, explicit qualified objects, authenticated-only grants,
 payload/ownership checks, mutation locks, and per-user revision locking.
+Optimistic base-revision conflicts are converted to PostgREST `PT409` only at
+the public RPC boundary; entity, receipt, change-feed, and revision writes still
+share one rollback boundary. Bootstrap commit checks every canonical store, not
+only the change feed, before accepting an initial workspace.

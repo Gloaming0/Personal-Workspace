@@ -681,6 +681,9 @@ receipt, validates every base revision, allocates one revision per changed
 entity, and stores per-entity results. An identical retry returns its durable
 result; a changed payload with the same UUID raises `MutationIdReuse`. Any
 exception rolls back receipt, entities, revisions, and `sync_changes`.
+Stale `baseServerRevision` is exposed as `PT409` at the public RPC boundary so
+PostgREST returns an immediate conflict instead of retrying SQLSTATE `40001`;
+the underlying transaction still rolls back without consuming a revision.
 
 Bootstrap is a separate state machine:
 

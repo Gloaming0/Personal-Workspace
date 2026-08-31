@@ -1094,8 +1094,8 @@ predecessors, per-entity acknowledgements, and atomic pull cursor advancement.
 
 ## Phase 3.2 — Supabase Schema, Auth, and Bootstrap
 
-Implementation complete in repository; remote development deployment requires
-the environment credentials documented in `SUPABASE_SETUP.md`.
+Implementation and Phase 3.2B cloud acceptance are complete in the linked
+development Supabase project.
 
 - Version-controlled canonical/sync/bootstrap schema, Focus/RoutineLog/DailyLog
   invariants, immutable Activity/DailyLog guards, RLS, and restricted grants.
@@ -1106,6 +1106,12 @@ the environment credentials documented in `SUPABASE_SETUP.md`.
 - Idempotent mutation RPC v1, per-entity server revisions/results, ordered
   change feed, and replay-safe atomic bootstrap staging/commit.
 - Storage-neutral cloud ports and conditional two-user/pgTAP integration suites.
+- Remote migrations `20260831000100`–`20260831000300` deployed and idempotent
+  deployment dry-run verified; linked database lint reports no schema errors.
+- Real Auth/RLS/RPC/revision/invariant/bootstrap acceptance: 25 passed, 0
+  failed, 0 skipped. Temporary test identities were removed after the run.
+- Remote pgTAP transaction suite: 31 passed, with rollback and strict
+  `finish()` failure propagation through the Management API.
 
 Background Push/Pull, Realtime, merge UI, project sync, and tombstone cleanup
 remain out of scope.

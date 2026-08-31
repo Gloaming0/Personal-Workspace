@@ -1356,8 +1356,11 @@ Portable Backup excludes all Version 9 sync infrastructure and device identity.
 
 # Supabase Phase 3.2 Schema
 
-The normative DDL is
-`supabase/migrations/20260831000100_phase_3_2_cloud_foundation.sql`.
+The normative DDL is the ordered migration chain beginning with
+`supabase/migrations/20260831000100_phase_3_2_cloud_foundation.sql`. The
+`20260831000200` and `20260831000300` forward migrations harden explicit update
+paths and map optimistic conflicts to `PT409`; deployed migrations are not
+rewritten.
 
 Canonical tables are `tasks`, `confirmations`, `memos`, `routines`,
 `routine_logs`, `activities`, and `daily_logs`. Every row has composite owner

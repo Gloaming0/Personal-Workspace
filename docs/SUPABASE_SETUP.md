@@ -63,6 +63,29 @@ The two test users must be real Auth users with different UUIDs. These tests
 verify session restore, owner isolation, direct-DML denial, and sign-out. Never
 run destructive database tests against production.
 
+The Phase 3.2B cloud gate has a dedicated real-environment runner. It resolves
+the linked development project's keys in memory, creates isolated temporary
+Auth users, removes them in `finally`, and never prints credentials:
+
+```sh
+node scripts/run-supabase-cloud-acceptance.mjs
+```
+
+The gate covers Auth/session restore/sign-out, anonymous denial, two-owner RLS,
+direct-DML denial, mutation idempotency and rollback, revision concurrency,
+Focus/RoutineLog/DailyLog/Activity invariants, and bootstrap staging/commit.
+It must report zero skipped core checks. With a Docker-compatible runtime,
+`supabase test db --linked` is the normal pgTAP entry point. A linked remote
+project can run the same transaction-and-rollback suite without Docker through
+the Management API:
+
+```sh
+npx supabase db query --linked --file supabase/tests/database/phase_3_2.sql
+```
+
+The test file converts `finish()` diagnostics into an exception, so a failing
+assertion cannot be hidden when the API returns only the final result set.
+
 ## Migration and rollback discipline
 
 1. Create a new timestamped migration; do not edit an already deployed file.
@@ -72,6 +95,11 @@ run destructive database tests against production.
 5. Promote the same migration artifact to production only after review.
 
 Schema rollback is a new forward migration. Never rely on a Dashboard undo.
+
+Phase 3.2B acceptance fixes are forward-only migrations: `20260831000200`
+separates entity inserts from optimistic updates, and `20260831000300` maps a
+deterministic stale-base failure to PostgREST `PT409`. Do not edit or squash
+these files after deployment.
 
 ## Security boundary
 
