@@ -1132,14 +1132,20 @@ remain out of scope.
   two Auth owners, upload, restore feed, RLS, history, tombstones, revisions,
   idempotency, and the both-sides-blocked decision.
 
-## Phase 3.4 — Incremental Push/Pull and Conflicts
+## Phase 3.4 — Incremental Push/Pull and Conflict Quarantine Complete
 
-- Implement the Sync Engine, persisted retry scheduling, per-entity
-  acknowledgements, revision-page pull, tombstone propagation, and sync status.
-- Add quarantine and explicit resolution for stale edits, delete/update,
-  immutable DailyLog, Focus, RoutineLog, DailyLog uniqueness, and ownership.
-- Validate multiple devices, offline edits, unknown network outcomes, and RLS
-  isolation before general use.
+- Storage-neutral Sync Engine implements authenticated preflight, ordered Pull,
+  immutable-snapshot Push, per-entity Ack, causal successor rebasing, offline
+  recovery, and post-Push catch-up.
+- App startup, Bootstrap completion, local commit, online, focus/visibility, and
+  manual actions trigger one single-flight; Web Locks prevent competing tabs.
+- Bilingual responsive status shows synced/syncing/offline/pending/auth/conflict
+  states and safe conflict candidates without raw payloads or automatic merge.
+- Existing Dexie Version 10 and Supabase migrations are sufficient; no new
+  schema version was introduced.
+- Real development-project two-device acceptance: 10 passed, 0 failed, 0
+  skipped, including all Domain categories, End Day, tombstones, Activity,
+  offline causal edits, revision pagination, and invariant conflicts.
 
 ## Phase 3.5 — Realtime Invalidation and Operational Hardening
 
@@ -1150,9 +1156,9 @@ remain out of scope.
 - Realtime payloads never become UI state and physical tombstone cleanup remains
   disabled until all retention preconditions are proven.
 
-Continuous synchronization, Realtime, conflict-resolution UI, project sync, and
-tombstone physical cleanup remain unimplemented after Phase 3.3. Phase 3.4 is
-the next implementation boundary.
+Realtime, full conflict-resolution UI, project sync, and tombstone physical
+cleanup remain unimplemented after Phase 3.4. Phase 3.5 is the next
+implementation boundary.
 
 
 Always prioritize:

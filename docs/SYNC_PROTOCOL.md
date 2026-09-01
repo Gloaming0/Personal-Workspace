@@ -734,3 +734,28 @@ Cloud restore reads the durable revision feed from zero, retains the newest
 record per entity, validates the complete owner snapshot, and atomically
 replaces local Domain and transport state. It creates no Activity or mutation.
 Phase 3.3 still has no recurring Push/Pull scheduler or Realtime listener.
+
+# Phase 3.4 Incremental Push/Pull Contract
+
+`SyncEngine` is the sole authenticated incremental-sync coordinator. A run
+preflights authenticated ownership, `bootstrapped` state, stable device ID, and
+an initialized cursor before any Push. It executes `pullUntilCaughtUp`, ordered
+Push, then a final catch-up Pull.
+
+Pull uses owner-scoped `serverRevision`, never timestamps. Every page enters
+through `applyRemotePage`, so entities, metadata, conflicts, and cursor share
+one Dexie transaction. Replays are no-ops, tombstones remain complete rows, and
+Pull never invokes Domain services or creates Outbox/Activity records.
+
+Push reads immutable `LocalMutationRecord` snapshots in `commitOrder`. A causal
+successor waits for its predecessor; Ack updates per-entity results and rebases
+only direct pending successors. `in_flight` survives a crash and reuses the same
+mutation UUID. Unknown network results query the receipt before retrying the
+identical request.
+
+Retryable transport failures use bounded exponential backoff with jitter. Auth
+failure attempts session refresh. Conflicts trigger catch-up Pull and
+quarantine. Ownership, invalid payload, and mutation-ID reuse are permanent and
+block causal successors. One in-process promise and a browser Web Lock prevent
+competing runs; BroadcastChannel carries metadata-only state. Realtime and
+automatic merge remain absent.

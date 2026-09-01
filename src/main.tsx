@@ -7,6 +7,7 @@ import { usePreferencesStore } from '@/features/settings/preferences/preferences
 import '@/styles/index.css'
 import { AuthProvider } from '@/features/auth/AuthProvider'
 import { getCloudRuntime } from '@/cloud/cloudRuntime'
+import { SyncProvider } from '@/sync/SyncProvider'
 
 applyDocumentPreferences(usePreferencesStore.getState())
 
@@ -14,7 +15,9 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <PreferencesProvider>
       <AuthProvider gateway={getCloudRuntime().authGateway}>
-        <App />
+        <SyncProvider>
+          <App />
+        </SyncProvider>
       </AuthProvider>
     </PreferencesProvider>
   </StrictMode>,

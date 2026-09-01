@@ -1,4 +1,8 @@
-import type { LocalMutationRecord, MutationAck } from '@/sync/contracts'
+import type {
+  LocalMutationRecord,
+  MutationAck,
+  RemoteEntityChange,
+} from '@/sync/contracts'
 import type { UserId } from '@/domain/shared'
 import type {
   BootstrapEntityEntry,
@@ -27,6 +31,15 @@ export interface RpcClient {
     parameters?: Record<string, unknown>,
   ): Promise<{ data: unknown; error: RpcError | null }>
 }
+
+const safeServerErrors = new Set([
+  'AuthenticationRequired',
+  'OwnershipConflict',
+  'MutationIdReuse',
+  'BaseServerRevisionConflict',
+  'ImmutableEntityConflict',
+  'DuplicateUniqueInvariant',
+])
 
 function objectResult(value: unknown, operation: string) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -131,6 +144,23 @@ function remoteEntity(
   }
 }
 
+function remoteChange(raw: Record<string, unknown>): RemoteEntityChange {
+  const entityType = String(raw.entity_type) as SyncEntityType
+  const record = objectResult(raw.record, 'pull_sync_changes_v1.record')
+  return {
+    userId: String(raw.user_id),
+    entityType,
+    entity: remoteEntity(entityType, record),
+    operation: String(raw.operation) as RemoteEntityChange['operation'],
+    baseServerRevision: null,
+    serverRevision: Number(raw.server_revision),
+    serverVersion: Number(record.version),
+    mutationId: String(raw.mutation_id),
+    deviceId: String(raw.device_id),
+    occurredAt: String(raw.server_changed_at),
+  }
+}
+
 export class SupabaseCloudSyncAdapter implements CloudSyncPort {
   constructor(private readonly client: RpcClient) {}
 
@@ -140,7 +170,10 @@ export class SupabaseCloudSyncAdapter implements CloudSyncPort {
   ): Promise<unknown> {
     const { data, error } = await this.client.rpc(functionName, parameters)
     if (error) {
-      throw new CloudPortError(functionName, error.code ?? 'request_failed')
+      const safeCode = safeServerErrors.has(error.message)
+        ? error.message
+        : (error.code ?? 'request_failed')
+      throw new CloudPortError(functionName, safeCode)
     }
     return data
   }
@@ -173,7 +206,7 @@ export class SupabaseCloudSyncAdapter implements CloudSyncPort {
     )
     return {
       changes: Array.isArray(result.changes)
-        ? (result.changes as ReadonlyArray<Record<string, unknown>>)
+        ? (result.changes as Record<string, unknown>[]).map(remoteChange)
         : [],
       highWatermark: Number(result.highWatermark ?? 0),
     }
@@ -269,18 +302,18 @@ export class SupabaseCloudSyncAdapter implements CloudSyncPort {
     do {
       const page = await this.pullRemotePage(cursor, 500)
       highWatermark = page.highWatermark
-      for (const raw of page.changes) {
-        const entityType = String(raw.entity_type) as SyncEntityType
-        const record = objectResult(raw.record, 'pull_sync_changes_v1.record')
+      for (const change of page.changes) {
+        const entityType = change.entityType
         const entry = {
           entityType,
-          entityId: String(raw.entity_id),
-          entitySnapshot: remoteEntity(entityType, record),
-          serverRevision: Number(raw.server_revision),
-          serverVersion: Number(record.version),
-          mutationId: String(raw.mutation_id),
-          deviceId: String(raw.device_id),
-          occurredAt: String(record.server_changed_at ?? record.updated_at),
+          entityId: change.entity.id,
+          entitySnapshot:
+            change.entity as BootstrapEntityEntry['entitySnapshot'],
+          serverRevision: change.serverRevision,
+          serverVersion: change.serverVersion,
+          mutationId: change.mutationId,
+          deviceId: change.deviceId,
+          occurredAt: change.occurredAt,
         }
         latest.set(`${entityType}:${entry.entityId}`, entry)
         cursor = Math.max(cursor, entry.serverRevision)

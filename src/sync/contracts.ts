@@ -198,12 +198,30 @@ export interface ApplyRemotePageResult {
   cursor: number
 }
 
+export interface SyncConflictView {
+  id: string
+  entityType: SyncEntityType
+  entityId: string
+  conflictType: SyncConflict['type']
+  title: string
+  localCandidate: string | null
+  remoteCandidate: string
+  occurredAt: Instant
+}
+
+export interface SyncQueueCounts {
+  pending: number
+  conflicts: number
+  failedPermanent: number
+}
+
 export interface SyncRepository {
   listPendingMutations(
     userId: UserId,
     deviceId?: string,
   ): Promise<LocalMutationRecord[]>
   markMutationInFlight(userId: UserId, mutationId: string): Promise<void>
+  markMutationPending(userId: UserId, mutationId: string): Promise<void>
   recoverInFlight(userId: UserId, deviceId: string): Promise<number>
   markMutationFailedPermanent(
     userId: UserId,
@@ -231,6 +249,10 @@ export interface SyncRepository {
     acknowledgedAt: Instant,
   ): Promise<void>
   getPullCursor(userId: UserId, deviceId: string): Promise<number>
+  getDeviceState(
+    userId: UserId,
+    deviceId: string,
+  ): Promise<SyncDeviceState | null>
   getBootstrapState(userId: UserId): Promise<SyncBootstrapState>
   setBootstrapState(
     userId: UserId,
@@ -238,6 +260,8 @@ export interface SyncRepository {
     updatedAt: Instant,
   ): Promise<void>
   listConflicts(userId: UserId): Promise<PersistedSyncConflict[]>
+  listConflictViews(userId: UserId): Promise<SyncConflictView[]>
+  getQueueCounts(userId: UserId): Promise<SyncQueueCounts>
 }
 
 export class MutationAlreadyAppliedError extends Error {

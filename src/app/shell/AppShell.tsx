@@ -6,6 +6,7 @@ import type { ShellNavigationProps } from './types'
 import { UtilityPanel } from './UtilityPanel'
 import { useTranslations } from '@/features/settings/language/useTranslations'
 import { usePreferencesStore } from '@/features/settings/preferences/preferencesStore'
+import { SyncStatusIndicator } from '@/sync/SyncStatusIndicator'
 
 interface AppShellProps extends PropsWithChildren, ShellNavigationProps {
   title: string
@@ -27,9 +28,10 @@ export function AppShell({
       <div className="app-workspace">
         <header className="app-header">
           <div>
-            <p className="phase-label">Phase 2.3</p>
+            <p className="phase-label">Phase 3.4</p>
             <strong>{title}</strong>
           </div>
+          <SyncStatusIndicator />
           <button
             className="icon-button utility-drawer-trigger"
             type="button"

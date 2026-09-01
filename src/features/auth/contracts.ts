@@ -13,6 +13,7 @@ export interface AuthSnapshot {
 
 export interface AuthGateway {
   restoreSession(): Promise<RuntimeIdentity | null>
+  refreshSession?(): Promise<RuntimeIdentity | null>
   sendMagicLink(email: string): Promise<void>
   signOut(): Promise<void>
   subscribe(listener: (identity: RuntimeIdentity | null) => void): () => void

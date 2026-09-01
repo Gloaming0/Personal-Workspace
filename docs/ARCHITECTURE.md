@@ -1633,3 +1633,16 @@ Before server commit an explicit cancel may restore the checkpoint exactly.
 After commit rollback is forbidden; retry reuses the same durable bootstrap
 session. Download restore uses the revision feed as a full authoritative
 snapshot but does not start an incremental sync loop.
+
+# Phase 3.4 Incremental Sync Composition
+
+The cloud composition root wires `SyncEngine` from `SyncRepository`,
+`CloudSyncPort`, stable device identity, a browser-level lock, and a cross-tab
+status store. React owns triggers and presentation only; it cannot read Dexie
+tables or call Supabase RPCs.
+
+Local UnitOfWork commits remain immediate and offline-capable. Their
+metadata-only invalidation wakes the authenticated engine, which uploads the
+persisted snapshot later. Remote pages enter through the existing atomic local
+port and publish query invalidation only after commit. No Dexie Version 11 is
+needed; sync UX state is observational and never a correctness cursor.

@@ -1056,6 +1056,19 @@ DEVELOPMENT_RULES.md
 - A retry reuses persisted bootstrap/chunk identities. A checkpoint may be
   restored before server commit; after commit only metadata finalization may
   proceed.
+- Incremental Push sends the immutable `LocalMutationRecord` snapshot in
+  `commitOrder`; rebuilding a request from the current Domain entity is
+  forbidden.
+- Incremental Pull commits a complete revision page through
+  `applyRemotePage`. Never advance a cursor separately or route remote data
+  through a Domain command that creates another Outbox entry.
+- A sync trigger schedules the storage-neutral engine. UI components may not
+  call Supabase, inspect Dexie sync tables, or run competing loops.
+- Browser tabs share one network runner through Web Locks. Mutation-id server
+  idempotency remains the final safety boundary.
+- Conflict candidates are quarantined. Automatic merge and Last Write Wins are
+  prohibited for stale edits, delete/update, immutable DailyLog, Focus,
+  RoutineLog/DailyLog uniqueness, and ownership conflicts.
 
 
 ---

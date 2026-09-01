@@ -98,6 +98,19 @@ and commit retry, revision-feed restore for a new device, owner RLS, tombstones,
 Activity/DailyLog preservation, and the both-sides-data blocked decision. Core
 checks must report zero skipped tests.
 
+Phase 3.4 incremental two-device acceptance uses one temporary authenticated
+owner with two independent device IDs, Outboxes, revision maps, and cursors:
+
+```sh
+node scripts/run-supabase-incremental-sync-acceptance.mjs
+```
+
+It exercises Task/Waiting/Memo/Routine exchange, RoutineLog, atomic End Day,
+tombstones, Activity idempotency, sequential offline edits, stale edit and
+delete/update conflicts, Focus/RoutineLog/DailyLog invariants, and revision
+pagination. The temporary owner is deleted after the run. Core results must
+report zero skipped tests.
+
 ## Migration and rollback discipline
 
 1. Create a new timestamped migration; do not edit an already deployed file.
@@ -118,5 +131,6 @@ these files after deployment.
 Authenticated clients have owner-scoped SELECT only. Canonical writes and
 bootstrap commits use explicitly granted, versioned RPCs. RPCs derive ownership
 from `auth.uid()`, lock the per-user revision row, validate mutation receipts,
-and commit entity rows, mutation results, and change feed atomically. Realtime,
-background Push/Pull, and physical tombstone cleanup remain disabled.
+and commit entity rows, mutation results, and change feed atomically. Realtime
+and physical tombstone cleanup remain disabled. Incremental Push/Pull uses only
+authenticated RPCs and the durable revision feed.

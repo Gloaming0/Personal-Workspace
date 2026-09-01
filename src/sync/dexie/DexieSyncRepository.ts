@@ -34,11 +34,13 @@ import type {
   SyncConflict,
   SyncBootstrapState,
   SyncEntityType,
+  SyncConflictView,
+  SyncDeviceState,
+  SyncQueueCounts,
   SyncMetadata,
   SyncRepository,
   TombstoneRecord,
 } from '../contracts'
-import { SyncConflictError } from '../contracts'
 import {
   isUuid,
   mutationEntityKey,
@@ -72,6 +74,24 @@ const stores = {
   activity: 'activities',
   daily_log: 'daily_logs',
 } as const
+
+function safeEntitySummary(entity: SyncEntity): string {
+  let value = entity.id
+  if ('title' in entity && typeof entity.title === 'string')
+    value = entity.title
+  else if ('content' in entity && typeof entity.content === 'string')
+    value = entity.content
+  else if ('date' in entity && typeof entity.date === 'string')
+    value = entity.date
+  else if (
+    'payload' in entity &&
+    typeof entity.payload === 'object' &&
+    entity.payload !== null &&
+    'title' in entity.payload
+  )
+    value = String(entity.payload.title)
+  return value.trim().slice(0, 120) || entity.id
+}
 
 export class DexieSyncRepository implements SyncRepository {
   constructor(private readonly database: DailyWorkDatabase) {}
@@ -125,6 +145,17 @@ export class DexieSyncRepository implements SyncRepository {
     }
     await this.database.local_mutations.update(mutationId, {
       status: 'in_flight',
+    })
+  }
+
+  async markMutationPending(userId: string, mutationId: string): Promise<void> {
+    const mutation = await this.ownedMutation(userId, mutationId)
+    if (mutation.status === 'pending') return
+    if (mutation.status !== 'in_flight') {
+      throw new Error('Only an in-flight mutation can return to pending.')
+    }
+    await this.database.local_mutations.update(mutationId, {
+      status: 'pending',
     })
   }
 
@@ -432,11 +463,20 @@ export class DexieSyncRepository implements SyncRepository {
           const table = this.table(change.entityType)
           const rawCurrent = await table.get(entity.id)
           if (rawCurrent && rawCurrent.userId !== page.userId) {
-            throw new SyncConflictError({
+            const conflict: SyncConflict = {
               type: 'OwnershipConflict',
               entityType: change.entityType,
               entityId: entity.id,
-            })
+            }
+            const persisted = this.persistedConflict(
+              page.userId,
+              null,
+              change,
+              conflict,
+            )
+            await this.database.sync_conflicts.put(persisted)
+            conflicts.push(persisted)
+            continue
           }
           let conflict: SyncConflict | null
           if (
@@ -528,6 +568,18 @@ export class DexieSyncRepository implements SyncRepository {
     )
   }
 
+  async getDeviceState(
+    userId: string,
+    deviceId: string,
+  ): Promise<SyncDeviceState | null> {
+    assertUserId(userId)
+    if (!isUuid(deviceId)) throw new Error('Invalid device identifier.')
+    const state = await this.database.sync_device_state.get(
+      syncDeviceStateId(userId, deviceId),
+    )
+    return state?.userId === userId ? structuredClone(state) : null
+  }
+
   async getBootstrapState(userId: string) {
     assertUserId(userId)
     return (await this.database.sync_bootstrap.get(userId))?.state ?? 'clean'
@@ -555,6 +607,60 @@ export class DexieSyncRepository implements SyncRepository {
         .equals([userId, 'open'])
         .sortBy('createdAt'),
     )
+  }
+
+  async listConflictViews(userId: string): Promise<SyncConflictView[]> {
+    const conflicts = await this.listConflicts(userId)
+    const views: SyncConflictView[] = []
+    for (const conflict of conflicts) {
+      const mutation = conflict.mutationId
+        ? await this.database.local_mutations.get(conflict.mutationId)
+        : null
+      const mutationCandidate = mutation?.changes.find(
+        (change) =>
+          change.entityType === conflict.entityType &&
+          change.entityId === conflict.entityId,
+      )?.entitySnapshot
+      const storedCandidate =
+        conflict.conflict.type === 'OwnershipConflict'
+          ? await this.table(conflict.entityType).get(conflict.entityId)
+          : null
+      const local = mutationCandidate ?? storedCandidate
+      const remote = conflict.remoteChange.entity
+      views.push({
+        id: conflict.id,
+        entityType: conflict.entityType,
+        entityId: conflict.entityId,
+        conflictType: conflict.conflict.type,
+        title: safeEntitySummary(local ?? remote),
+        localCandidate: local ? safeEntitySummary(local) : null,
+        remoteCandidate: safeEntitySummary(remote),
+        occurredAt: conflict.createdAt,
+      })
+    }
+    return views
+  }
+
+  async getQueueCounts(userId: string): Promise<SyncQueueCounts> {
+    assertUserId(userId)
+    const [pending, conflicts, failedPermanent] = await Promise.all([
+      this.database.local_mutations
+        .where('[userId+status]')
+        .anyOf([
+          [userId, 'pending'],
+          [userId, 'in_flight'],
+        ])
+        .count(),
+      this.database.sync_conflicts
+        .where('[userId+status]')
+        .equals([userId, 'open'])
+        .count(),
+      this.database.local_mutations
+        .where('[userId+status]')
+        .equals([userId, 'failed_permanent'])
+        .count(),
+    ])
+    return { pending, conflicts, failedPermanent }
   }
 
   private async ownedMutation(userId: string, mutationId: string) {

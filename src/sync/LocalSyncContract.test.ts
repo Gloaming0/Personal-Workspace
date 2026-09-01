@@ -258,24 +258,17 @@ describe('Version 9 local sync contract', () => {
     const value = database()
     await value.open()
     const conflictingId = '00000000-0000-4000-8000-0000000000b3'
-    await value.tasks.add(
-      createTask(
-        {
-          userId: 'other-user',
-          title: 'Owned elsewhere',
-          plannedDate: '2026-08-31',
-        },
-        { id: conflictingId, now: NOW },
-      ),
-    )
     const first = createTask(
       { userId: USER, title: 'Must roll back', plannedDate: '2026-08-31' },
       { id: TASK_ID, now: NOW },
     )
-    const second = createTask(
-      { userId: USER, title: 'Collision', plannedDate: '2026-08-31' },
-      { id: conflictingId, now: NOW },
-    )
+    const second = {
+      ...createTask(
+        { userId: USER, title: 'Collision', plannedDate: '2026-08-31' },
+        { id: conflictingId, now: NOW },
+      ),
+      title: '',
+    }
     const sync = new DexieSyncRepository(value)
     await expect(
       sync.applyRemotePage({
@@ -288,10 +281,46 @@ describe('Version 9 local sync contract', () => {
           remoteChange(second, 2, { mutationId: MUTATION_B }),
         ],
       }),
-    ).rejects.toMatchObject({ conflict: { type: 'OwnershipConflict' } })
+    ).rejects.toThrow()
     await expect(value.tasks.get(TASK_ID)).resolves.toBeUndefined()
     await expect(sync.getPullCursor(USER, DEVICE)).resolves.toBe(0)
     await expect(value.sync_metadata.count()).resolves.toBe(0)
+  })
+
+  it('quarantines an ownership collision and safely advances the page', async () => {
+    const value = database()
+    await value.open()
+    await value.tasks.add(
+      createTask(
+        {
+          userId: 'other-user',
+          title: 'Owned elsewhere',
+          plannedDate: '2026-08-31',
+        },
+        { id: TASK_ID, now: NOW },
+      ),
+    )
+    const incoming = createTask(
+      { userId: USER, title: 'Remote owner', plannedDate: '2026-08-31' },
+      { id: TASK_ID, now: NOW },
+    )
+    const sync = new DexieSyncRepository(value)
+
+    const result = await sync.applyRemotePage({
+      userId: USER,
+      deviceId: DEVICE,
+      fromRevision: 0,
+      toRevision: 1,
+      changes: [remoteChange(incoming, 1)],
+    })
+
+    expect(result.conflicts[0]).toMatchObject({
+      conflict: { type: 'OwnershipConflict' },
+    })
+    await expect(sync.getPullCursor(USER, DEVICE)).resolves.toBe(1)
+    await expect(value.tasks.get(TASK_ID)).resolves.toMatchObject({
+      userId: 'other-user',
+    })
   })
 
   it('replays remote pages idempotently and applies complete tombstones', async () => {

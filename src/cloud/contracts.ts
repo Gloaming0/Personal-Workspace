@@ -1,4 +1,8 @@
-import type { LocalMutationRecord, MutationAck } from '@/sync/contracts'
+import type {
+  LocalMutationRecord,
+  MutationAck,
+  RemoteEntityChange,
+} from '@/sync/contracts'
 import type {
   BootstrapCommitResult,
   CloudBootstrapSnapshot,
@@ -10,7 +14,7 @@ export interface CloudWorkspaceInspection {
 }
 
 export interface CloudChangePage {
-  changes: ReadonlyArray<Record<string, unknown>>
+  changes: RemoteEntityChange[]
   highWatermark: number
 }
 

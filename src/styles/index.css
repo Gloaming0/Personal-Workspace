@@ -233,6 +233,67 @@ button {
   backdrop-filter: blur(12px);
 }
 
+.sync-status {
+  position: relative;
+  margin-left: auto;
+}
+
+.sync-status-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2rem;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.sync-status-popover {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  display: grid;
+  gap: var(--space-3);
+  width: min(22rem, calc(100vw - 2rem));
+  max-height: min(32rem, 70vh);
+  overflow: auto;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-lg);
+}
+
+.sync-status-popover p,
+.sync-status-popover small {
+  margin: 0;
+}
+
+.sync-status-popover small {
+  color: var(--color-text-secondary);
+}
+
+.sync-conflict-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sync-conflict-list li {
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
 .app-header > div {
   display: grid;
   gap: var(--space-1);
@@ -1083,6 +1144,12 @@ button {
 }
 
 @media (max-width: 767px) {
+  .sync-status-button span {
+    max-width: 7rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .end-day-backdrop {
     padding: 0;
   }

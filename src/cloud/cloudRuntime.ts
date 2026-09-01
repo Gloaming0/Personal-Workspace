@@ -13,6 +13,9 @@ import { SupabaseAuthGateway } from '@/features/auth/SupabaseAuthGateway'
 import type { AuthGateway } from '@/features/auth/contracts'
 import { DexieSyncRepository } from '@/sync/dexie/DexieSyncRepository'
 import { DeviceIdentityStore } from '@/sync/DeviceIdentityStore'
+import { SyncEngine } from '@/sync/engine/SyncEngine'
+import { SyncStatusStore } from '@/sync/engine/SyncStatusStore'
+import { BrowserSyncLock } from '@/sync/engine/BrowserSyncLock'
 import type { CloudSyncPort } from './contracts'
 import {
   SupabaseCloudSyncAdapter,
@@ -53,6 +56,8 @@ export interface CloudRuntime {
   cloudPort: CloudSyncPort | null
   bootstrapDiscovery: BootstrapDiscoveryService | null
   bootstrapCoordinator: BootstrapCoordinator | null
+  syncEngine: SyncEngine | null
+  localChanges: DailyWorkDatabase['changes'] | null
   ready: Promise<void>
 }
 
@@ -65,6 +70,8 @@ export function createCloudRuntime(): CloudRuntime {
       cloudPort: null,
       bootstrapDiscovery: null,
       bootstrapCoordinator: null,
+      syncEngine: null,
+      localChanges: null,
       ready: Promise.resolve(),
     }
   }
@@ -74,21 +81,39 @@ export function createCloudRuntime(): CloudRuntime {
   const ready = initializeLocalDatabase(database)
   const backupRepository = new DexieBackupRepository(database)
   const bootstrapLocal = new DexieBootstrapRepository(database)
+  const authGateway = new SupabaseAuthGateway(
+    client,
+    environment.authRedirectUrl,
+  )
+  const deviceIdentity = new DeviceIdentityStore()
+  const syncRepository = new DexieSyncRepository(database)
   return {
     configured: true,
-    authGateway: new SupabaseAuthGateway(client, environment.authRedirectUrl),
+    authGateway,
     cloudPort,
     bootstrapDiscovery: new BootstrapDiscoveryService(
       new DexieLocalWorkspaceInspector(backupRepository),
       cloudPort,
-      new DexieSyncRepository(database),
+      syncRepository,
     ),
     bootstrapCoordinator: new BootstrapCoordinator(
       bootstrapLocal,
       cloudPort,
       new BackupService(backupRepository),
-      new DeviceIdentityStore(),
+      deviceIdentity,
     ),
+    syncEngine: new SyncEngine(
+      syncRepository,
+      cloudPort,
+      new BrowserSyncLock(),
+      new SyncStatusStore(),
+      deviceIdentity.getDeviceId(),
+      {
+        refreshSession: async () =>
+          (await authGateway.refreshSession())?.kind === 'authenticated',
+      },
+    ),
+    localChanges: database.changes,
     ready,
   }
 }

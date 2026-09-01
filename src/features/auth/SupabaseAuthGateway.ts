@@ -21,6 +21,12 @@ export class SupabaseAuthGateway implements AuthGateway {
     return identityFromUser(data.session?.user ?? null)
   }
 
+  async refreshSession(): Promise<RuntimeIdentity | null> {
+    const { data, error } = await this.client.auth.refreshSession()
+    if (error) throw error
+    return identityFromUser(data.session?.user ?? null)
+  }
+
   async sendMagicLink(email: string): Promise<void> {
     const { error } = await this.client.auth.signInWithOtp({
       email,

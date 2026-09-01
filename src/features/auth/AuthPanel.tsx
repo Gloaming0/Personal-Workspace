@@ -82,6 +82,10 @@ export function AuthPanel({
       setBootstrapStage('complete')
       setConfirmation(0)
       await detect()
+      await runtime.syncEngine?.sync({
+        kind: 'authenticated',
+        userId: auth.identity.userId,
+      })
     } catch {
       setDiscoveryError(true)
       setBootstrapStage('error')

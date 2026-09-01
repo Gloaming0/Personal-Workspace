@@ -1401,3 +1401,15 @@ Ownership migration keeps entity IDs, timestamps, Domain versions, Activity
 payloads, DailyLog snapshots, and references unchanged. Embedded ownership keys
 are rebuilt in the same transaction. Version 9 → 10 adds empty recovery stores
 and never synthesizes progress.
+
+# Phase 3.4 Schema Decision
+
+Incremental sync adds no Dexie Version 11 and no Supabase migration. Version
+9/10 already persists immutable Outbox snapshots, causal links, per-entity Ack,
+device cursor, metadata, bootstrap state, and conflict quarantine. Remote
+`sync_changes (user_id, server_revision)` is the only Pull ordering boundary;
+`server_changed_at` is diagnostic and never a cursor.
+
+`in_flight`, `failed_permanent`, and `conflicted` remain durable mutation
+states. The UI receives derived safe conflict summaries rather than raw stored
+candidates.
