@@ -37,7 +37,7 @@ describe('Backup Format and Service', () => {
       formatVersion: currentBackupFormatVersion,
       exportedAt: NOW,
       appVersion: '0.1.0',
-      metadata: { sourceDatabaseVersion: 10, userId: 'local-user' },
+      metadata: { sourceDatabaseVersion: 11, userId: 'local-user' },
     })
     expect(result.backup.data).toEqual(before)
     expect(repository.data).toEqual(before)

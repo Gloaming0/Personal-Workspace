@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { AppShell } from './shell/AppShell'
 import type { AppView } from './shell/types'
-import { SettingsPage } from '@/features/settings/SettingsPage'
 import { useTranslations } from '@/features/settings/language/useTranslations'
 import {
   TaskTodayWorkspace,
   TodayWorkspaceProvider,
 } from '@/features/today/TaskTodayWorkspace'
 import { useAuth } from '@/features/auth/useAuth'
+import { SettingsPage } from '@/features/settings/SettingsPage'
 
 export function App() {
   const [activeView, setActiveView] = useState<AppView>('today')

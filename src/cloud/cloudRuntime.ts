@@ -12,10 +12,14 @@ import type { LocalWorkspaceInspector } from '@/features/bootstrap/contracts'
 import { SupabaseAuthGateway } from '@/features/auth/SupabaseAuthGateway'
 import type { AuthGateway } from '@/features/auth/contracts'
 import { DexieSyncRepository } from '@/sync/dexie/DexieSyncRepository'
+import { ConflictResolutionService } from '@/sync/conflictResolution/ConflictResolutionService'
+import { DexieConflictResolutionRepository } from '@/sync/conflictResolution/DexieConflictResolutionRepository'
 import { DeviceIdentityStore } from '@/sync/DeviceIdentityStore'
 import { SyncEngine } from '@/sync/engine/SyncEngine'
 import { SyncStatusStore } from '@/sync/engine/SyncStatusStore'
 import { BrowserSyncLock } from '@/sync/engine/BrowserSyncLock'
+import { RealtimeInvalidationCoordinator } from '@/sync/realtime/RealtimeInvalidationCoordinator'
+import { SupabaseRealtimeInvalidationAdapter } from '@/sync/realtime/SupabaseRealtimeInvalidationAdapter'
 import type { CloudSyncPort } from './contracts'
 import {
   SupabaseCloudSyncAdapter,
@@ -57,6 +61,8 @@ export interface CloudRuntime {
   bootstrapDiscovery: BootstrapDiscoveryService | null
   bootstrapCoordinator: BootstrapCoordinator | null
   syncEngine: SyncEngine | null
+  realtimeCoordinator: RealtimeInvalidationCoordinator | null
+  conflictResolution: ConflictResolutionService | null
   localChanges: DailyWorkDatabase['changes'] | null
   ready: Promise<void>
 }
@@ -71,6 +77,8 @@ export function createCloudRuntime(): CloudRuntime {
       bootstrapDiscovery: null,
       bootstrapCoordinator: null,
       syncEngine: null,
+      realtimeCoordinator: null,
+      conflictResolution: null,
       localChanges: null,
       ready: Promise.resolve(),
     }
@@ -87,6 +95,17 @@ export function createCloudRuntime(): CloudRuntime {
   )
   const deviceIdentity = new DeviceIdentityStore()
   const syncRepository = new DexieSyncRepository(database)
+  const syncEngine = new SyncEngine(
+    syncRepository,
+    cloudPort,
+    new BrowserSyncLock(),
+    new SyncStatusStore(),
+    deviceIdentity.getDeviceId(),
+    {
+      refreshSession: async () =>
+        (await authGateway.refreshSession())?.kind === 'authenticated',
+    },
+  )
   return {
     configured: true,
     authGateway,
@@ -102,16 +121,16 @@ export function createCloudRuntime(): CloudRuntime {
       new BackupService(backupRepository),
       deviceIdentity,
     ),
-    syncEngine: new SyncEngine(
+    syncEngine,
+    realtimeCoordinator: new RealtimeInvalidationCoordinator(
+      new SupabaseRealtimeInvalidationAdapter(client),
       syncRepository,
+      syncEngine,
+    ),
+    conflictResolution: new ConflictResolutionService(
+      new DexieConflictResolutionRepository(database, { deviceIdentity }),
       cloudPort,
-      new BrowserSyncLock(),
-      new SyncStatusStore(),
       deviceIdentity.getDeviceId(),
-      {
-        refreshSession: async () =>
-          (await authGateway.refreshSession())?.kind === 'authenticated',
-      },
     ),
     localChanges: database.changes,
     ready,

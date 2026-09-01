@@ -373,6 +373,27 @@ const englishMessages = {
   'sync.entity.routine_log': 'Check-in',
   'sync.entity.activity': 'Activity',
   'sync.entity.daily_log': 'Daily log',
+  'sync.reviewConflicts': 'Review conflicts',
+  'sync.conflictEyebrow': 'Sync review',
+  'sync.conflictCenter': 'Resolve changes safely',
+  'sync.conflictIntro':
+    'Choose which version should continue. Nothing is overwritten silently.',
+  'sync.resolutionFailed':
+    'This choice could not be saved. Your data was not partially changed; try again.',
+  'sync.ownershipBlocked':
+    'This workspace belongs to another identity. Return to account setup to continue.',
+  'sync.action.keep_mine': 'Keep this device',
+  'sync.action.use_remote': 'Use cloud version',
+  'sync.action.keep_deleted': 'Keep deleted',
+  'sync.action.restore_remote': 'Restore cloud version',
+  'sync.action.keep_local_daily_log': 'Choose this daily log',
+  'sync.action.keep_remote_daily_log': 'Choose cloud daily log',
+  'sync.action.keep_local_routine_log': 'Keep this check-in',
+  'sync.action.keep_remote_routine_log': 'Keep cloud check-in',
+  'sync.action.repair_focus': 'Use as Focus',
+  'sync.close': 'Close',
+  'sync.focusSelection':
+    'Choose up to three Focus tasks (selection order is saved)',
 } as const
 
 export type MessageKey = keyof typeof englishMessages
@@ -721,6 +742,23 @@ const chineseMessages = {
   'sync.entity.routine_log': '检查记录',
   'sync.entity.activity': '动态',
   'sync.entity.daily_log': '每日记录',
+  'sync.reviewConflicts': '处理冲突',
+  'sync.conflictEyebrow': '同步检查',
+  'sync.conflictCenter': '安全解决数据差异',
+  'sync.conflictIntro': '请选择要继续使用的版本，系统不会静默覆盖任何内容。',
+  'sync.resolutionFailed': '未能保存此选择；数据没有被部分修改，请重试。',
+  'sync.ownershipBlocked': '此工作区属于其他身份，请返回账号设置后继续。',
+  'sync.action.keep_mine': '保留本设备版本',
+  'sync.action.use_remote': '使用云端版本',
+  'sync.action.keep_deleted': '保持删除',
+  'sync.action.restore_remote': '恢复云端版本',
+  'sync.action.keep_local_daily_log': '选择本机每日记录',
+  'sync.action.keep_remote_daily_log': '选择云端每日记录',
+  'sync.action.keep_local_routine_log': '保留本机检查记录',
+  'sync.action.keep_remote_routine_log': '保留云端检查记录',
+  'sync.action.repair_focus': '设为 Focus',
+  'sync.close': '关闭',
+  'sync.focusSelection': '最多选择三项 Focus（按选择顺序保存）',
 } satisfies Record<MessageKey, string>
 
 export const messages = {

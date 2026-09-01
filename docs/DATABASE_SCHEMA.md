@@ -1413,3 +1413,28 @@ device cursor, metadata, bootstrap state, and conflict quarantine. Remote
 `in_flight`, `failed_permanent`, and `conflicted` remain durable mutation
 states. The UI receives derived safe conflict summaries rather than raw stored
 candidates.
+
+# Phase 3.5 Schema
+
+## Dexie Version 11
+
+Version 11 preserves every Version 1–10 store and adds
+`conflict_resolutions`, keyed by UUID `resolutionId`, with `userId`,
+`conflictId`, action, optional replacement `mutationId`, terminal `committed`
+status, and UTC `createdAt`. Existing conflicts receive nullable resolution ID
+and action. A resolved Outbox record may use terminal `superseded`; it is never
+pushed again. Resolution receipts are excluded from portable Backup.
+
+## Supabase invalidation and resolution tables
+
+`sync_invalidations` is keyed by `(user_id, server_revision)` and contains only
+mutation identity and timestamp. An `AFTER INSERT` trigger on `sync_changes`
+populates it. Owner-only SELECT RLS applies, and it is the only Phase 3.5 table
+added to the `supabase_realtime` publication.
+
+`sync_conflict_resolutions` is keyed by `(user_id, resolution_id)` and stores a
+request hash plus result for DailyLog resolution replay. Ordinary DailyLog DML
+remains immutable. Only `resolve_daily_log_conflict_v1`, deriving ownership
+from `auth.uid()`, may replace the official same-day snapshot; it locks owner
+revision state and commits tombstone/replacement changes and the receipt
+atomically.

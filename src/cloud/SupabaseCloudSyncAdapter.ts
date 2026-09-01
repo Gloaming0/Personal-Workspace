@@ -189,6 +189,20 @@ export class SupabaseCloudSyncAdapter implements CloudSyncPort {
     }
   }
 
+  async resolveDailyLogConflict(request: {
+    resolutionId: string
+    deviceId: string
+    candidate: import('@/domain/shared').SyncEntity
+  }): Promise<void> {
+    await this.call('resolve_daily_log_conflict_v1', {
+      p_request: {
+        resolutionId: request.resolutionId,
+        deviceId: request.deviceId,
+        candidate: request.candidate,
+      },
+    })
+  }
+
   async getRemoteHighWatermark(): Promise<number> {
     return (await this.inspectCloudWorkspace()).highWatermark
   }

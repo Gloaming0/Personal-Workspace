@@ -1,16 +1,24 @@
 import { Cloud, CloudOff, RefreshCw, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
+import { lazy, Suspense } from 'react'
 import { useAuth } from '@/features/auth/useAuth'
 import { useTranslations } from '@/features/settings/language/useTranslations'
 import { useOptionalSync } from './useSync'
+
+const ConflictCenter = lazy(() =>
+  import('./ConflictCenter').then((module) => ({
+    default: module.ConflictCenter,
+  })),
+)
 
 export function SyncStatusIndicator() {
   const auth = useAuth()
   const { t } = useTranslations()
   const sync = useOptionalSync()
   const [expanded, setExpanded] = useState(false)
+  const [showConflicts, setShowConflicts] = useState(false)
   if (auth.identity.kind !== 'authenticated' || !sync) return null
-  const { state, conflicts, syncNow } = sync
+  const { state, conflicts, syncNow, resolveConflict } = sync
 
   const label =
     state.status === 'syncing'
@@ -64,24 +72,13 @@ export function SyncStatusIndicator() {
             </small>
           )}
           {conflicts.length > 0 && (
-            <ul className="sync-conflict-list">
-              {conflicts.map((conflict) => (
-                <li key={conflict.id}>
-                  <strong>{conflict.title}</strong>
-                  <span>
-                    {t(`sync.entity.${conflict.entityType}`)} ·{' '}
-                    {t(`sync.conflict.${conflict.conflictType}`)}
-                  </span>
-                  <small>
-                    {t('sync.localCandidate')}: {conflict.localCandidate ?? '—'}
-                    <br />
-                    {t('sync.remoteCandidate')}: {conflict.remoteCandidate}
-                    <br />
-                    {new Date(conflict.occurredAt).toLocaleString()}
-                  </small>
-                </li>
-              ))}
-            </ul>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => setShowConflicts(true)}
+            >
+              {t('sync.reviewConflicts')}
+            </button>
           )}
           <button
             className="secondary-button"
@@ -92,6 +89,15 @@ export function SyncStatusIndicator() {
             {t('sync.now')}
           </button>
         </div>
+      )}
+      {showConflicts && (
+        <Suspense fallback={null}>
+          <ConflictCenter
+            conflicts={conflicts}
+            onClose={() => setShowConflicts(false)}
+            onResolve={resolveConflict}
+          />
+        </Suspense>
       )}
     </div>
   )

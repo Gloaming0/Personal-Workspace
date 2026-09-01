@@ -131,6 +131,26 @@ these files after deployment.
 Authenticated clients have owner-scoped SELECT only. Canonical writes and
 bootstrap commits use explicitly granted, versioned RPCs. RPCs derive ownership
 from `auth.uid()`, lock the per-user revision row, validate mutation receipts,
-and commit entity rows, mutation results, and change feed atomically. Realtime
-and physical tombstone cleanup remain disabled. Incremental Push/Pull uses only
+and commit entity rows, mutation results, and change feed atomically. Physical
+tombstone cleanup remains disabled. Incremental Push/Pull uses only
 authenticated RPCs and the durable revision feed.
+
+## Phase 3.5 Realtime acceptance
+
+Phase 3.5 adds `sync_invalidations` to the `supabase_realtime` publication. It
+contains no Domain record or user text. The browser treats it only as a wake-up
+and always performs revision Pull. Verify the linked development project with
+temporary Auth owners (the runners remove them in `finally`):
+
+```sh
+node scripts/run-supabase-realtime-acceptance.mjs
+node scripts/run-supabase-conflict-resolution-acceptance.mjs
+```
+
+The first runner checks owner isolation, minimal payload shape,
+self-notification idempotency, and disconnect cursor catch-up. The second checks
+mutable rebase, delete/update, Focus repair, RoutineLog uniqueness, and the
+idempotent `resolve_daily_log_conflict_v1` receipt. Both must report zero skips.
+
+Realtime is an optimization, not a correctness boundary. If WebSocket setup is
+unavailable but authenticated Pull works, do not report total sync failure.

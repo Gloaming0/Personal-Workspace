@@ -114,7 +114,7 @@ describe('database integrity checks', () => {
     const diagnostics = checked.runtime.diagnostics()
     expect(diagnostics).toHaveLength(1)
     expect(diagnostics[0]).toMatchObject({
-      databaseVersion: 10,
+      databaseVersion: 11,
       storeName: 'tasks',
       errorCategory: 'corrupt-record',
     })

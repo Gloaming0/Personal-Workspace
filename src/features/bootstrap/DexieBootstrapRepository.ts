@@ -167,6 +167,7 @@ export class DexieBootstrapRepository implements BootstrapLocalPort {
         this.database.sync_metadata,
         this.database.sync_device_state,
         this.database.sync_conflicts,
+        this.database.conflict_resolutions,
         this.database.sync_bootstrap,
         this.database.bootstrap_progress,
       ],
@@ -473,6 +474,9 @@ export class DexieBootstrapRepository implements BootstrapLocalPort {
       this.database.sync_conflicts
         .filter((row) => row.userId === userId)
         .delete(),
+      this.database.conflict_resolutions
+        .filter((row) => row.userId === userId)
+        .delete(),
     ])
   }
 
@@ -487,6 +491,9 @@ export class DexieBootstrapRepository implements BootstrapLocalPort {
   }
 
   private async rewriteTransportOwner(source: string, target: string) {
+    await this.database.conflict_resolutions
+      .filter((row) => row.userId === source)
+      .delete()
     await this.database.local_changes
       .filter((row) => row.userId === source)
       .modify((row) => {
@@ -708,6 +715,7 @@ export class DexieBootstrapRepository implements BootstrapLocalPort {
       this.database.sync_metadata,
       this.database.sync_device_state,
       this.database.sync_conflicts,
+      this.database.conflict_resolutions,
       this.database.sync_bootstrap,
       this.database.bootstrap_progress,
       this.database.ownership_checkpoints,

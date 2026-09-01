@@ -262,6 +262,8 @@ try {
     'sync_conflicts',
     'sync_bootstrap_sessions',
     'sync_bootstrap_chunks',
+    'sync_invalidations',
+    'sync_conflict_resolutions',
   ]
 
   await acceptance(

@@ -1069,6 +1069,19 @@ DEVELOPMENT_RULES.md
 - Conflict candidates are quarantined. Automatic merge and Last Write Wins are
   prohibited for stale edits, delete/update, immutable DailyLog, Focus,
   RoutineLog/DailyLog uniqueness, and ownership conflicts.
+- Realtime may only wake `SyncEngine`. Never apply a Realtime payload to a
+  Repository, ViewModel, Store, or UI; correctness is revision Pull plus
+  `applyRemotePage`.
+- Subscribe only for an authenticated, bootstrapped owner; close on sign-out or
+  account switch, and schedule cursor catch-up after reconnect.
+- Realtime publications must not contain user text or Domain snapshots.
+- Conflict choices go through `ConflictResolutionService`. Conflict state,
+  replacement mutation, metadata, causal handling, and resolution receipt are
+  one local transaction and reuse stable IDs on retry.
+- Keep Mine creates a new mutation against the current remote revision. Use
+  Remote creates no Activity. Ownership conflicts return to bootstrap.
+- Immutable DailyLog conflicts require the explicit versioned resolution RPC;
+  ordinary mutation RPCs and direct DML must continue rejecting replacement.
 
 
 ---

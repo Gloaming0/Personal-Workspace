@@ -25,6 +25,9 @@ import {
   syncConflictStoreSchema,
   syncDeviceStateStoreSchema,
   taskStoreSchema,
+  bootstrapProgressStoreSchema,
+  ownershipCheckpointStoreSchema,
+  conflictResolutionStoreSchema,
 } from './DailyWorkDatabase'
 
 const NOW = '2026-08-25T08:00:00.000Z'
@@ -211,7 +214,7 @@ function buildFixtures() {
 
 let sequence = 0
 describe.each([1, 2, 3, 4, 5, 6, 7, 8])(
-  'migration fixture v%i -> v10',
+  'migration fixture v%i -> v11',
   (version) => {
     const connections: Array<{ close(): void }> = []
     let name = ''
@@ -322,5 +325,62 @@ describe('migration fixture v9 -> v10', () => {
     })
     await expect(current.bootstrap_progress.count()).resolves.toBe(0)
     await expect(current.ownership_checkpoints.count()).resolves.toBe(0)
+  })
+})
+
+describe('migration fixture v10 -> v11', () => {
+  let name = ''
+  const connections: Array<{ close(): void }> = []
+
+  afterEach(async () => {
+    connections.forEach((connection) => connection.close())
+    if (name) await Dexie.delete(name)
+  })
+
+  it('preserves sync conflicts and adds empty idempotent resolution receipts', async () => {
+    name = `migration-matrix-v10-${++sequence}`
+    const legacy = new Dexie(name)
+    connections.push(legacy)
+    legacy.version(10).stores({
+      ...storesAtVersion(8),
+      local_mutations: localMutationStoreSchema,
+      sync_device_state: syncDeviceStateStoreSchema,
+      sync_conflicts: syncConflictStoreSchema,
+      sync_bootstrap: syncBootstrapStoreSchema,
+      bootstrap_progress: bootstrapProgressStoreSchema,
+      ownership_checkpoints: ownershipCheckpointStoreSchema,
+    })
+    await legacy.open()
+    await legacy.table('sync_conflicts').put({
+      id: 'legacy-conflict',
+      userId: USER,
+      mutationId: null,
+      entityType: 'task',
+      entityId: 'legacy-task',
+      conflict: {
+        type: 'SameBaseConcurrentEdit',
+        entityType: 'task',
+        entityId: 'legacy-task',
+      },
+      remoteChange: {},
+      status: 'open',
+      createdAt: NOW,
+      resolvedAt: null,
+    })
+    legacy.close()
+
+    const current = new DailyWorkDatabase(name)
+    connections.push(current)
+    await current.open()
+
+    await expect(
+      current.sync_conflicts.get('legacy-conflict'),
+    ).resolves.toMatchObject({
+      status: 'open',
+      resolutionId: null,
+      resolutionAction: null,
+    })
+    await expect(current.conflict_resolutions.count()).resolves.toBe(0)
+    expect(conflictResolutionStoreSchema).toContain('resolutionId')
   })
 })

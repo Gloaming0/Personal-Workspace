@@ -93,6 +93,48 @@ function safeEntitySummary(entity: SyncEntity): string {
   return value.trim().slice(0, 120) || entity.id
 }
 
+const comparisonFields: Record<SyncEntityType, string[]> = {
+  task: [
+    'title',
+    'status',
+    'priority',
+    'plannedDate',
+    'dueAt',
+    'focusDate',
+    'focusOrder',
+  ],
+  waiting: ['title', 'status', 'person', 'followUpDate'],
+  memo: ['content', 'pinned'],
+  routine: ['title', 'status', 'schedule', 'timezone'],
+  routine_log: ['routineId', 'date', 'completedAt'],
+  activity: ['eventType', 'occurredAt'],
+  daily_log: ['date', 'finalizeTimezone', 'summary', 'finalizedAt'],
+}
+
+function displayValue(value: unknown): string | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'string') return value.slice(0, 240)
+  if (typeof value === 'number' || typeof value === 'boolean')
+    return String(value)
+  return JSON.stringify(value).slice(0, 240)
+}
+
+function availableActions(conflict: SyncConflict) {
+  if (conflict.type === 'SameBaseConcurrentEdit')
+    return ['keep_mine', 'use_remote'] as const
+  if (conflict.type === 'DeleteVsUpdate')
+    return ['keep_deleted', 'restore_remote'] as const
+  if (conflict.type === 'ImmutableDailyLogConflict')
+    return ['keep_local_daily_log', 'keep_remote_daily_log'] as const
+  if (conflict.type === 'DuplicateUniqueInvariant') {
+    if (conflict.invariant === 'focus') return ['repair_focus'] as const
+    if (conflict.invariant === 'routine_log')
+      return ['keep_local_routine_log', 'keep_remote_routine_log'] as const
+    return ['keep_local_daily_log', 'keep_remote_daily_log'] as const
+  }
+  return [] as const
+}
+
 export class DexieSyncRepository implements SyncRepository {
   constructor(private readonly database: DailyWorkDatabase) {}
 
@@ -481,6 +523,7 @@ export class DexieSyncRepository implements SyncRepository {
           let conflict: SyncConflict | null
           if (
             change.entityType === 'daily_log' &&
+            change.operation !== 'delete' &&
             rawCurrent &&
             rawCurrent.deletedAt === null &&
             JSON.stringify(rawCurrent) !== JSON.stringify(entity)
@@ -501,13 +544,24 @@ export class DexieSyncRepository implements SyncRepository {
             )
           }
           if (conflict) {
+            const invariantMutation = await this.findInvariantMutation(
+              page.userId,
+              change,
+              conflict,
+            )
             const persisted = this.persistedConflict(
               page.userId,
-              null,
+              invariantMutation?.mutationId ?? null,
               change,
               conflict,
             )
             await this.database.sync_conflicts.put(persisted)
+            if (invariantMutation) {
+              await this.database.local_mutations.update(
+                invariantMutation.mutationId,
+                { status: 'conflicted' },
+              )
+            }
             conflicts.push(persisted)
             continue
           }
@@ -636,6 +690,23 @@ export class DexieSyncRepository implements SyncRepository {
         localCandidate: local ? safeEntitySummary(local) : null,
         remoteCandidate: safeEntitySummary(remote),
         occurredAt: conflict.createdAt,
+        differences: comparisonFields[conflict.entityType]
+          .map((field) => ({
+            field,
+            localValue: displayValue(
+              (local as unknown as Record<string, unknown> | null)?.[field],
+            ),
+            remoteValue: displayValue(
+              (remote as unknown as Record<string, unknown>)[field],
+            ),
+          }))
+          .filter((item) => item.localValue !== item.remoteValue),
+        availableActions: [...availableActions(conflict.conflict)],
+        selectionCandidates:
+          conflict.conflict.type === 'DuplicateUniqueInvariant' &&
+          conflict.conflict.invariant === 'focus'
+            ? await this.focusCandidates(userId, conflict)
+            : [],
       })
     }
     return views
@@ -719,6 +790,77 @@ export class DexieSyncRepository implements SyncRepository {
     }
   }
 
+  private async findInvariantMutation(
+    userId: string,
+    remote: RemoteEntityChange,
+    conflict: SyncConflict,
+  ): Promise<LocalMutationRecord | null> {
+    if (conflict.type !== 'DuplicateUniqueInvariant') return null
+    const mutations = await this.database.local_mutations
+      .filter(
+        (mutation) =>
+          mutation.userId === userId &&
+          (mutation.status === 'pending' || mutation.status === 'in_flight'),
+      )
+      .toArray()
+    return (
+      mutations.find((mutation) =>
+        mutation.changes.some((change) => {
+          const local = change.entitySnapshot as SyncEntity &
+            Record<string, unknown>
+          const incoming = remote.entity as SyncEntity & Record<string, unknown>
+          if (
+            change.entityType !== remote.entityType ||
+            local.deletedAt !== null
+          )
+            return false
+          if (conflict.invariant === 'focus')
+            return (
+              local.focusDate === incoming.focusDate &&
+              local.focusOrder !== null
+            )
+          if (conflict.invariant === 'routine_log')
+            return (
+              local.routineId === incoming.routineId &&
+              local.date === incoming.date
+            )
+          return local.date === incoming.date
+        }),
+      ) ?? null
+    )
+  }
+
+  private async focusCandidates(
+    userId: string,
+    conflict: PersistedSyncConflict,
+  ) {
+    const remote = conflict.remoteChange.entity as Task
+    if (!remote.focusDate) return []
+    const rows = await this.database.tasks
+      .filter(
+        (task) =>
+          task.userId === userId &&
+          task.deletedAt === null &&
+          task.focusDate === remote.focusDate &&
+          task.focusOrder !== null,
+      )
+      .toArray()
+    const candidates = new Map(rows.map((task) => [task.id, task]))
+    candidates.set(remote.id, remote)
+    return [...candidates.values()]
+      .sort(
+        (left, right) =>
+          (left.focusOrder ?? 99) - (right.focusOrder ?? 99) ||
+          left.title.localeCompare(right.title),
+      )
+      .map((task) => ({
+        id: task.id,
+        label: task.title,
+        selected: task.focusOrder !== null && task.focusOrder <= 3,
+        order: task.focusOrder,
+      }))
+  }
+
   private persistedConflict(
     userId: string,
     mutationId: string | null,
@@ -736,6 +878,8 @@ export class DexieSyncRepository implements SyncRepository {
       status: 'open',
       createdAt: remoteChange.occurredAt,
       resolvedAt: null,
+      resolutionId: null,
+      resolutionAction: null,
     }
   }
 

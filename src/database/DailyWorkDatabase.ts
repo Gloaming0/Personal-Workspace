@@ -19,11 +19,12 @@ import type {
   SyncDeviceState,
   SyncMetadata,
   BootstrapProgressRecord,
+  ConflictResolutionRecord,
   OwnershipCheckpointRecord,
 } from '@/sync/contracts'
 
 export const dailyWorkDatabaseName = 'daily-work-os'
-export const currentDatabaseVersion = 10
+export const currentDatabaseVersion = 11
 
 export const taskStoreSchema =
   'id, userId, status, priority, plannedDate, dueAt, projectId, focusDate, completedAt, deletedAt, updatedAt, [userId+plannedDate], [userId+focusDate], [userId+status]'
@@ -54,6 +55,8 @@ export const bootstrapProgressStoreSchema =
   'userId, bootstrapId, sourceUserId, mode, stage, updatedAt'
 export const ownershipCheckpointStoreSchema =
   'bootstrapId, sourceUserId, targetUserId, createdAt'
+export const conflictResolutionStoreSchema =
+  'resolutionId, userId, conflictId, action, createdAt, [userId+conflictId]'
 
 const version1Stores = {
   tasks: taskStoreSchema,
@@ -103,6 +106,10 @@ const version10Stores = {
   bootstrap_progress: bootstrapProgressStoreSchema,
   ownership_checkpoints: ownershipCheckpointStoreSchema,
 }
+const version11Stores = {
+  ...version10Stores,
+  conflict_resolutions: conflictResolutionStoreSchema,
+}
 
 export class DailyWorkDatabase extends Dexie {
   tasks!: EntityTable<Task, 'id'>
@@ -120,6 +127,7 @@ export class DailyWorkDatabase extends Dexie {
   sync_bootstrap!: EntityTable<SyncBootstrapRecord, 'userId'>
   bootstrap_progress!: EntityTable<BootstrapProgressRecord, 'userId'>
   ownership_checkpoints!: EntityTable<OwnershipCheckpointRecord, 'bootstrapId'>
+  conflict_resolutions!: EntityTable<ConflictResolutionRecord, 'resolutionId'>
   readonly runtime = new DatabaseRuntimeState(currentDatabaseVersion)
   readonly changes: LocalChangeCoordinator
 
@@ -179,7 +187,18 @@ export class DailyWorkDatabase extends Dexie {
         await transaction.table('local_changes').clear()
         await transaction.table('sync_metadata').clear()
       })
-    this.version(currentDatabaseVersion).stores(version10Stores)
+    this.version(10).stores(version10Stores)
+    this.version(currentDatabaseVersion)
+      .stores(version11Stores)
+      .upgrade(async (transaction) => {
+        await transaction
+          .table<PersistedSyncConflict>('sync_conflicts')
+          .toCollection()
+          .modify((conflict) => {
+            conflict.resolutionId ??= null
+            conflict.resolutionAction ??= null
+          })
+      })
 
     this.on('blocked', () => this.runtime.blocked())
     this.on('versionchange', () => {

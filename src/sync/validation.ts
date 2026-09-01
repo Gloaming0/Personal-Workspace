@@ -212,6 +212,7 @@ export function validateLocalMutationRecord(
       'acknowledged',
       'conflicted',
       'failed_permanent',
+      'superseded',
     ].includes(value.status as string)
   )
     invalid('LocalMutationRecord', 'status')
@@ -322,5 +323,11 @@ export function validatePersistedSyncConflict(
     (remote.serverRevision as number) < 1
   )
     invalid('PersistedSyncConflict', 'remoteChange')
+  if (
+    value.resolutionId !== undefined &&
+    value.resolutionId !== null &&
+    !isUuid(value.resolutionId)
+  )
+    invalid('PersistedSyncConflict', 'resolutionId')
   return value as unknown as PersistedSyncConflict
 }

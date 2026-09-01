@@ -94,6 +94,7 @@ export class DexieBackupRepository implements BackupRepository {
       this.database.sync_bootstrap,
       this.database.bootstrap_progress,
       this.database.ownership_checkpoints,
+      this.database.conflict_resolutions,
     ]
     try {
       await this.database.transaction('rw', tables, async () => {
@@ -150,6 +151,9 @@ export class DexieBackupRepository implements BackupRepository {
           .delete()
         await this.database.sync_conflicts
           .filter((conflict) => conflict.userId === userId)
+          .delete()
+        await this.database.conflict_resolutions
+          .filter((resolution) => resolution.userId === userId)
           .delete()
         const progress = await this.database.bootstrap_progress.get(userId)
         await this.database.bootstrap_progress.delete(userId)

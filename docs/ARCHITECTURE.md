@@ -1646,3 +1646,23 @@ metadata-only invalidation wakes the authenticated engine, which uploads the
 persisted snapshot later. Remote pages enter through the existing atomic local
 port and publish query invalidation only after commit. No Dexie Version 11 is
 needed; sync UX state is observational and never a correctness cursor.
+
+# Phase 3.5 Realtime and Resolution Composition
+
+`SupabaseRealtimeInvalidationAdapter` exposes a storage-neutral, content-free
+invalidation port. `RealtimeInvalidationCoordinator` owns auth/bootstrap
+lifecycle, debounce/coalescing, reconnect catch-up, and delegates every run to
+the Web-Lock/single-flight `SyncEngine`. React subscribes only to run results;
+no component consumes a PostgreSQL change payload.
+
+`ConflictResolutionService` is the feature boundary for explicit choices.
+`DexieConflictResolutionRepository` owns the local transaction, while the
+Supabase adapter exposes the exceptional immutable-DailyLog resolution RPC.
+Server-first DailyLog resolution is crash-safe because the same resolution ID
+returns its durable result; local finalization and ordinary Pull then converge
+without generating Activity.
+
+Dexie Version 11 adds only `conflict_resolutions`. It is transport/audit state,
+excluded from portable Backup and cleared by Restore/bootstrap reset. Conflict
+Center is lazy loaded and production vendor chunks are split without changing
+Today behavior.

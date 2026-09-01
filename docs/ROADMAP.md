@@ -1147,18 +1147,22 @@ remain out of scope.
   skipped, including all Domain categories, End Day, tombstones, Activity,
   offline causal edits, revision pagination, and invariant conflicts.
 
-## Phase 3.5 — Realtime Invalidation and Operational Hardening
+## Phase 3.5 — Realtime Invalidation + Conflict Resolution UX Complete
 
-- Add private owner-scoped Realtime invalidation that only schedules a normal
-  pull; retain polling/reconnect catch-up as the correctness path.
-- Add observability without user content, device retirement, retention policy,
-  protocol compatibility, load/security tests, and rollout/rollback controls.
-- Realtime payloads never become UI state and physical tombstone cleanup remains
-  disabled until all retention preconditions are proven.
+- Content-free, owner-filtered Realtime invalidations wake the existing
+  cursor-based SyncEngine; Realtime is not a correctness boundary.
+- Lifecycle covers bootstrap gating, sign-out/account switching, reconnect
+  catch-up, debounce, self-notification, and Web Lock leadership.
+- Conflict Center provides bilingual, theme-safe, keyboard/mobile candidate
+  review for stale edit, delete/update, Focus, RoutineLog, and DailyLog.
+- Dexie Version 11 persists atomic/idempotent resolution receipts and causal
+  successor disposition; Backup excludes transport state.
+- Supabase migrations add RLS-protected minimal invalidations and an explicit
+  idempotent DailyLog official-snapshot resolution command.
+- Real development-project acceptance passed Realtime owner isolation,
+  reconnect Pull, and five cloud conflict-resolution scenarios with zero skip.
 
-Realtime, full conflict-resolution UI, project sync, and tombstone physical
-cleanup remain unimplemented after Phase 3.4. Phase 3.5 is the next
-implementation boundary.
+Project sync and physical tombstone cleanup remain outside Phase 3.5.
 
 
 Always prioritize:

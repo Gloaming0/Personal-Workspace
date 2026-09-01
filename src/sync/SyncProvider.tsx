@@ -4,11 +4,16 @@ import {
   useMemo,
   useState,
   useSyncExternalStore,
+  useRef,
   type ReactNode,
 } from 'react'
 import { getCloudRuntime, type CloudRuntime } from '@/cloud/cloudRuntime'
 import { useAuth } from '@/features/auth/useAuth'
-import type { SyncConflictView } from './contracts'
+import type {
+  ConflictResolutionAction,
+  ConflictResolutionCommand,
+  SyncConflictView,
+} from './contracts'
 import { SyncContext } from './SyncContext'
 import type { SyncState } from './engine/contracts'
 
@@ -34,6 +39,7 @@ export function SyncProvider({
     engine?.status.getSnapshot ?? (() => unavailableState),
   )
   const [conflicts, setConflicts] = useState<SyncConflictView[]>([])
+  const resolutionRetries = useRef(new Map<string, ConflictResolutionCommand>())
 
   const syncNow = useCallback(async () => {
     if (!engine || auth.identity.kind !== 'authenticated') return
@@ -43,7 +49,44 @@ export function SyncProvider({
       userId: auth.identity.userId,
     })
     setConflicts(result.conflicts)
-  }, [auth.identity, engine, runtime.ready])
+    await runtime.realtimeCoordinator?.start(auth.identity.userId)
+  }, [auth.identity, engine, runtime.ready, runtime.realtimeCoordinator])
+
+  const resolveConflict = useCallback(
+    async (
+      conflictId: string,
+      action: ConflictResolutionAction,
+      focusTaskIds?: string[],
+    ) => {
+      if (!runtime.conflictResolution || auth.identity.kind !== 'authenticated')
+        return
+      const userId = auth.identity.userId
+      const needsMutation = ![
+        'use_remote',
+        'restore_remote',
+        'keep_remote_daily_log',
+        'keep_remote_routine_log',
+        'keep_local_daily_log',
+      ].includes(action)
+      const existing = resolutionRetries.current.get(conflictId)
+      const command =
+        existing?.action === action
+          ? existing
+          : {
+              resolutionId: crypto.randomUUID(),
+              mutationId: needsMutation ? crypto.randomUUID() : null,
+              userId,
+              conflictId,
+              action,
+              focusTaskIds,
+            }
+      resolutionRetries.current.set(conflictId, command)
+      await runtime.conflictResolution.resolve(command)
+      resolutionRetries.current.delete(conflictId)
+      await syncNow()
+    },
+    [auth.identity, runtime.conflictResolution, syncNow],
+  )
 
   useEffect(() => {
     if (auth.status !== 'signed_in') return
@@ -69,9 +112,22 @@ export function SyncProvider({
     }
   }, [auth.identity, engine, runtime.localChanges, syncNow])
 
+  useEffect(() => {
+    if (auth.identity.kind === 'authenticated') return
+    runtime.realtimeCoordinator?.stop()
+  }, [auth.identity, runtime.realtimeCoordinator])
+
+  useEffect(
+    () =>
+      runtime.realtimeCoordinator?.subscribeResults((result) =>
+        setConflicts(result.conflicts),
+      ),
+    [runtime.realtimeCoordinator],
+  )
+
   const value = useMemo(
-    () => ({ state, conflicts, syncNow }),
-    [conflicts, state, syncNow],
+    () => ({ state, conflicts, syncNow, resolveConflict }),
+    [conflicts, resolveConflict, state, syncNow],
   )
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>
 }

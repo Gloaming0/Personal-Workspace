@@ -294,6 +294,137 @@ button {
   border-top: 1px solid var(--color-border-subtle);
 }
 
+.conflict-center-backdrop {
+  position: fixed;
+  z-index: var(--z-overlay);
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-5);
+  background: color-mix(in srgb, var(--text-primary) 52%, transparent);
+}
+
+.conflict-center {
+  display: grid;
+  gap: var(--space-4);
+  width: min(46rem, 100%);
+  max-height: min(48rem, calc(100dvh - 2rem));
+  overflow: auto;
+  padding: var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.conflict-center > header,
+.conflict-center > header > div,
+.conflict-center-list li,
+.conflict-center-list li > div,
+.conflict-center dl,
+.conflict-center dl div,
+.conflict-center dd {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.conflict-center > header {
+  grid-template-columns: 1fr auto;
+  align-items: start;
+}
+
+.conflict-center h2,
+.conflict-center p,
+.conflict-center dl,
+.conflict-center dd {
+  margin: 0;
+}
+
+.conflict-center > header > button {
+  display: grid;
+  width: var(--control-height);
+  height: var(--control-height);
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.conflict-center-list {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.conflict-center-list > li {
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+}
+
+.conflict-center-list li > div > span,
+.conflict-center dt,
+.conflict-center dd,
+.conflict-center > p {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.conflict-center dl div {
+  grid-template-columns: minmax(7rem, 0.35fr) 1fr;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+.conflict-center dd span {
+  overflow-wrap: anywhere;
+}
+
+.conflict-actions {
+  display: flex !important;
+  flex-wrap: wrap;
+}
+
+.focus-conflict-selection {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.focus-conflict-selection label {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: var(--touch-target);
+}
+
+.conflict-actions button {
+  min-height: var(--control-height);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  cursor: pointer;
+}
+
+.conflict-actions button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.conflict-error {
+  color: var(--danger) !important;
+}
+
 .app-header > div {
   display: grid;
   gap: var(--space-1);
@@ -1149,6 +1280,17 @@ button {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .conflict-center-backdrop {
+    padding: 0;
+  }
+
+  .conflict-center {
+    width: 100%;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
   }
   .end-day-backdrop {
     padding: 0;

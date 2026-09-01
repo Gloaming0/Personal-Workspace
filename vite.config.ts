@@ -13,6 +13,21 @@ export default defineConfig({
       '@': path.resolve(rootDirectory, 'src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/@supabase/')) return 'supabase'
+          if (id.includes('node_modules/dexie/')) return 'dexie'
+          if (
+            id.includes('node_modules/react/') ||
+            id.includes('node_modules/react-dom/')
+          )
+            return 'react'
+        },
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     globals: true,

@@ -759,3 +759,31 @@ quarantine. Ownership, invalid payload, and mutation-ID reuse are permanent and
 block causal successors. One in-process promise and a browser Web Lock prevent
 competing runs; BroadcastChannel carries metadata-only state. Realtime and
 automatic merge remain absent.
+
+# Phase 3.5 Realtime and Conflict Resolution Contract
+
+Realtime is an optimization, not a correctness boundary. The authenticated,
+bootstrapped client subscribes only to owner-filtered `sync_invalidations`.
+That table contains user/revision/mutation/timestamp metadata and no Domain
+snapshot or user text. Every notification, including self-notification and
+reconnect, is only a debounced wake-up for the single-flight `SyncEngine`;
+ordered Pull and atomic `applyRemotePage` remain authoritative.
+
+Subscriptions stop on sign-out/account switch. Reconnect schedules cursor
+catch-up. Duplicate, missing, and out-of-order notifications are safe, and a
+Realtime outage does not disable ordinary Pull.
+
+Conflict resolution is explicit and never LWW. Mutable Keep Mine creates a new
+mutation against the latest remote revision; Use Remote installs the candidate
+without fake Activity. Delete/update offers Keep Deleted or Restore Remote.
+Focus selection is capped at three ordered slots. RoutineLog chooses one active
+check-in. DailyLog uses owner-scoped `resolve_daily_log_conflict_v1` to choose
+and audit the official immutable snapshot. OwnershipConflict remains blocked
+and returns to account/bootstrap setup.
+
+Every local resolution has a UUID receipt in Dexie Version 11. Conflict state,
+candidate application, replacement Outbox record, metadata, commit order, and
+receipt share one transaction. Repeating the same resolution ID is a no-op;
+changing its action is rejected. Safe single-entity causal successors are
+superseded by the explicit choice. Cross-entity successors remain quarantined
+with `causal_rebase_required` rather than being silently rebased.

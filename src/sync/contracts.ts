@@ -14,7 +14,12 @@ export const syncEntityTypes = [
 export type SyncEntityType = (typeof syncEntityTypes)[number]
 export type LocalChangeOperation = 'create' | 'update' | 'delete'
 export type LocalMutationStatus =
-  'pending' | 'in_flight' | 'acknowledged' | 'conflicted' | 'failed_permanent'
+  | 'pending'
+  | 'in_flight'
+  | 'acknowledged'
+  | 'conflicted'
+  | 'failed_permanent'
+  | 'superseded'
 export type SyncBootstrapState = 'clean' | 'requires_bootstrap' | 'bootstrapped'
 
 export interface MutationMetadata {
@@ -190,6 +195,71 @@ export interface PersistedSyncConflict {
   status: 'open' | 'resolved'
   createdAt: Instant
   resolvedAt: Instant | null
+  resolutionId: string | null
+  resolutionAction: ConflictResolutionAction | null
+}
+
+export type ConflictResolutionAction =
+  | 'keep_mine'
+  | 'use_remote'
+  | 'keep_deleted'
+  | 'restore_remote'
+  | 'keep_local_daily_log'
+  | 'keep_remote_daily_log'
+  | 'keep_local_routine_log'
+  | 'keep_remote_routine_log'
+  | 'repair_focus'
+
+export interface ConflictResolutionRecord {
+  resolutionId: string
+  userId: UserId
+  conflictId: string
+  action: ConflictResolutionAction
+  mutationId: string | null
+  status: 'committed'
+  createdAt: Instant
+}
+
+export interface ConflictResolutionCommand {
+  resolutionId: string
+  mutationId: string | null
+  userId: UserId
+  conflictId: string
+  action: ConflictResolutionAction
+  focusTaskIds?: string[]
+}
+
+export interface ConflictResolutionResult {
+  resolutionId: string
+  conflictId: string
+  mutationId: string | null
+  createdMutation: boolean
+  blockedSuccessorCount: number
+}
+
+export interface ConflictResolutionPort {
+  getProposal(
+    userId: UserId,
+    conflictId: string,
+  ): Promise<{
+    conflict: PersistedSyncConflict
+    localCandidate: SyncEntity | null
+  }>
+  resolve(command: ConflictResolutionCommand): Promise<ConflictResolutionResult>
+}
+
+export interface DailyLogConflictResolutionCloudPort {
+  resolveDailyLogConflict(request: {
+    resolutionId: string
+    deviceId: string
+    candidate: SyncEntity
+  }): Promise<void>
+}
+
+export interface ConflictCandidateDifference {
+  field: string
+  localValue: string | null
+  remoteValue: string | null
 }
 
 export interface ApplyRemotePageResult {
@@ -207,6 +277,14 @@ export interface SyncConflictView {
   localCandidate: string | null
   remoteCandidate: string
   occurredAt: Instant
+  differences: ConflictCandidateDifference[]
+  availableActions: ConflictResolutionAction[]
+  selectionCandidates: Array<{
+    id: string
+    label: string
+    selected: boolean
+    order: number | null
+  }>
 }
 
 export interface SyncQueueCounts {
