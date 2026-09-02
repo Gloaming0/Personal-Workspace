@@ -211,100 +211,106 @@ export function WaitingWidget({
                 </form>
               ) : (
                 <>
-                  <span className="waiting-status" aria-hidden="true">
-                    <Hourglass size={15} />
-                  </span>
-                  <div className="waiting-item-copy">
-                    <strong>{item.title}</strong>
-                    <span>
-                      {[item.person, item.projectName]
-                        .filter(Boolean)
-                        .join(' · ')}
+                  <div className="waiting-item-main">
+                    <span className="waiting-status" aria-hidden="true">
+                      <Hourglass size={15} />
                     </span>
-                    <small>
-                      {item.needsFollowUp
-                        ? t('today.needsFollowUp')
-                        : item.followUpDate
-                          ? formatDistanceToNow(parseISO(item.followUpDate), {
-                              addSuffix: true,
-                              locale: language === 'zh-CN' ? zhCN : enUS,
-                            })
-                          : t('today.waitingDays').replace(
-                              '{count}',
-                              String(item.daysWaiting),
-                            )}
-                    </small>
-                  </div>
-                  <span className="waiting-state-label">
-                    {item.status === 'confirmed'
-                      ? t('today.waitingConfirmed')
-                      : t('today.waitingOpen')}
-                  </span>
-                  {(onEdit || onTransition) && (
-                    <div className="waiting-actions">
-                      {onEdit && (
-                        <button
-                          className="waiting-primary-action"
-                          type="button"
-                          onClick={() => startEditing(item)}
-                        >
-                          {t('today.waitingEdit')}
-                        </button>
+                    <div className="waiting-item-copy">
+                      <strong>{item.title}</strong>
+                      {(item.person || item.projectName) && (
+                        <span>
+                          {[item.person, item.projectName]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </span>
                       )}
-                      {onTransition && (
-                        <details className="waiting-action-menu">
-                          <summary aria-label={t('today.waitingMore')}>
-                            <Ellipsis aria-hidden="true" size={18} />
-                            <span className="visually-hidden">
-                              {t('today.waitingMore')}
-                            </span>
-                          </summary>
-                          <div>
-                            {item.status === 'waiting' && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  void onTransition(
-                                    item.waitingId,
-                                    'confirm',
-                                    item.entityVersion,
-                                  )
-                                }
-                              >
-                                {t('today.waitingConfirm')}
-                              </button>
-                            )}
-                            {item.status === 'confirmed' && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  void onTransition(
-                                    item.waitingId,
-                                    'reopen',
-                                    item.entityVersion,
-                                  )
-                                }
-                              >
-                                {t('today.waitingReopen')}
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void onTransition(
-                                  item.waitingId,
-                                  'close',
-                                  item.entityVersion,
-                                )
-                              }
-                            >
-                              {t('today.waitingClose')}
-                            </button>
-                          </div>
-                        </details>
-                      )}
+                      <small>
+                        {item.needsFollowUp
+                          ? t('today.needsFollowUp')
+                          : item.followUpDate
+                            ? formatDistanceToNow(parseISO(item.followUpDate), {
+                                addSuffix: true,
+                                locale: language === 'zh-CN' ? zhCN : enUS,
+                              })
+                            : t('today.waitingDays').replace(
+                                '{count}',
+                                String(item.daysWaiting),
+                              )}
+                      </small>
                     </div>
-                  )}
+                  </div>
+                  <div className="waiting-item-footer">
+                    <span className="waiting-state-label">
+                      {item.status === 'confirmed'
+                        ? t('today.waitingConfirmed')
+                        : t('today.waitingOpen')}
+                    </span>
+                    {(onEdit || onTransition) && (
+                      <div className="waiting-actions">
+                        {onEdit && (
+                          <button
+                            className="waiting-primary-action"
+                            type="button"
+                            onClick={() => startEditing(item)}
+                          >
+                            {t('today.waitingEdit')}
+                          </button>
+                        )}
+                        {onTransition && (
+                          <details className="waiting-action-menu">
+                            <summary aria-label={t('today.waitingMore')}>
+                              <Ellipsis aria-hidden="true" size={18} />
+                              <span className="visually-hidden">
+                                {t('today.waitingMore')}
+                              </span>
+                            </summary>
+                            <div>
+                              {item.status === 'waiting' && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void onTransition(
+                                      item.waitingId,
+                                      'confirm',
+                                      item.entityVersion,
+                                    )
+                                  }
+                                >
+                                  {t('today.waitingConfirm')}
+                                </button>
+                              )}
+                              {item.status === 'confirmed' && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void onTransition(
+                                      item.waitingId,
+                                      'reopen',
+                                      item.entityVersion,
+                                    )
+                                  }
+                                >
+                                  {t('today.waitingReopen')}
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void onTransition(
+                                    item.waitingId,
+                                    'close',
+                                    item.entityVersion,
+                                  )
+                                }
+                              >
+                                {t('today.waitingClose')}
+                              </button>
+                            </div>
+                          </details>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </>
               )}
             </li>
