@@ -11,6 +11,7 @@ import type { BackupData } from './format'
 import { createCompleteBackupData, fixtureIds } from './testFixtures'
 
 const OLD_TASK_ID = '00000000-0000-4000-8000-000000000090'
+const DEVICE_ID = '00000000-0000-4000-8000-0000000000d1'
 
 async function seed(database: DailyWorkDatabase, data: BackupData) {
   await database.tasks.bulkAdd(data.tasks)
@@ -214,5 +215,73 @@ describe('Dexie Backup Repository', () => {
     )
 
     await expect(database.tasks.get(otherTask.id)).resolves.toEqual(otherTask)
+  })
+
+  it('clears cloud transport state, preserves device identity and requires a new bootstrap decision', async () => {
+    await database.sync_device_state.put({
+      id: `local-user:${DEVICE_ID}`,
+      userId: 'local-user',
+      deviceId: DEVICE_ID,
+      lastCommitOrder: 7,
+      lastPulledRevision: 42,
+      updatedAt: '2026-08-25T10:00:00.000Z',
+    })
+    await database.local_mutations.put({
+      mutationId: '00000000-0000-4000-8000-0000000000a1',
+      userId: 'local-user',
+    } as never)
+    await database.sync_metadata.put({
+      id: 'local-user:task:transport-task',
+      userId: 'local-user',
+    } as never)
+    await database.sync_conflicts.put({
+      id: 'transport-conflict',
+      userId: 'local-user',
+    } as never)
+    await database.conflict_resolutions.put({
+      resolutionId: '00000000-0000-4000-8000-0000000000c1',
+      userId: 'local-user',
+    } as never)
+    await database.sync_bootstrap.put({
+      userId: 'local-user',
+      state: 'bootstrapped',
+      updatedAt: '2026-08-25T10:00:00.000Z',
+    })
+
+    await new DexieBackupRepository(database).replaceAll(
+      'local-user',
+      createCompleteBackupData(),
+    )
+
+    await expect(
+      database.local_mutations
+        .filter((row) => row.userId === 'local-user')
+        .count(),
+    ).resolves.toBe(0)
+    await expect(
+      database.sync_metadata
+        .filter((row) => row.userId === 'local-user')
+        .count(),
+    ).resolves.toBe(0)
+    await expect(
+      database.sync_conflicts
+        .filter((row) => row.userId === 'local-user')
+        .count(),
+    ).resolves.toBe(0)
+    await expect(
+      database.conflict_resolutions
+        .filter((row) => row.userId === 'local-user')
+        .count(),
+    ).resolves.toBe(0)
+    await expect(
+      database.sync_device_state.get(`local-user:${DEVICE_ID}`),
+    ).resolves.toMatchObject({
+      deviceId: DEVICE_ID,
+      lastCommitOrder: 7,
+      lastPulledRevision: 0,
+    })
+    await expect(
+      database.sync_bootstrap.get('local-user'),
+    ).resolves.toMatchObject({ state: 'requires_bootstrap' })
   })
 })

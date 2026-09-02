@@ -18,7 +18,7 @@ export function SyncStatusIndicator() {
   const [expanded, setExpanded] = useState(false)
   const [showConflicts, setShowConflicts] = useState(false)
   if (auth.identity.kind !== 'authenticated' || !sync) return null
-  const { state, conflicts, syncNow, resolveConflict } = sync
+  const { state, conflicts, realtimeState, syncNow, resolveConflict } = sync
 
   const label =
     state.status === 'syncing'
@@ -50,6 +50,20 @@ export function SyncStatusIndicator() {
         : state.status === 'syncing'
           ? RefreshCw
           : Cloud
+  const detail =
+    state.status === 'offline'
+      ? t('sync.offlineDetail')
+      : state.status === 'auth_required'
+        ? t('sync.authDetail')
+        : state.status === 'blocked'
+          ? t('sync.blockedDetail')
+          : state.status === 'error'
+            ? t('sync.errorDetail')
+            : state.conflictCount > 0
+              ? t('sync.conflictDetail')
+              : state.pendingMutationCount > 0
+                ? t('sync.pendingDetail')
+                : t('sync.syncedDetail')
 
   return (
     <div className="sync-status">
@@ -65,6 +79,11 @@ export function SyncStatusIndicator() {
       {expanded && (
         <div className="sync-status-popover">
           <p>{label}</p>
+          <small>{detail}</small>
+          {(realtimeState === 'unavailable' ||
+            realtimeState === 'reconnecting') && (
+            <small>{t('sync.realtimeFallback')}</small>
+          )}
           {state.lastSuccessfulSyncAt && (
             <small>
               {t('sync.lastSync')}:{' '}

@@ -34,22 +34,41 @@ export function SyncProvider({
 }) {
   const auth = useAuth()
   const engine = runtime.syncEngine
-  const state = useSyncExternalStore(
+  const rawState = useSyncExternalStore(
     engine?.status.subscribe ?? (() => () => undefined),
     engine?.status.getSnapshot ?? (() => unavailableState),
   )
-  const [conflicts, setConflicts] = useState<SyncConflictView[]>([])
+  const realtimeState = useSyncExternalStore(
+    runtime.realtimeCoordinator?.subscribeState ?? (() => () => undefined),
+    runtime.realtimeCoordinator?.getState ?? (() => 'idle' as const),
+  )
+  const [syncOwner, setSyncOwner] = useState<string | null>(null)
+  const [conflictOwner, setConflictOwner] = useState<string | null>(null)
+  const [storedConflicts, setStoredConflicts] = useState<SyncConflictView[]>([])
   const resolutionRetries = useRef(new Map<string, ConflictResolutionCommand>())
+  const syncEpoch = useRef(0)
+  const currentUserId =
+    auth.identity.kind === 'authenticated' ? auth.identity.userId : null
+  const state = syncOwner === currentUserId ? rawState : unavailableState
+  const conflicts = useMemo(
+    () => (conflictOwner === currentUserId ? storedConflicts : []),
+    [conflictOwner, currentUserId, storedConflicts],
+  )
 
   const syncNow = useCallback(async () => {
     if (!engine || auth.identity.kind !== 'authenticated') return
+    const userId = auth.identity.userId
+    const epoch = syncEpoch.current
     await runtime.ready
     const result = await engine.sync({
       kind: 'authenticated',
-      userId: auth.identity.userId,
+      userId,
     })
-    setConflicts(result.conflicts)
-    await runtime.realtimeCoordinator?.start(auth.identity.userId)
+    if (syncEpoch.current !== epoch) return
+    setSyncOwner(userId)
+    setConflictOwner(userId)
+    setStoredConflicts(result.conflicts)
+    await runtime.realtimeCoordinator?.start(userId)
   }, [auth.identity, engine, runtime.ready, runtime.realtimeCoordinator])
 
   const resolveConflict = useCallback(
@@ -113,21 +132,27 @@ export function SyncProvider({
   }, [auth.identity, engine, runtime.localChanges, syncNow])
 
   useEffect(() => {
-    if (auth.identity.kind === 'authenticated') return
+    syncEpoch.current += 1
+    resolutionRetries.current.clear()
     runtime.realtimeCoordinator?.stop()
-  }, [auth.identity, runtime.realtimeCoordinator])
+    return () => {
+      syncEpoch.current += 1
+      runtime.realtimeCoordinator?.stop()
+    }
+  }, [currentUserId, runtime.realtimeCoordinator])
 
-  useEffect(
-    () =>
-      runtime.realtimeCoordinator?.subscribeResults((result) =>
-        setConflicts(result.conflicts),
-      ),
-    [runtime.realtimeCoordinator],
-  )
+  useEffect(() => {
+    if (!currentUserId) return
+    return runtime.realtimeCoordinator?.subscribeResults((result) => {
+      setSyncOwner(currentUserId)
+      setConflictOwner(currentUserId)
+      setStoredConflicts(result.conflicts)
+    })
+  }, [currentUserId, runtime.realtimeCoordinator])
 
   const value = useMemo(
-    () => ({ state, conflicts, syncNow, resolveConflict }),
-    [conflicts, resolveConflict, state, syncNow],
+    () => ({ state, conflicts, realtimeState, syncNow, resolveConflict }),
+    [conflicts, realtimeState, resolveConflict, state, syncNow],
   )
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>
 }

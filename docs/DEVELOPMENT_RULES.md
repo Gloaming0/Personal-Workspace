@@ -1082,6 +1082,23 @@ DEVELOPMENT_RULES.md
   Remote creates no Activity. Ownership conflicts return to bootstrap.
 - Immutable DailyLog conflicts require the explicit versioned resolution RPC;
   ordinary mutation RPCs and direct DML must continue rejecting replacement.
+- Auth restore results are conditional on the identity epoch that requested
+  them. A newer Auth event or account switch must invalidate stale results.
+- Sync single-flight may coalesce only the same authenticated owner. Never
+  return one owner's run result, conflicts, or Realtime state under another
+  identity.
+- Production diagnostics must be content-free: status, counts, safe error
+  category, abbreviated device identifier, revisions, and invariant issue codes
+  are allowed; tokens, user IDs, titles, notes, snapshots, payloads, and stack
+  traces are forbidden.
+- Integrity audits are read-only. They may quarantine through an existing
+  validated recovery boundary, but must never perform an implicit destructive
+  repair.
+- Restore always clears transport state and requires bootstrap discovery.
+  Local-plus-cloud data must remain an explicit user decision and must never be
+  silently merged or overwritten.
+- Realtime failure must be described as degraded invalidation, not lost local
+  data. Cursor Pull remains the correctness and recovery path.
 
 
 ---

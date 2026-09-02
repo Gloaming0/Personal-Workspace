@@ -9,6 +9,7 @@ import { ThemeSwitcher } from './theme/ThemeSwitcher'
 import { BackupRestorePanel } from '@/features/backup/BackupRestorePanel'
 import { AuthPanel } from '@/features/auth/AuthPanel'
 import { useAuth } from '@/features/auth/useAuth'
+import { SyncDiagnosticsPanel } from '@/sync/diagnostics/SyncDiagnosticsPanel'
 
 export function SettingsPage() {
   const { t } = useTranslations()
@@ -17,7 +18,7 @@ export function SettingsPage() {
   return (
     <div className="settings-page">
       <header className="page-heading">
-        <p className="eyebrow">Phase 3.5</p>
+        <p className="eyebrow">Phase 3.6</p>
         <h1>{t('settings.title')}</h1>
         <p>{t('settings.description')}</p>
       </header>
@@ -55,6 +56,13 @@ export function SettingsPage() {
         description={t('backup.sectionDescription')}
       >
         <BackupRestorePanel userId={auth.identity.userId} />
+      </SettingsSection>
+
+      <SettingsSection
+        title={t('diagnostics.sectionTitle')}
+        description={t('diagnostics.sectionDescription')}
+      >
+        <SyncDiagnosticsPanel />
       </SettingsSection>
 
       <SettingsSection

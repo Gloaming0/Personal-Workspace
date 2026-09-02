@@ -63,6 +63,8 @@ async function check(name, action) {
 }
 
 const now = () => new Date().toISOString()
+const wait = (milliseconds) =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds))
 const shared = (id, overrides = {}) => ({
   id,
   userId,
@@ -86,7 +88,7 @@ const task = (id, title, overrides = {}) => ({
   completedAt: null,
   ...overrides,
 })
-const waiting = (id) => ({
+const waiting = (id, overrides = {}) => ({
   ...shared(id),
   title: 'Waiting 跨设备',
   notes: null,
@@ -98,12 +100,14 @@ const waiting = (id) => ({
   followUpDate: '2026-09-01',
   confirmedAt: null,
   closedAt: null,
+  ...overrides,
 })
-const memo = (id, content) => ({
+const memo = (id, content, overrides = {}) => ({
   ...shared(id),
   content,
-  pinned: true,
+  pinned: false,
   projectId: null,
+  ...overrides,
 })
 const routine = (id) => ({
   ...shared(id),
@@ -166,6 +170,7 @@ class Device {
     this.entities = new Map()
     this.revisions = new Map()
     this.outbox = []
+    this.quarantine = []
   }
 
   queue(changes, mutationId = randomUUID()) {
@@ -182,10 +187,31 @@ class Device {
   }
 
   async push(record = this.outbox[0]) {
-    const result = await client.rpc('apply_sync_mutation_v1', {
-      p_request: record,
-    })
-    if (result.error) return result
+    let result
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      result = await client.rpc('apply_sync_mutation_v1', {
+        p_request: record,
+      })
+      if (!result.error) break
+      const message = `${result.error.message} ${result.error.details ?? ''}`
+      if (!/fetch|timeout|ECONNRESET|aborted|5\d\d/i.test(message)) break
+      const known = await client.rpc('query_sync_mutation_result_v1', {
+        p_mutation_id: record.mutationId,
+      })
+      if (!known.error && known.data) {
+        result = { data: known.data, error: null }
+        break
+      }
+      await wait(300 * (attempt + 1))
+    }
+    assert.ok(result, 'mutation request did not produce a result')
+    if (result.error) {
+      this.outbox = this.outbox.filter(
+        (item) => item.mutationId !== record.mutationId,
+      )
+      this.quarantine.push(record.mutationId)
+      return result
+    }
     for (const ack of result.data.entityResults) {
       const key = `${ack.entityType}:${ack.entityId}`
       this.revisions.set(key, Number(ack.serverRevision))
@@ -249,6 +275,7 @@ try {
   deviceB = new Device('device B')
 
   const taskId = randomUUID()
+  let taskVersion = 1
   await check(
     'A creates Task, pushes it, and B incrementally pulls it',
     async () => {
@@ -260,22 +287,67 @@ try {
     },
   )
 
-  await check('B completes Task and A receives the new revision', async () => {
-    const base = deviceB.revisions.get(`task:${taskId}`)
+  await check(
+    'B focuses Task and A receives the unique Focus slot',
+    async () => {
+      const base = deviceB.revisions.get(`task:${taskId}`)
+      taskVersion += 1
+      const snapshot = task(taskId, 'A → B Task', {
+        focusDate: '2026-09-02',
+        focusOrder: 1,
+        version: taskVersion,
+      })
+      success(
+        await deviceB.push(
+          deviceB.queue([change('task', snapshot, 'update', base)]),
+        ),
+        'push task focus',
+      )
+      await deviceA.pull()
+      assert.equal(deviceA.entities.get(`task:${taskId}`).focus_order, 1)
+    },
+  )
+
+  await check('A completes Task and B receives the new revision', async () => {
+    const base = deviceA.revisions.get(`task:${taskId}`)
+    taskVersion += 1
     const snapshot = task(taskId, 'A → B Task', {
       status: 'done',
       completedAt: now(),
-      version: 2,
+      focusDate: null,
+      focusOrder: null,
+      version: taskVersion,
     })
     success(
-      await deviceB.push(
-        deviceB.queue([change('task', snapshot, 'update', base)]),
+      await deviceA.push(
+        deviceA.queue([change('task', snapshot, 'update', base)]),
       ),
       'push task complete',
     )
-    await deviceA.pull()
-    assert.equal(deviceA.entities.get(`task:${taskId}`).status, 'done')
+    await deviceB.pull()
+    assert.equal(deviceB.entities.get(`task:${taskId}`).status, 'done')
   })
+
+  await check(
+    'B reopens Task and A converges without a duplicate',
+    async () => {
+      const base = deviceB.revisions.get(`task:${taskId}`)
+      taskVersion += 1
+      const snapshot = task(taskId, 'A → B Task', {
+        status: 'todo',
+        completedAt: null,
+        version: taskVersion,
+      })
+      success(
+        await deviceB.push(
+          deviceB.queue([change('task', snapshot, 'update', base)]),
+        ),
+        'push task reopen',
+      )
+      await deviceA.pull()
+      assert.equal(deviceA.entities.get(`task:${taskId}`).status, 'todo')
+    },
+  )
 
   await check(
     'Waiting and edited Memo propagate in both directions',
@@ -296,11 +368,58 @@ try {
         deviceB.entities.get(`waiting:${waitingId}`).title,
         'Waiting 跨设备',
       )
+      const waitingBase = deviceB.revisions.get(`waiting:${waitingId}`)
+      success(
+        await deviceB.push(
+          deviceB.queue([
+            change(
+              'waiting',
+              waiting(waitingId, {
+                status: 'confirmed',
+                confirmedAt: now(),
+                version: 2,
+              }),
+              'update',
+              waitingBase,
+            ),
+          ]),
+        ),
+        'confirm waiting',
+      )
+      await deviceA.pull()
+      assert.equal(
+        deviceA.entities.get(`waiting:${waitingId}`).status,
+        'confirmed',
+      )
+
+      const pinBase = deviceA.revisions.get(`memo:${memoId}`)
+      success(
+        await deviceA.push(
+          deviceA.queue([
+            change(
+              'memo',
+              memo(memoId, 'Memo v1', { pinned: true, version: 2 }),
+              'update',
+              pinBase,
+            ),
+          ]),
+        ),
+        'pin memo',
+      )
+      await deviceB.pull()
       const base = deviceB.revisions.get(`memo:${memoId}`)
       success(
         await deviceB.push(
           deviceB.queue([
-            change('memo', memo(memoId, 'Memo v2 from B'), 'update', base),
+            change(
+              'memo',
+              memo(memoId, 'Memo v2 from B', {
+                pinned: true,
+                version: 3,
+              }),
+              'update',
+              base,
+            ),
           ]),
         ),
         'push memo edit',
@@ -318,11 +437,12 @@ try {
     async () => {
       const routineId = randomUUID()
       const logId = randomUUID()
+      const completed = routineLog(logId, routineId)
       success(
         await deviceA.push(
           deviceA.queue([
             change('routine', routine(routineId)),
-            change('routine_log', routineLog(logId, routineId)),
+            change('routine_log', completed),
           ]),
         ),
         'push routine check-in',
@@ -332,6 +452,21 @@ try {
         deviceB.entities.get(`routine_log:${logId}`).routine_id,
         routineId,
       )
+      const base = deviceB.revisions.get(`routine_log:${logId}`)
+      const undone = {
+        ...completed,
+        version: 2,
+        updatedAt: now(),
+        deletedAt: now(),
+      }
+      success(
+        await deviceB.push(
+          deviceB.queue([change('routine_log', undone, 'delete', base)]),
+        ),
+        'undo routine check-in',
+      )
+      await deviceA.pull()
+      assert.ok(deviceA.entities.get(`routine_log:${logId}`).deleted_at)
     },
   )
 
@@ -369,10 +504,10 @@ try {
     async () => {
       const base = deviceA.revisions.get(`task:${taskId}`)
       const deleted = task(taskId, 'A → B Task', {
-        status: 'done',
-        completedAt: now(),
+        status: 'todo',
+        completedAt: null,
         deletedAt: now(),
-        version: 3,
+        version: ++taskVersion,
       })
       success(
         await deviceA.push(
@@ -554,6 +689,17 @@ try {
       )
       assert.equal(deviceA.cursor, Number(inspection.highWatermark))
       assert.equal(deviceB.cursor, Number(inspection.highWatermark))
+      assert.equal(deviceA.outbox.length, 0)
+      assert.equal(deviceB.outbox.length, 0)
+      assert.ok(deviceB.quarantine.length > 0)
+      const activities = success(
+        await client.from('activities').select('id'),
+        'read final activities',
+      )
+      assert.equal(
+        new Set(activities.map((row) => row.id)).size,
+        activities.length,
+      )
     },
   )
 } finally {

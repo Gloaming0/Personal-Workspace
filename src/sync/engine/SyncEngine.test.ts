@@ -12,6 +12,7 @@ import type {
   LocalMutationRecord,
   MutationAck,
   RemoteEntityChange,
+  SyncRepository,
 } from '@/sync/contracts'
 import { DexieUnitOfWork } from '@/unitOfWork/dexie/DexieUnitOfWork'
 import { DexieSyncRepository } from '../dexie/DexieSyncRepository'
@@ -20,6 +21,7 @@ import { SyncEngine } from './SyncEngine'
 import { SyncStatusStore } from './SyncStatusStore'
 
 const USER = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+const USER_B = '99999999-9999-4999-8999-999999999999'
 const DEVICE = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 const REMOTE_DEVICE = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
 const TASK = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
@@ -353,6 +355,67 @@ describe('SyncEngine', () => {
       engine.sync({ kind: 'authenticated', userId: USER }),
     ])
     expect(lock.calls).toBe(1)
+  })
+
+  it('serializes an account switch without returning the previous user run', async () => {
+    let finishFirstPull: (() => void) | undefined
+    let pullCount = 0
+    const usersSeen: string[] = []
+    const local = {
+      getBootstrapState: vi.fn(async (userId: string) => {
+        usersSeen.push(userId)
+        return 'bootstrapped'
+      }),
+      getDeviceState: vi.fn(async (userId: string) => ({
+        id: `${userId}:${DEVICE}`,
+        userId,
+        deviceId: DEVICE,
+        lastCommitOrder: 0,
+        lastPulledRevision: 0,
+        updatedAt: NOW,
+      })),
+      recoverInFlight: vi.fn(async () => 0),
+      getPullCursor: vi.fn(async () => 0),
+      applyRemotePage: vi.fn(),
+      listPendingMutations: vi.fn(async () => []),
+      getQueueCounts: vi.fn(async () => ({
+        pending: 0,
+        conflicts: 0,
+        failedPermanent: 0,
+      })),
+      listConflictViews: vi.fn(async () => []),
+    } as unknown as SyncRepository
+    const switchedCloud = {
+      pullRemotePage: vi.fn(async () => {
+        pullCount += 1
+        if (pullCount === 1) {
+          await new Promise<void>((resolve) => {
+            finishFirstPull = resolve
+          })
+        }
+        return { changes: [], highWatermark: 0 }
+      }),
+    } as unknown as CloudSyncPort
+    const switchingLock = new ImmediateLock()
+    const switching = new SyncEngine(
+      local,
+      switchedCloud,
+      switchingLock,
+      status,
+      DEVICE,
+      { now: () => NOW, online: () => true },
+    )
+
+    const first = switching.sync({ kind: 'authenticated', userId: USER })
+    await vi.waitFor(() => expect(finishFirstPull).toBeTypeOf('function'))
+    const second = switching.sync({ kind: 'authenticated', userId: USER_B })
+    expect(usersSeen).toEqual([USER])
+    finishFirstPull?.()
+
+    await expect(first).resolves.toMatchObject({ state: { status: 'idle' } })
+    await expect(second).resolves.toMatchObject({ state: { status: 'idle' } })
+    expect(usersSeen).toEqual([USER, USER_B])
+    expect(switchingLock.calls).toBe(2)
   })
 
   it('keeps the Outbox pending while offline and resumes without changing mutation identity', async () => {

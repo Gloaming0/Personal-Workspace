@@ -48,10 +48,11 @@ export function AuthProvider({
   useEffect(() => {
     if (!gateway) return
     let active = true
+    let authEventSeen = false
     void gateway
       .restoreSession()
       .then((identity) => {
-        if (!active) return
+        if (!active || authEventSeen) return
         setSnapshot({
           status: identity ? 'signed_in' : 'signed_out',
           identity: identity ?? anonymousIdentity,
@@ -67,6 +68,7 @@ export function AuthProvider({
         })
       })
     const unsubscribe = gateway.subscribe((identity) => {
+      authEventSeen = true
       setSnapshot({
         status: identity ? 'signed_in' : 'signed_out',
         identity: identity ?? anonymousIdentity,

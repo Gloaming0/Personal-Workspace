@@ -53,4 +53,42 @@ describe('AuthProvider', () => {
       userId: 'local-user',
     })
   })
+
+  it('does not let a stale session restore overwrite a newer account event', async () => {
+    let finishRestore: ((identity: RuntimeIdentity) => void) | undefined
+    let publish: ((identity: RuntimeIdentity | null) => void) | undefined
+    const authGateway: AuthGateway = {
+      restoreSession: vi.fn(
+        () =>
+          new Promise<RuntimeIdentity | null>((resolve) => {
+            finishRestore = resolve
+          }),
+      ),
+      sendMagicLink: vi.fn(),
+      signOut: vi.fn(),
+      subscribe: vi.fn((listener) => {
+        publish = listener
+        return () => undefined
+      }),
+    }
+    const { result } = renderHook(useAuth, { wrapper: wrapper(authGateway) })
+    const current = {
+      kind: 'authenticated' as const,
+      userId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      email: 'current@example.com',
+    }
+    act(() => publish?.(current))
+    await waitFor(() => expect(result.current.identity).toEqual(current))
+
+    await act(async () => {
+      finishRestore?.({
+        kind: 'authenticated',
+        userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        email: 'stale@example.com',
+      })
+      await Promise.resolve()
+    })
+
+    expect(result.current.identity).toEqual(current)
+  })
 })

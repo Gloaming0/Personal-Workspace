@@ -58,7 +58,7 @@ async function check(name, action) {
 
 const wait = (milliseconds) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds))
-const waitFor = async (predicate, timeout = 12_000) => {
+const waitFor = async (predicate, timeout = 30_000) => {
   const started = Date.now()
   while (!predicate()) {
     if (Date.now() - started > timeout)
@@ -126,31 +126,37 @@ async function mutate(client, userId, title) {
   const mutationId = randomUUID()
   const deviceId = randomUUID()
   const entity = makeTask(userId, randomUUID(), title)
-  return success(
-    await client.rpc('apply_sync_mutation_v1', {
-      p_request: {
-        mutationId,
-        deviceId,
-        userId,
-        occurredAt: new Date().toISOString(),
-        commitOrder: 1,
-        changes: [
-          {
-            sequence: 1,
-            entityType: 'task',
-            entityId: entity.id,
-            operation: 'create',
-            baseServerRevision: null,
-            baseLocalVersion: 0,
-            resultingLocalVersion: 1,
-            predecessorMutationId: null,
-            entitySnapshot: entity,
-          },
-        ],
+  const request = {
+    mutationId,
+    deviceId,
+    userId,
+    occurredAt: new Date().toISOString(),
+    commitOrder: 1,
+    changes: [
+      {
+        sequence: 1,
+        entityType: 'task',
+        entityId: entity.id,
+        operation: 'create',
+        baseServerRevision: null,
+        baseLocalVersion: 0,
+        resultingLocalVersion: 1,
+        predecessorMutationId: null,
+        entitySnapshot: entity,
       },
-    }),
-    'apply realtime mutation',
-  )
+    ],
+  }
+  let last
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    last = await client.rpc('apply_sync_mutation_v1', { p_request: request })
+    if (!last.error) return last.data
+    const receipt = await client.rpc('query_sync_mutation_result_v1', {
+      p_mutation_id: mutationId,
+    })
+    if (!receipt.error && receipt.data) return receipt.data
+    await wait(300 * (attempt + 1))
+  }
+  return success(last, 'apply realtime mutation')
 }
 
 try {
@@ -164,13 +170,17 @@ try {
     () =>
       subA.states.includes('SUBSCRIBED') && subB.states.includes('SUBSCRIBED'),
   )
+  // Realtime can report SUBSCRIBED before the publication worker has fully
+  // attached on a freshly-created Auth session.
+  await wait(1_500)
 
   await check(
     'owner receives a content-free invalidation after mutation',
     async () => {
+      const before = receivedA.length
       await mutate(userA.client, userA.id, 'Realtime A')
-      await waitFor(() => receivedA.length === 1)
-      assert.deepEqual(Object.keys(receivedA[0]).sort(), [
+      await waitFor(() => receivedA.length === before + 1)
+      assert.deepEqual(Object.keys(receivedA.at(-1)).sort(), [
         'changed_at',
         'mutation_id',
         'server_revision',
@@ -190,8 +200,9 @@ try {
   await check(
     'self notification is a single wake-up, not a duplicate write',
     async () => {
+      const before = receivedA.length
       const result = await mutate(userA.client, userA.id, 'Self wake-up')
-      await waitFor(() => receivedA.length === 2)
+      await waitFor(() => receivedA.length === before + 1)
       const replay = success(
         await userA.client.rpc('query_sync_mutation_result_v1', {
           p_mutation_id: result.mutationId,
@@ -200,7 +211,7 @@ try {
       )
       assert.equal(replay.mutationId, result.mutationId)
       await wait(400)
-      assert.equal(receivedA.length, 2)
+      assert.equal(receivedA.length, before + 1)
     },
   )
 

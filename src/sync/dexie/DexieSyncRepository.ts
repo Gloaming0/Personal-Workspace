@@ -146,19 +146,45 @@ export class DexieSyncRepository implements SyncRepository {
     if (deviceId !== undefined && !isUuid(deviceId)) {
       throw new Error('Invalid device identifier.')
     }
+    const pendingRows = deviceId
+      ? await this.database.local_mutations
+          .where('[userId+deviceId+status]')
+          .equals([userId, deviceId, 'pending'])
+          .toArray()
+      : await this.database.local_mutations
+          .where('[userId+status]')
+          .equals([userId, 'pending'])
+          .toArray()
     const records = validatePersistedRows(
       this.database,
       'local_mutations',
-      await this.database.local_mutations
-        .filter(
-          (record) =>
-            record.userId === userId &&
-            (!deviceId || record.deviceId === deviceId),
-        )
-        .toArray(),
+      pendingRows,
       validateLocalMutationRecord,
     )
-    const byId = new Map(records.map((record) => [record.mutationId, record]))
+    const predecessorIds = [
+      ...new Set(
+        records.flatMap((record) =>
+          record.changes.flatMap((change) =>
+            change.predecessorMutationId ? [change.predecessorMutationId] : [],
+          ),
+        ),
+      ),
+    ]
+    const predecessorRows = predecessorIds.length
+      ? await this.database.local_mutations.bulkGet(predecessorIds)
+      : []
+    const predecessors = validatePersistedRows(
+      this.database,
+      'local_mutations',
+      predecessorRows.filter(
+        (record): record is LocalMutationRecord =>
+          record !== undefined && record.userId === userId,
+      ),
+      validateLocalMutationRecord,
+    )
+    const byId = new Map(
+      predecessors.map((record) => [record.mutationId, record]),
+    )
     return structuredClone(
       records
         .filter(

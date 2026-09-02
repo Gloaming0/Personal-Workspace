@@ -323,6 +323,20 @@ export function validatePersistedSyncConflict(
     (remote.serverRevision as number) < 1
   )
     invalid('PersistedSyncConflict', 'remoteChange')
+  if (!isRecord(remote.entity))
+    invalid('PersistedSyncConflict', 'remoteChange.entity')
+  const remoteEntity = entityValidators[
+    value.entityType as keyof typeof entityValidators
+  ](remote.entity)
+  if (
+    remoteEntity.userId !== value.userId ||
+    remoteEntity.id !== value.entityId ||
+    !['create', 'update', 'delete'].includes(remote.operation as string) ||
+    !Number.isInteger(remote.serverVersion) ||
+    (remote.serverVersion as number) < 1
+  ) {
+    invalid('PersistedSyncConflict', 'remoteChange.entity')
+  }
   if (
     value.resolutionId !== undefined &&
     value.resolutionId !== null &&

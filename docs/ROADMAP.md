@@ -1164,6 +1164,28 @@ remain out of scope.
 
 Project sync and physical tombstone cleanup remain outside Phase 3.5.
 
+## Phase 3.6 — Cross-device Acceptance + Production Hardening Complete
+
+- Real development-project acceptance passed Bootstrap, two-device incremental
+  sync, Realtime invalidation, and conflict convergence with 26 passed
+  scenarios, zero failures, and zero skips.
+- Account restore/switch races and owner-scoped single-flight behavior are
+  hardened so stale Auth or sync results cannot cross identity boundaries.
+- Read-only database integrity audit and content-free Sync Health Diagnostics
+  provide support evidence without exposing user-authored data or credentials.
+- Failure UX explains local safety, cloud confirmation, required action, and
+  the Pull fallback when Realtime is unavailable.
+- Indexed Activity and pending-Outbox reads avoid unbounded history scans; the
+  production bundle remains split below the warning threshold.
+- Backup/Restore, historical Dexie migrations, local anonymous mode, RLS/RPC,
+  and cross-device invariants passed regression.
+- The detailed evidence and remaining P2 manual follow-ups are recorded in
+  `docs/PHASE_3_ACCEPTANCE.md`.
+
+Phase 3 is closed for personal-beta scope. There are no known P0 or P1 release
+blockers. Project sync, physical tombstone cleanup, and new business features
+remain outside this gate.
+
 
 Always prioritize:
 

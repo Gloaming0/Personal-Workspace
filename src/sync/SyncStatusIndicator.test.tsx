@@ -66,6 +66,7 @@ describe('SyncStatusIndicator', () => {
                   selectionCandidates: [],
                 },
               ],
+              realtimeState: 'unavailable',
               syncNow,
               resolveConflict,
             }}
@@ -78,6 +79,10 @@ describe('SyncStatusIndicator', () => {
 
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: '1 sync conflicts' }))
+    expect(screen.getByText(/Both versions are preserved/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Live updates are reconnecting/),
+    ).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Review conflicts' }))
     expect(await screen.findByText(/Edited on two devices/)).toBeInTheDocument()
     expect(screen.getByText(/Plan launch locally/)).toBeInTheDocument()

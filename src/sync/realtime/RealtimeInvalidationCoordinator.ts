@@ -19,6 +19,8 @@ export class RealtimeInvalidationCoordinator {
   private userId: string | null = null
   private timer: ReturnType<typeof setTimeout> | null = null
   private generation = 0
+  private state: RealtimeConnectionState = 'idle'
+  private readonly stateListeners = new Set<() => void>()
   private readonly resultListeners = new Set<(result: SyncRunResult) => void>()
   private readonly debounceMs: number
   private readonly setTimer: NonNullable<RealtimeCoordinatorOptions['setTimer']>
@@ -57,7 +59,7 @@ export class RealtimeInvalidationCoordinator {
       onInvalidation: (event) => {
         if (event.userId === this.userId) this.schedule(userId)
       },
-      onStateChange: (state) => this.onStateChange(state),
+      onStateChange: (state) => this.setState(state),
     })
     return true
   }
@@ -65,6 +67,13 @@ export class RealtimeInvalidationCoordinator {
   subscribeResults(listener: (result: SyncRunResult) => void): () => void {
     this.resultListeners.add(listener)
     return () => this.resultListeners.delete(listener)
+  }
+
+  readonly getState = (): RealtimeConnectionState => this.state
+
+  readonly subscribeState = (listener: () => void): (() => void) => {
+    this.stateListeners.add(listener)
+    return () => this.stateListeners.delete(listener)
   }
 
   stop(): void {
@@ -91,6 +100,13 @@ export class RealtimeInvalidationCoordinator {
     this.unsubscribe?.()
     this.unsubscribe = null
     this.userId = null
-    this.onStateChange('idle')
+    this.setState('idle')
+  }
+
+  private setState(state: RealtimeConnectionState): void {
+    if (this.state === state) return
+    this.state = state
+    this.onStateChange(state)
+    this.stateListeners.forEach((listener) => listener())
   }
 }

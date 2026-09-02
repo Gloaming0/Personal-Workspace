@@ -20,6 +20,7 @@ import { SyncStatusStore } from '@/sync/engine/SyncStatusStore'
 import { BrowserSyncLock } from '@/sync/engine/BrowserSyncLock'
 import { RealtimeInvalidationCoordinator } from '@/sync/realtime/RealtimeInvalidationCoordinator'
 import { SupabaseRealtimeInvalidationAdapter } from '@/sync/realtime/SupabaseRealtimeInvalidationAdapter'
+import { SyncDiagnosticsService } from '@/sync/diagnostics/SyncDiagnosticsService'
 import type { CloudSyncPort } from './contracts'
 import {
   SupabaseCloudSyncAdapter,
@@ -63,6 +64,7 @@ export interface CloudRuntime {
   syncEngine: SyncEngine | null
   realtimeCoordinator: RealtimeInvalidationCoordinator | null
   conflictResolution: ConflictResolutionService | null
+  diagnostics: SyncDiagnosticsService | null
   localChanges: DailyWorkDatabase['changes'] | null
   ready: Promise<void>
 }
@@ -79,6 +81,7 @@ export function createCloudRuntime(): CloudRuntime {
       syncEngine: null,
       realtimeCoordinator: null,
       conflictResolution: null,
+      diagnostics: null,
       localChanges: null,
       ready: Promise.resolve(),
     }
@@ -131,6 +134,11 @@ export function createCloudRuntime(): CloudRuntime {
       new DexieConflictResolutionRepository(database, { deviceIdentity }),
       cloudPort,
       deviceIdentity.getDeviceId(),
+    ),
+    diagnostics: new SyncDiagnosticsService(
+      database,
+      syncRepository,
+      deviceIdentity,
     ),
     localChanges: database.changes,
     ready,

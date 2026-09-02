@@ -1666,3 +1666,27 @@ Dexie Version 11 adds only `conflict_resolutions`. It is transport/audit state,
 excluded from portable Backup and cleared by Restore/bootstrap reset. Conflict
 Center is lazy loaded and production vendor chunks are split without changing
 Today behavior.
+
+# Phase 3.6 Production Hardening
+
+Auth restoration and incremental synchronization are explicitly owner-scoped.
+An Auth event observed during session restoration supersedes the stale restore
+result. `SyncEngine` coalesces only runs for the same owner; a different owner
+is serialized into a distinct run. React invalidates in-flight presentation
+state and closes Realtime whenever the authenticated owner changes.
+
+`RealtimeInvalidationCoordinator` publishes a small connection-state model in
+addition to content-free invalidations. UI uses it only to explain degraded
+delivery and offer the normal cursor-Pull fallback. Realtime still cannot apply
+Domain state.
+
+`auditDatabaseIntegrity` is a read-only support boundary over all Domain and
+sync stores. It returns aggregate issue codes and safe identifiers only; it
+cannot repair records or expose user content. `SyncDiagnosticsService` composes
+that audit with runtime/bootstrap/sync status into a copyable, content-free
+report. Neither boundary changes the Database Runtime State contract.
+
+Existing Dexie indexes are the performance boundary for recent Activity and
+pending mutation selection. No schema version was added: Activity reads use
+`[userId+occurredAt]`, and Outbox reads use compound state/commit-order indexes
+plus targeted predecessor lookup.

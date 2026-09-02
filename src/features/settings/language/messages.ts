@@ -357,6 +357,21 @@ const englishMessages = {
   'sync.error': 'Sync unavailable',
   'sync.pending': '{count} pending',
   'sync.conflicts': '{count} sync conflicts',
+  'sync.syncedDetail': 'Current changes are confirmed in the cloud.',
+  'sync.pendingDetail':
+    'Changes are safe on this device and waiting to reach the cloud.',
+  'sync.offlineDetail':
+    'Changes remain safe on this device and will sync when the network returns.',
+  'sync.authDetail':
+    'Local data is safe. Sign in again before cloud sync can continue.',
+  'sync.blockedDetail':
+    'Local data is safe. Complete account setup or resolve the reported issue.',
+  'sync.errorDetail':
+    'Local data is still available. Retry sync; no partial cloud result is assumed.',
+  'sync.conflictDetail':
+    'Both versions are preserved until you explicitly choose how to continue.',
+  'sync.realtimeFallback':
+    'Live updates are reconnecting. Manual and lifecycle sync remain available.',
   'sync.lastSync': 'Last synced',
   'sync.now': 'Sync now',
   'sync.localCandidate': 'This device',
@@ -394,6 +409,29 @@ const englishMessages = {
   'sync.close': 'Close',
   'sync.focusSelection':
     'Choose up to three Focus tasks (selection order is saved)',
+  'diagnostics.sectionTitle': 'Sync health diagnostics',
+  'diagnostics.sectionDescription':
+    'Inspect safe local sync metadata without exposing workspace content or credentials.',
+  'diagnostics.description':
+    'The report contains counts, versions, state and integrity results only.',
+  'diagnostics.localOnly':
+    'Cloud diagnostics become available when a development or production cloud environment is configured. Local work remains available.',
+  'diagnostics.collect': 'Run diagnostics',
+  'diagnostics.collecting': 'Checking…',
+  'diagnostics.copy': 'Copy diagnostics',
+  'diagnostics.copied': 'Copied',
+  'diagnostics.error':
+    'Diagnostics could not be collected. No data was changed.',
+  'diagnostics.syncState': 'Sync state',
+  'diagnostics.bootstrapState': 'Bootstrap state',
+  'diagnostics.pending': 'Pending mutations',
+  'diagnostics.conflicts': 'Conflicts',
+  'diagnostics.cursor': 'Pull cursor',
+  'diagnostics.integrity': 'Data integrity',
+  'diagnostics.integrityOk': 'No issues found',
+  'diagnostics.integrityIssues': '{count} issues found',
+  'diagnostics.device': 'Device',
+  'diagnostics.database': 'Local database',
 } as const
 
 export type MessageKey = keyof typeof englishMessages
@@ -726,6 +764,15 @@ const chineseMessages = {
   'sync.error': '暂时无法同步',
   'sync.pending': '{count} 项待同步',
   'sync.conflicts': '{count} 个同步冲突',
+  'sync.syncedDetail': '当前变更已由云端确认。',
+  'sync.pendingDetail': '变更已安全保存在本机，正在等待同步到云端。',
+  'sync.offlineDetail': '变更仍安全保存在本机，网络恢复后会继续同步。',
+  'sync.authDetail': '本机数据安全；重新登录后才能继续云端同步。',
+  'sync.blockedDetail': '本机数据安全；请完成账号设置或处理提示的问题。',
+  'sync.errorDetail': '本机数据仍可使用；请重试同步，系统不会假定云端已成功。',
+  'sync.conflictDetail': '两个版本都会保留，直到你明确选择如何继续。',
+  'sync.realtimeFallback':
+    '实时更新正在重连；手动同步和返回应用时的同步仍可使用。',
   'sync.lastSync': '上次同步',
   'sync.now': '立即同步',
   'sync.localCandidate': '本设备',
@@ -759,6 +806,27 @@ const chineseMessages = {
   'sync.action.repair_focus': '设为 Focus',
   'sync.close': '关闭',
   'sync.focusSelection': '最多选择三项 Focus（按选择顺序保存）',
+  'diagnostics.sectionTitle': '同步健康诊断',
+  'diagnostics.sectionDescription':
+    '检查安全的本地同步元数据，不暴露工作内容或登录凭据。',
+  'diagnostics.description': '报告仅包含数量、版本、状态和完整性检查结果。',
+  'diagnostics.localOnly':
+    '配置开发或生产云端环境后可使用同步诊断；本地工作仍可正常使用。',
+  'diagnostics.collect': '运行诊断',
+  'diagnostics.collecting': '正在检查…',
+  'diagnostics.copy': '复制诊断信息',
+  'diagnostics.copied': '已复制',
+  'diagnostics.error': '无法生成诊断信息；没有修改任何数据。',
+  'diagnostics.syncState': '同步状态',
+  'diagnostics.bootstrapState': '初始化状态',
+  'diagnostics.pending': '待同步操作',
+  'diagnostics.conflicts': '冲突',
+  'diagnostics.cursor': '拉取游标',
+  'diagnostics.integrity': '数据完整性',
+  'diagnostics.integrityOk': '未发现问题',
+  'diagnostics.integrityIssues': '发现 {count} 项问题',
+  'diagnostics.device': '设备',
+  'diagnostics.database': '本地数据库',
 } satisfies Record<MessageKey, string>
 
 export const messages = {

@@ -30,6 +30,7 @@ export class SyncEngine {
   private readonly classifyError: (error: unknown) => SyncErrorKind
   private readonly refreshSession: () => Promise<boolean>
   private activeRun: Promise<SyncRunResult> | null = null
+  private activeIdentityKey: string | null = null
 
   constructor(
     private readonly local: SyncRepository,
@@ -56,17 +57,25 @@ export class SyncEngine {
   }
 
   sync(identity: AuthenticatedSyncIdentity | null): Promise<SyncRunResult> {
-    if (this.activeRun) return this.activeRun
-    this.activeRun = this.lock
+    const identityKey = identity?.userId ?? 'signed-out'
+    if (this.activeRun) {
+      if (this.activeIdentityKey === identityKey) return this.activeRun
+      return this.activeRun.then(() => this.sync(identity))
+    }
+    const run = this.lock
       .run(() => this.execute(identity))
       .then(async (locked) => {
         if (locked.acquired) return locked.value
         return this.snapshotWithConflicts(identity?.userId)
       })
       .finally(() => {
+        if (this.activeRun !== run) return
         this.activeRun = null
+        this.activeIdentityKey = null
       })
-    return this.activeRun
+    this.activeIdentityKey = identityKey
+    this.activeRun = run
+    return run
   }
 
   private async execute(

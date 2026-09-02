@@ -1,3 +1,4 @@
+import Dexie from 'dexie'
 import type { Activity } from '@/domain/entities'
 import type { UserId } from '@/domain/shared'
 import type {
@@ -35,12 +36,26 @@ export class DexieActivityRepository implements ActivityRepository {
   async find(userId: UserId, query: ActivityQuery): Promise<Activity[]> {
     try {
       assertUserId(userId)
+      const canUseRecentIndex =
+        query.limit !== undefined &&
+        !query.eventTypes &&
+        !query.entityType &&
+        !query.entityId
+      const rows = canUseRecentIndex
+        ? await this.table
+            .where('[userId+occurredAt]')
+            .between([userId, Dexie.minKey], [userId, Dexie.maxKey], true, true)
+            .reverse()
+            .filter((activity) => activity.deletedAt === null)
+            .limit(query.limit!)
+            .toArray()
+        : (await this.table.toArray()).filter(
+            (activity) => activity.userId === userId,
+          )
       const activities = validatePersistedRows(
         this.database,
         'activities',
-        (await this.table.toArray()).filter(
-          (activity) => activity.userId === userId,
-        ),
+        rows,
         validateActivity,
       )
         .filter(

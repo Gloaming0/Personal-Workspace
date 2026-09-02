@@ -787,3 +787,22 @@ receipt share one transaction. Repeating the same resolution ID is a no-op;
 changing its action is rejected. Safe single-entity causal successors are
 superseded by the explicit choice. Cross-entity successors remain quarantined
 with `causal_rebase_required` rather than being silently rebased.
+
+# Phase 3.6 Operational Contract
+
+Every Auth, Sync, Realtime, conflict, and diagnostic result is scoped to one
+authenticated owner epoch. Same-owner triggers may share a single run;
+different owners never share promises or visible results. Account change closes
+the old subscription, clears retry state, and starts fresh bootstrap/sync
+discovery before cloud work resumes.
+
+Realtime exposes operational state (`idle`, `connecting`, `connected`,
+`reconnecting`, or `unavailable`) but carries no correctness state. Unavailable
+Realtime keeps local commands enabled and routes recovery through the existing
+manual/lifecycle cursor Pull.
+
+Support diagnostics contain no transport secret or user-authored Domain data.
+They may report bootstrap/mutation/conflict counts, cursor/high watermark,
+protocol/schema versions, safe error categories, abbreviated device identity,
+and read-only invariant issue codes. Portable Backup excludes these diagnostics
+and all transport state.

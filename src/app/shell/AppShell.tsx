@@ -28,7 +28,7 @@ export function AppShell({
       <div className="app-workspace">
         <header className="app-header">
           <div>
-            <p className="phase-label">Phase 3.5</p>
+            <p className="phase-label">Phase 3.6</p>
             <strong>{title}</strong>
           </div>
           <SyncStatusIndicator />
