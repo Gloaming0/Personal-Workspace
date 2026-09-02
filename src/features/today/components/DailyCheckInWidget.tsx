@@ -150,7 +150,7 @@ export function DailyCheckInWidget({
                 }
                 disabled={!onToggle}
               />
-              <span>{item.title}</span>
+              <span className="routine-item-title">{item.title}</span>
               <div className="routine-actions">
                 {onPause && (
                   <button

@@ -165,10 +165,7 @@ describe('Task Today UI boundary', () => {
       screen.getByRole('textbox', { name: 'Waiting title' }),
       '等待 API approval',
     )
-    await user.type(
-      screen.getByRole('textbox', { name: 'Source task ID' }),
-      'task-origin-123',
-    )
+    expect(screen.queryByRole('textbox', { name: 'Source task ID' })).toBeNull()
     await user.click(screen.getByRole('button', { name: 'Add waiting' }))
     expect(await screen.findByText('等待 API approval')).toBeInTheDocument()
 
@@ -179,7 +176,7 @@ describe('Task Today UI boundary', () => {
     expect(screen.getByText('等待 API approval')).toBeInTheDocument()
     await expect(
       waitingRepository.getById('local-user', 'waiting-user-input'),
-    ).resolves.toMatchObject({ sourceTaskId: 'task-origin-123' })
+    ).resolves.toMatchObject({ sourceTaskId: null })
   })
 
   it('keeps Memo and Routine user text unchanged across UI languages', async () => {

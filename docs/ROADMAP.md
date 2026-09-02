@@ -1186,6 +1186,21 @@ Phase 3 is closed for personal-beta scope. There are no known P0 or P1 release
 blockers. Project sync, physical tombstone cleanup, and new business features
 remain outside this gate.
 
+## Personal Beta Refinement 1 — UX Complete, Extensions Proposed
+
+- Waiting actions are compact and accessible; long Routine titles no longer
+  change action dimensions.
+- Technical Task and Project UUID fields are hidden from ordinary user flows
+  while their nullable Domain relationships remain available for future
+  pickers/conversion commands.
+- Backup/Restore is responsive through 320px and does not expose intrinsic file
+  input sizing; unconfigured cloud now links to an in-app bilingual setup guide.
+- Custom Dashboard Widgets, Custom Sidebar Modules, Accounting, and Weight
+  Tracking are proposals only. No new Domain table, sync contract, or business
+  feature was added for them.
+- Recommended future decomposition is recorded in
+  `docs/PERSONAL_BETA_FEEDBACK.md`; Phase 4 requires explicit confirmation.
+
 
 Always prioritize:
 

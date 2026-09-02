@@ -1,4 +1,4 @@
-import { Hourglass } from 'lucide-react'
+import { Ellipsis, Hourglass } from 'lucide-react'
 import { formatDistanceToNow, parseISO } from 'date-fns'
 import { enUS, zhCN } from 'date-fns/locale'
 import { useState, type FormEvent } from 'react'
@@ -139,16 +139,6 @@ export function WaitingWidget({
               }
             />
           </label>
-          <label>
-            <span>{t('today.waitingSourceTask')}</span>
-            <input
-              value={toInputValue(createValues.sourceTaskId)}
-              onChange={(event) =>
-                updateCreate({ sourceTaskId: event.target.value || null })
-              }
-              placeholder={t('today.waitingSourceTaskPlaceholder')}
-            />
-          </label>
           <button type="submit" disabled={!createValues.title.trim()}>
             {t('today.waitingCreateAction')}
           </button>
@@ -212,15 +202,6 @@ export function WaitingWidget({
                       }
                     />
                   </label>
-                  <label>
-                    <span>{t('today.waitingSourceTask')}</span>
-                    <input
-                      value={toInputValue(editValues.sourceTaskId)}
-                      onChange={(event) =>
-                        updateEdit({ sourceTaskId: event.target.value || null })
-                      }
-                    />
-                  </label>
                   <div className="waiting-actions">
                     <button type="submit">{t('today.waitingSave')}</button>
                     <button type="button" onClick={() => setEditingId(null)}>
@@ -263,53 +244,64 @@ export function WaitingWidget({
                     <div className="waiting-actions">
                       {onEdit && (
                         <button
+                          className="waiting-primary-action"
                           type="button"
                           onClick={() => startEditing(item)}
                         >
                           {t('today.waitingEdit')}
                         </button>
                       )}
-                      {onTransition && item.status === 'waiting' && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void onTransition(
-                              item.waitingId,
-                              'confirm',
-                              item.entityVersion,
-                            )
-                          }
-                        >
-                          {t('today.waitingConfirm')}
-                        </button>
-                      )}
-                      {onTransition && item.status === 'confirmed' && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void onTransition(
-                              item.waitingId,
-                              'reopen',
-                              item.entityVersion,
-                            )
-                          }
-                        >
-                          {t('today.waitingReopen')}
-                        </button>
-                      )}
                       {onTransition && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void onTransition(
-                              item.waitingId,
-                              'close',
-                              item.entityVersion,
-                            )
-                          }
-                        >
-                          {t('today.waitingClose')}
-                        </button>
+                        <details className="waiting-action-menu">
+                          <summary aria-label={t('today.waitingMore')}>
+                            <Ellipsis aria-hidden="true" size={18} />
+                            <span className="visually-hidden">
+                              {t('today.waitingMore')}
+                            </span>
+                          </summary>
+                          <div>
+                            {item.status === 'waiting' && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void onTransition(
+                                    item.waitingId,
+                                    'confirm',
+                                    item.entityVersion,
+                                  )
+                                }
+                              >
+                                {t('today.waitingConfirm')}
+                              </button>
+                            )}
+                            {item.status === 'confirmed' && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void onTransition(
+                                    item.waitingId,
+                                    'reopen',
+                                    item.entityVersion,
+                                  )
+                                }
+                              >
+                                {t('today.waitingReopen')}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void onTransition(
+                                  item.waitingId,
+                                  'close',
+                                  item.entityVersion,
+                                )
+                              }
+                            >
+                              {t('today.waitingClose')}
+                            </button>
+                          </div>
+                        </details>
                       )}
                     </div>
                   )}

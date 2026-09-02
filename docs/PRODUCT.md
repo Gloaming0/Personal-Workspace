@@ -583,3 +583,16 @@ unchanged.
 
 Phase 2.2 does not add CSV as a primary backup, merge restore, ownership
 migration, Supabase, Realtime, Sync Queue, or any new work-management feature.
+
+# Personal Beta Refinement 1
+
+Personal beta feedback prioritizes reducing technical leakage and preserving
+focus on small screens. Waiting actions use a compact accessible menu, long
+Routine titles never shrink their controls, and ordinary users never enter Task
+or Project UUIDs. Backup/Restore remains a staged, responsive flow. When cloud
+configuration is absent, the product teaches the developer setup steps in the
+app without collecting secrets.
+
+Custom widgets, custom navigation modules, Accounting, and Weight Tracking are
+future proposals only. They must receive separate product and architecture
+approval before business data or schema is added.

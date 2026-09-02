@@ -41,24 +41,20 @@ export function QuickMemoWidget({
 }: QuickMemoWidgetProps) {
   const { language, t } = useTranslations()
   const [content, setContent] = useState('')
-  const [projectId, setProjectId] = useState('')
   const [editing, setEditing] = useState(false)
   const [editingVersion, setEditingVersion] = useState<number | null>(null)
   const [editContent, setEditContent] = useState('')
-  const [editProjectId, setEditProjectId] = useState('')
 
   const submitCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!onCreate || !content.trim()) return
-    await onCreate({ content, projectId: projectId.trim() || null })
+    await onCreate({ content, projectId: null })
     setContent('')
-    setProjectId('')
   }
 
   const startEdit = () => {
     if (!memo) return
     setEditContent(memo.content)
-    setEditProjectId(memo.projectId ?? '')
     setEditingVersion(memo.entityVersion)
     setEditing(true)
   }
@@ -71,7 +67,7 @@ export function QuickMemoWidget({
       memo.memoId,
       {
         content: editContent,
-        projectId: editProjectId.trim() || null,
+        projectId: null,
       },
       editingVersion,
     )
@@ -93,14 +89,6 @@ export function QuickMemoWidget({
               onChange={(event) => setContent(event.target.value)}
               placeholder={t('today.memoPlaceholder')}
               rows={2}
-            />
-          </label>
-          <label>
-            <span>{t('today.memoProject')}</span>
-            <input
-              value={projectId}
-              onChange={(event) => setProjectId(event.target.value)}
-              placeholder={t('today.memoProjectPlaceholder')}
             />
           </label>
           <button type="submit" disabled={!content.trim()}>
@@ -125,13 +113,6 @@ export function QuickMemoWidget({
               value={editContent}
               onChange={(event) => setEditContent(event.target.value)}
               rows={3}
-            />
-          </label>
-          <label>
-            <span>{t('today.memoProject')}</span>
-            <input
-              value={editProjectId}
-              onChange={(event) => setEditProjectId(event.target.value)}
             />
           </label>
           <div className="memo-actions">

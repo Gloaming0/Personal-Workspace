@@ -121,6 +121,7 @@ const englishMessages = {
   'today.waitingSourceTaskPlaceholder': 'Optional Task UUID',
   'today.waitingCreateAction': 'Add waiting',
   'today.waitingEdit': 'Edit',
+  'today.waitingMore': 'More waiting actions',
   'today.waitingSave': 'Save',
   'today.waitingCancel': 'Cancel',
   'today.waitingConfirm': 'Confirm',
@@ -300,6 +301,29 @@ const englishMessages = {
   'auth.notConfiguredTitle': 'Cloud development is not configured.',
   'auth.notConfiguredDescription':
     'Your local workspace remains available. Add the browser-safe Supabase environment variables to enable sign-in.',
+  'auth.setupGuideAction': 'View setup guide',
+  'auth.setupGuideTitle': 'Cloud setup guide',
+  'auth.setupGuideIntro':
+    'Supabase provides the secure account and cloud storage layer for syncing this workspace across devices.',
+  'auth.setupGuideSupabase': '1. Create a Supabase project',
+  'auth.setupGuideSupabaseDetail':
+    'Open supabase.com, create a project for development, and wait until it is ready.',
+  'auth.setupGuideKeys': '2. Copy the Project URL and Publishable Key',
+  'auth.setupGuideKeysDetail':
+    'In Project Settings, copy the Project URL and the browser-safe publishable (anon) key.',
+  'auth.setupGuideEnv': '3. Developer configuration',
+  'auth.setupGuideEnvDetail':
+    'Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your local .env file, then restart the development server.',
+  'auth.setupGuideAuth': '4. Enable Magic Link',
+  'auth.setupGuideAuthDetail':
+    'In Authentication settings, enable Email provider and configure the site URL and redirect URL for this app.',
+  'auth.setupGuideVerify': '5. Confirm the connection',
+  'auth.setupGuideVerifyDetail':
+    'Reload the app, return to Account & cloud, and send yourself a Magic Link. A successful session confirms the setup.',
+  'auth.setupGuideSecurity': 'Security reminders',
+  'auth.setupGuideSecurityDetail':
+    'The publishable key may be used in a browser. Never put a service-role key, password, or other secret in Vite variables or this app.',
+  'auth.setupGuideClose': 'Close setup guide',
   'auth.restoring': 'Restoring your session…',
   'auth.magicLinkTitle': 'Sign in with email',
   'auth.magicLinkDescription':
@@ -550,6 +574,7 @@ const chineseMessages = {
   'today.waitingSourceTaskPlaceholder': '可选 Task UUID',
   'today.waitingCreateAction': '添加等待事项',
   'today.waitingEdit': '编辑',
+  'today.waitingMore': '更多等待事项操作',
   'today.waitingSave': '保存',
   'today.waitingCancel': '取消',
   'today.waitingConfirm': '确认',
@@ -714,6 +739,29 @@ const chineseMessages = {
   'auth.notConfiguredTitle': '尚未配置云端开发环境。',
   'auth.notConfiguredDescription':
     '本地工作区仍可正常使用。配置浏览器安全的 Supabase 环境变量后即可登录。',
+  'auth.setupGuideAction': '查看配置教程',
+  'auth.setupGuideTitle': '云端配置教程',
+  'auth.setupGuideIntro':
+    'Supabase 提供安全的账号与云端存储层，让你可以在不同设备间同步这个工作区。',
+  'auth.setupGuideSupabase': '1. 创建 Supabase 项目',
+  'auth.setupGuideSupabaseDetail':
+    '打开 supabase.com，创建一个开发项目，并等待项目准备完成。',
+  'auth.setupGuideKeys': '2. 获取 Project URL 和 Publishable Key',
+  'auth.setupGuideKeysDetail':
+    '在项目设置中复制 Project URL，以及可安全用于浏览器的 Publishable（anon）Key。',
+  'auth.setupGuideEnv': '3. 开发者配置',
+  'auth.setupGuideEnvDetail':
+    '将 VITE_SUPABASE_URL 和 VITE_SUPABASE_ANON_KEY 写入本地 .env 文件，然后重启开发服务器。',
+  'auth.setupGuideAuth': '4. 开启 Magic Link',
+  'auth.setupGuideAuthDetail':
+    '在 Authentication 设置中启用 Email provider，并配置本应用的 Site URL 与 Redirect URL。',
+  'auth.setupGuideVerify': '5. 确认连接成功',
+  'auth.setupGuideVerifyDetail':
+    '重新加载应用，回到“账号与云端”，给自己发送登录链接。成功恢复会话即表示配置完成。',
+  'auth.setupGuideSecurity': '安全提醒',
+  'auth.setupGuideSecurityDetail':
+    'Publishable Key 可以用于浏览器。不要把 service-role key、密码或其他 secret 放进 Vite 变量或本应用。',
+  'auth.setupGuideClose': '关闭配置教程',
   'auth.restoring': '正在恢复登录会话…',
   'auth.magicLinkTitle': '使用邮箱登录',
   'auth.magicLinkDescription':

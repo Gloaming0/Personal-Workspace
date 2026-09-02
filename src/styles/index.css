@@ -70,7 +70,8 @@ button {
   outline-offset: 3px;
 }
 
-.sr-only {
+.sr-only,
+.visually-hidden {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -868,6 +869,56 @@ button {
   opacity: 0.6;
 }
 
+.setup-guide-trigger {
+  justify-self: start;
+}
+
+.cloud-setup-guide {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+}
+
+.cloud-setup-guide h3,
+.cloud-setup-guide p {
+  margin: 0;
+}
+
+.cloud-setup-guide header,
+.cloud-setup-guide ol,
+.cloud-setup-guide aside {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.cloud-setup-guide ol {
+  margin: 0;
+  padding-left: var(--space-6);
+}
+
+.cloud-setup-guide li {
+  padding-left: var(--space-2);
+}
+
+.cloud-setup-guide li + li {
+  margin-top: var(--space-3);
+}
+
+.cloud-setup-guide p {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-body);
+}
+
+.cloud-setup-guide aside {
+  padding: var(--space-4);
+  border-left: 3px solid var(--warning);
+  background: color-mix(in srgb, var(--warning) 8%, var(--surface));
+}
+
 .bootstrap-discovery {
   display: grid;
   gap: var(--space-3);
@@ -920,6 +971,22 @@ button {
 .backup-actions {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
+  min-width: 0;
+}
+
+.backup-actions > div {
+  min-width: 0;
+}
+
+.backup-actions button,
+.backup-actions .button-like {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.backup-actions h3,
+.backup-actions p {
+  overflow-wrap: anywhere;
 }
 
 .backup-actions + .backup-actions,
@@ -961,6 +1028,7 @@ button {
 }
 
 .button-like {
+  max-width: 100%;
   padding: 0 var(--space-4);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -968,6 +1036,7 @@ button {
   cursor: pointer;
   font-size: var(--font-size-sm);
   font-weight: 650;
+  white-space: nowrap;
 }
 
 .backup-summary > div:first-child {
@@ -1768,6 +1837,7 @@ button {
 
 .waiting-actions {
   display: flex;
+  flex: 0 0 auto;
   width: 100%;
   justify-content: flex-end;
   gap: var(--space-2);
@@ -1776,6 +1846,78 @@ button {
 .waiting-list li {
   align-items: flex-start;
   flex-wrap: wrap;
+}
+
+.waiting-list > li > .waiting-actions {
+  width: auto;
+  margin-left: auto;
+}
+
+.waiting-list .waiting-actions {
+  display: flex;
+}
+
+.waiting-item-copy {
+  overflow-wrap: anywhere;
+}
+
+.waiting-primary-action,
+.waiting-action-menu summary {
+  min-height: var(--touch-target);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  font-weight: 650;
+}
+
+.waiting-action-menu {
+  position: relative;
+}
+
+.waiting-action-menu summary {
+  display: inline-grid;
+  width: var(--touch-target);
+  padding: 0;
+  place-items: center;
+  list-style: none;
+}
+
+.waiting-action-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.waiting-action-menu > div {
+  position: absolute;
+  z-index: var(--z-overlay);
+  top: calc(100% + var(--space-2));
+  right: 0;
+  display: grid;
+  min-width: 9rem;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.waiting-action-menu button {
+  min-height: var(--touch-target);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.waiting-action-menu button:hover {
+  background: var(--surface-hover);
 }
 
 .today-utility-widgets {
@@ -1811,6 +1953,16 @@ button {
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
+}
+
+.check-in-list li {
+  min-width: 0;
+}
+
+.routine-item-title {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
 }
 
 .memo-preview {
@@ -1898,6 +2050,7 @@ button {
 }
 
 .routine-actions {
+  flex: 0 0 auto;
   margin-left: auto;
 }
 

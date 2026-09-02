@@ -26,6 +26,7 @@ export function AuthPanel({
   )
   const [confirmation, setConfirmation] = useState<0 | 1 | 2>(0)
   const [busy, setBusy] = useState(false)
+  const [showSetupGuide, setShowSetupGuide] = useState(false)
 
   const detect = useCallback(async () => {
     if (auth.status !== 'signed_in' || auth.identity.kind !== 'authenticated')
@@ -108,8 +109,48 @@ export function AuthPanel({
   if (!auth.configured) {
     return (
       <div className="auth-panel" role="status">
-        <strong>{t('auth.notConfiguredTitle')}</strong>
-        <p>{t('auth.notConfiguredDescription')}</p>
+        <div>
+          <strong>{t('auth.notConfiguredTitle')}</strong>
+          <p>{t('auth.notConfiguredDescription')}</p>
+        </div>
+        <button
+          className="secondary-button setup-guide-trigger"
+          type="button"
+          onClick={() => setShowSetupGuide((current) => !current)}
+          aria-expanded={showSetupGuide}
+        >
+          {showSetupGuide
+            ? t('auth.setupGuideClose')
+            : t('auth.setupGuideAction')}
+        </button>
+        {showSetupGuide && (
+          <article className="cloud-setup-guide">
+            <header>
+              <h3>{t('auth.setupGuideTitle')}</h3>
+              <p>{t('auth.setupGuideIntro')}</p>
+            </header>
+            <ol>
+              {(
+                [
+                  ['auth.setupGuideSupabase', 'auth.setupGuideSupabaseDetail'],
+                  ['auth.setupGuideKeys', 'auth.setupGuideKeysDetail'],
+                  ['auth.setupGuideEnv', 'auth.setupGuideEnvDetail'],
+                  ['auth.setupGuideAuth', 'auth.setupGuideAuthDetail'],
+                  ['auth.setupGuideVerify', 'auth.setupGuideVerifyDetail'],
+                ] as const
+              ).map(([title, detail]) => (
+                <li key={title}>
+                  <strong>{t(title)}</strong>
+                  <p>{t(detail)}</p>
+                </li>
+              ))}
+            </ol>
+            <aside>
+              <strong>{t('auth.setupGuideSecurity')}</strong>
+              <p>{t('auth.setupGuideSecurityDetail')}</p>
+            </aside>
+          </article>
+        )}
       </div>
     )
   }

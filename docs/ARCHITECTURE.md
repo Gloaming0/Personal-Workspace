@@ -1690,3 +1690,22 @@ Existing Dexie indexes are the performance boundary for recent Activity and
 pending mutation selection. No schema version was added: Activity reads use
 `[userId+occurredAt]`, and Outbox reads use compound state/commit-order indexes
 plus targeted predecessor lookup.
+
+# Personal Beta Refinement 1 Boundaries
+
+Waiting and Routine action controls are presentation concerns. Their Domain
+services and sync contracts are unchanged. The Waiting UI keeps `sourceTaskId`
+nullable but hides it until a real Task Picker or Task-to-Waiting command is
+approved. Memo keeps nullable `projectId` but hides it while Project
+persistence/selection remains deferred.
+
+The proposed `WidgetDefinition`/`WidgetInstance` registry is a Workspace UI
+preference boundary. Date and Clock are local projections; Weather requires a
+reviewed provider and privacy boundary. Widget layout must not create Activity,
+Outbox mutations, or Domain tables by default.
+
+The proposed `WorkspaceModuleDefinition` registry owns navigation availability,
+ordering, and bounded Mobile More placement. It is independent of Domain
+modules and cannot import repositories. Accounting and Weight remain future
+Domain modules whose fixed-precision/date contracts require review before a
+Dexie version.
