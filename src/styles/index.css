@@ -2358,6 +2358,36 @@ button {
     flex-wrap: wrap;
   }
 
+  .waiting-list > li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .waiting-list > li > .waiting-status {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .waiting-list > li > .waiting-item-copy {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+  }
+
+  .waiting-list > li > .waiting-state-label {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: start;
+  }
+
+  .waiting-list > li > .waiting-actions {
+    grid-column: 3;
+    grid-row: 1;
+    width: auto;
+    margin-left: 0;
+  }
+
   .task-item-actions {
     width: 100%;
     justify-content: flex-end;
